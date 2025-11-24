@@ -1,0 +1,9 @@
+// 应用程序图标资源文件
+// 这个文件将图标嵌入到可执行文件中，使任务栏和文件管理器显示正确的图标
+
+#include <windows.h>
+
+// 应用程序主图标（资源ID为1）
+// 注意：需要先运行 convert_icon.py 将PNG转换为ICO格式
+1 ICON "app_icon.ico"
+
