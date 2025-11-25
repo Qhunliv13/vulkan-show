@@ -7,6 +7,7 @@
 
 // 前向声明
 class Button;
+class IRenderContext;
 
 // 滑块配置结构体
 struct SliderConfig {
@@ -87,8 +88,14 @@ public:
     ~Slider();
     
     // 初始化滑块
-    // 参数：Vulkan设备、物理设备、命令池、图形队列、渲染通道、交换链范围、滑块配置、是否使用纯shader渲染（默认false）
+    // 参数：渲染上下文、滑块配置、是否使用纯shader渲染（默认false）
     // 返回：是否初始化成功
+    bool Initialize(IRenderContext* renderContext,
+                    const SliderConfig& config,
+                    bool usePureShader = false);
+    
+    // 兼容旧接口的初始化方法（已废弃，建议使用新接口）
+    [[deprecated("Use Initialize(IRenderContext*, ...) instead")]]
     bool Initialize(VkDevice device, VkPhysicalDevice physicalDevice, 
                     VkCommandPool commandPool, VkQueue graphicsQueue, 
                     VkRenderPass renderPass, VkExtent2D swapchainExtent,
@@ -243,7 +250,10 @@ private:
     // 创建全屏四边形顶点缓冲区（用于纯shader渲染）
     bool CreateFullscreenQuadBuffer();
     
-    // Vulkan对象
+    // 渲染上下文（新接口）
+    IRenderContext* m_renderContext = nullptr;
+    
+    // Vulkan对象（通过渲染上下文获取，保留用于向后兼容）
     VkDevice m_device = VK_NULL_HANDLE;
     VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
     VkCommandPool m_commandPool = VK_NULL_HANDLE;

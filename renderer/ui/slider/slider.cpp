@@ -2,7 +2,8 @@
 #include "ui/button/button.h"
 #include "shader/shader_loader.h"
 #include "window/window.h"
-#include "vulkan/vulkan_renderer.h"  // 包含 StretchParams 定义
+#include "core/render_context.h"
+#include "core/stretch_params.h"
 #include <algorithm>
 #include <cmath>
 #include <fstream>
@@ -16,17 +17,20 @@ Slider::~Slider() {
     Cleanup();
 }
 
-bool Slider::Initialize(VkDevice device, VkPhysicalDevice physicalDevice, 
-                       VkCommandPool commandPool, VkQueue graphicsQueue, 
-                       VkRenderPass renderPass, VkExtent2D swapchainExtent,
+bool Slider::Initialize(IRenderContext* renderContext,
                        const SliderConfig& config,
                        bool usePureShader) {
-    m_device = device;
-    m_physicalDevice = physicalDevice;
-    m_commandPool = commandPool;
-    m_graphicsQueue = graphicsQueue;
-    m_renderPass = renderPass;
-    m_swapchainExtent = swapchainExtent;
+    if (!renderContext) {
+        return false;
+    }
+    
+    m_renderContext = renderContext;
+    m_device = renderContext->GetDevice();
+    m_physicalDevice = renderContext->GetPhysicalDevice();
+    m_commandPool = renderContext->GetCommandPool();
+    m_graphicsQueue = renderContext->GetGraphicsQueue();
+    m_renderPass = renderContext->GetRenderPass();
+    m_swapchainExtent = renderContext->GetSwapchainExtent();
     m_usePureShader = usePureShader;
     
     // 从配置中设置滑块属性
@@ -45,8 +49,8 @@ bool Slider::Initialize(VkDevice device, VkPhysicalDevice physicalDevice,
     m_useRelativePosition = config.useRelativePosition;
     m_relativeX = config.relativeX;
     m_relativeY = config.relativeY;
-    m_screenWidth = (float)swapchainExtent.width;
-    m_screenHeight = (float)swapchainExtent.height;
+    m_screenWidth = (float)m_swapchainExtent.width;
+    m_screenHeight = (float)m_swapchainExtent.height;
     m_minValue = config.minValue;
     m_maxValue = config.maxValue;
     m_value = config.defaultValue;
@@ -78,8 +82,7 @@ bool Slider::Initialize(VkDevice device, VkPhysicalDevice physicalDevice,
     thumbConfig.useRelativePosition = false;
     thumbConfig.shapeType = 1;  // 设置为圆形按钮
     
-    if (!m_thumbButton->Initialize(device, physicalDevice, commandPool, graphicsQueue, 
-                                   renderPass, swapchainExtent, thumbConfig, nullptr, usePureShader)) {
+    if (!m_thumbButton->Initialize(renderContext, thumbConfig, nullptr, usePureShader)) {
         Window::ShowError("Failed to initialize slider thumb button!");
         return false;
     }
@@ -93,7 +96,7 @@ bool Slider::Initialize(VkDevice device, VkPhysicalDevice physicalDevice,
         if (!CreateFullscreenQuadBuffer()) {
             return false;
         }
-        if (!CreatePureShaderPipeline(renderPass)) {
+        if (!CreatePureShaderPipeline(m_renderPass)) {
             return false;
         }
     } else {
@@ -104,7 +107,7 @@ bool Slider::Initialize(VkDevice device, VkPhysicalDevice physicalDevice,
         if (!CreateFillBuffer()) {
             return false;
         }
-        if (!CreatePipeline(renderPass)) {
+        if (!CreatePipeline(m_renderPass)) {
             return false;
         }
     }
@@ -113,6 +116,18 @@ bool Slider::Initialize(VkDevice device, VkPhysicalDevice physicalDevice,
     printf("[SLIDER] Slider initialized: pos=(%.2f, %.2f), size=(%.2f, %.2f), visible=%s, zIndex=%d\n",
            m_x, m_y, m_width, m_height, m_visible ? "true" : "false", m_zIndex);
     return true;
+}
+
+// 兼容旧接口的初始化方法（已废弃）
+bool Slider::Initialize(VkDevice device, VkPhysicalDevice physicalDevice, 
+                       VkCommandPool commandPool, VkQueue graphicsQueue, 
+                       VkRenderPass renderPass, VkExtent2D swapchainExtent,
+                       const SliderConfig& config,
+                       bool usePureShader) {
+    // 创建临时渲染上下文（仅用于向后兼容）
+    VulkanRenderContext tempContext(device, physicalDevice, commandPool, 
+                                   graphicsQueue, renderPass, swapchainExtent);
+    return Initialize(&tempContext, config, usePureShader);
 }
 
 void Slider::Cleanup() {
@@ -358,6 +373,11 @@ void Slider::UpdateFillBuffer() {
 }
 
 uint32_t Slider::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
+    if (m_renderContext) {
+        return m_renderContext->FindMemoryType(typeFilter, properties);
+    }
+    
+    // 向后兼容：如果没有渲染上下文，使用旧方法
     VkPhysicalDeviceMemoryProperties memProperties;
     vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &memProperties);
     

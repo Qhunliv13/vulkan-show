@@ -7,9 +7,10 @@
 
 // 前向声明
 class TextRenderer;
+class IRenderContext;
 namespace renderer { namespace texture { class Texture; } }
 
-// Scaled 模式的拉伸参数（前向声明，实际定义在 vulkan_renderer.h，已废弃）
+// Scaled 模式的拉伸参数（前向声明，实际定义在 core/stretch_params.h，已废弃）
 struct StretchParams;
 
 // 按钮配置结构体 - 所有参数由使用方传入
@@ -149,24 +150,28 @@ public:
     ~Button();
     
     // 初始化按钮（一行代码即可使用）
-    // 参数：Vulkan设备、物理设备、命令池、图形队列、渲染通道、交换链范围、按钮配置、文字渲染器（可选）、是否使用纯shader渲染（默认false）
+    // 参数：渲染上下文、按钮配置、文字渲染器（可选）、是否使用纯shader渲染（默认false）
     // 返回：是否初始化成功
+    bool Initialize(IRenderContext* renderContext,
+                    const ButtonConfig& config,
+                    TextRenderer* textRenderer = nullptr,
+                    bool usePureShader = false);
+    
+    // 便捷初始化方法 - 使用默认配置
+    bool Initialize(IRenderContext* renderContext,
+                    TextRenderer* textRenderer = nullptr) {
+        ButtonConfig defaultConfig;
+        return Initialize(renderContext, defaultConfig, textRenderer);
+    }
+    
+    // 兼容旧接口的初始化方法（已废弃，建议使用新接口）
+    [[deprecated("Use Initialize(IRenderContext*, ...) instead")]]
     bool Initialize(VkDevice device, VkPhysicalDevice physicalDevice, 
                     VkCommandPool commandPool, VkQueue graphicsQueue, 
                     VkRenderPass renderPass, VkExtent2D swapchainExtent,
                     const ButtonConfig& config,
                     TextRenderer* textRenderer = nullptr,
                     bool usePureShader = false);
-    
-    // 便捷初始化方法 - 使用默认配置
-    bool Initialize(VkDevice device, VkPhysicalDevice physicalDevice, 
-                    VkCommandPool commandPool, VkQueue graphicsQueue, 
-                    VkRenderPass renderPass, VkExtent2D swapchainExtent,
-                    TextRenderer* textRenderer = nullptr) {
-        ButtonConfig defaultConfig;
-        return Initialize(device, physicalDevice, commandPool, graphicsQueue, 
-                         renderPass, swapchainExtent, defaultConfig, textRenderer);
-    }
     
     // 清理资源
     void Cleanup();
@@ -351,7 +356,10 @@ private:
     // 创建全屏四边形顶点缓冲区（用于纯shader渲染）
     bool CreateFullscreenQuadBuffer();
     
-    // Vulkan对象
+    // 渲染上下文（新接口）
+    IRenderContext* m_renderContext = nullptr;
+    
+    // Vulkan对象（通过渲染上下文获取，保留用于向后兼容）
     VkDevice m_device = VK_NULL_HANDLE;
     VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
     VkCommandPool m_commandPool = VK_NULL_HANDLE;

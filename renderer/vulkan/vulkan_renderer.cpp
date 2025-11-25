@@ -1208,15 +1208,7 @@ bool VulkanRenderer::DrawFrame(float time, bool useLoadingCubes, TextRenderer* t
     return true;
 }
 
-bool VulkanRenderer::DrawFrameWithLoading(float time, LoadingAnimation* loadingAnim,
-                                          Button* button,
-                                          TextRenderer* textRenderer,
-                                          Button* colorButton,
-                                          Button* leftButton,
-                                          const std::vector<Button*>* additionalButtons,
-                                          Slider* slider,
-                                          const std::vector<Slider*>* additionalSliders,
-                                          float fps) {
+bool VulkanRenderer::DrawFrameWithLoading(const DrawFrameWithLoadingParams& params) {
     VkResult result = vkWaitForFences(m_device, 1, &m_inFlightFences[m_currentFrame], VK_TRUE, UINT64_MAX);
     if (result != VK_SUCCESS) {
         Window::ShowError("Failed to wait for fences!");
@@ -1398,18 +1390,18 @@ bool VulkanRenderer::DrawFrameWithLoading(float time, LoadingAnimation* loadingA
     
     // 渲染加载动画（方块动画）
     // UI使用固定的坐标系尺寸（uiExtent），这样UI位置始终正确
-    if (loadingAnim) {
-        loadingAnim->Render(m_commandBuffers[imageIndex], uiExtent);
+    if (params.loadingAnim) {
+        params.loadingAnim->Render(m_commandBuffers[imageIndex], uiExtent);
     }
     
     // 收集所有按钮并按zIndex排序（数值越大越在上层）
     std::vector<Button*> buttons;
-    if (button) buttons.push_back(button);
-    if (colorButton) buttons.push_back(colorButton);
-    if (leftButton) buttons.push_back(leftButton);
+    if (params.enterButton) buttons.push_back(params.enterButton);
+    if (params.colorButton) buttons.push_back(params.colorButton);
+    if (params.leftButton) buttons.push_back(params.leftButton);
     // 添加额外的按钮（如果有）
-    if (additionalButtons) {
-        for (Button* btn : *additionalButtons) {
+    if (params.additionalButtons) {
+        for (Button* btn : *params.additionalButtons) {
             if (btn) buttons.push_back(btn);
         }
     }
@@ -1451,20 +1443,20 @@ bool VulkanRenderer::DrawFrameWithLoading(float time, LoadingAnimation* loadingA
         }
         
         // 渲染滑块（如果有）
-        if (slider) {
+        if (params.slider) {
             static int sliderDebugCount = 0;
             if (sliderDebugCount % 60 == 0) {
                 printf("[DRAWFRAME] Fit mode: Rendering slider: visible=%s, uiExtent=(%u, %u)\n",
-                       slider->IsVisible() ? "true" : "false", uiExtent.width, uiExtent.height);
+                       params.slider->IsVisible() ? "true" : "false", uiExtent.width, uiExtent.height);
             }
             sliderDebugCount++;
-            if (slider->IsVisible()) {
-                slider->Render(m_commandBuffers[imageIndex], uiExtent);
+            if (params.slider->IsVisible()) {
+                params.slider->Render(m_commandBuffers[imageIndex], uiExtent);
             }
         }
         // 渲染额外的滑块（如果有）
-        if (additionalSliders) {
-            for (Slider* sld : *additionalSliders) {
+        if (params.additionalSliders) {
+            for (Slider* sld : *params.additionalSliders) {
                 if (sld && sld->IsVisible()) {
                     sld->Render(m_commandBuffers[imageIndex], uiExtent);
                 }
@@ -1475,8 +1467,8 @@ bool VulkanRenderer::DrawFrameWithLoading(float time, LoadingAnimation* loadingA
         // 使用批量渲染API，避免文本相互覆盖
         // 注意：由于Button类没有暴露文本相关的getter方法，这里暂时保留原有的逐个渲染方式
         // 但使用批量渲染API来避免覆盖问题
-        if (textRenderer) {
-            textRenderer->BeginTextBatch();
+        if (params.textRenderer) {
+            params.textRenderer->BeginTextBatch();
             
             VkViewport textViewport = {};
             textViewport.x = 0.0f;
@@ -1499,9 +1491,9 @@ bool VulkanRenderer::DrawFrameWithLoading(float time, LoadingAnimation* loadingA
             }
             
             // 添加FPS文本到批次
-            if (fps > 0.0f) {
+            if (params.fps > 0.0f) {
                 char fpsText[32];
-                sprintf_s(fpsText, "FPS: %.1f", fps);
+                sprintf_s(fpsText, "FPS: %.1f", params.fps);
                 
                 float textX = 10.0f;
                 float textY = 10.0f;
@@ -1519,7 +1511,7 @@ bool VulkanRenderer::DrawFrameWithLoading(float time, LoadingAnimation* loadingA
                 }
                 
                 float flippedY = (float)m_swapchainExtent.height - (textY + offsetY);
-                textRenderer->AddTextToBatch(fpsText, textX + offsetX, flippedY,
+                params.textRenderer->AddTextToBatch(fpsText, textX + offsetX, flippedY,
                                             1.0f, 1.0f, 0.0f, 1.0f);
             }
             
@@ -1534,7 +1526,7 @@ bool VulkanRenderer::DrawFrameWithLoading(float time, LoadingAnimation* loadingA
             float uiToViewportScaleX = buttonViewport.width / (float)uiExtent.width;
             float uiToViewportScaleY = buttonViewport.height / (float)uiExtent.height;
             
-            textRenderer->EndTextBatch(m_commandBuffers[imageIndex], 
+            params.textRenderer->EndTextBatch(m_commandBuffers[imageIndex], 
                                       textScreenWidth, 
                                       textScreenHeight,
                                       0.0f, 0.0f,  // viewport偏移为0（使用全屏）
@@ -1565,20 +1557,20 @@ bool VulkanRenderer::DrawFrameWithLoading(float time, LoadingAnimation* loadingA
         }
         
         // 渲染滑块（如果有）
-        if (slider) {
+        if (params.slider) {
             static int sliderDebugCount2 = 0;
             if (sliderDebugCount2 % 60 == 0) {
                 printf("[DRAWFRAME] Scaled mode: Rendering slider: visible=%s, uiExtent=(%u, %u)\n",
-                       slider->IsVisible() ? "true" : "false", uiExtent.width, uiExtent.height);
+                       params.slider->IsVisible() ? "true" : "false", uiExtent.width, uiExtent.height);
             }
             sliderDebugCount2++;
-            if (slider->IsVisible()) {
-                slider->Render(m_commandBuffers[imageIndex], uiExtent);
+            if (params.slider->IsVisible()) {
+                params.slider->Render(m_commandBuffers[imageIndex], uiExtent);
             }
         }
         // 渲染额外的滑块（如果有）
-        if (additionalSliders) {
-            for (Slider* sld : *additionalSliders) {
+        if (params.additionalSliders) {
+            for (Slider* sld : *params.additionalSliders) {
                 if (sld && sld->IsVisible()) {
                     sld->Render(m_commandBuffers[imageIndex], uiExtent);
                 }
@@ -1587,8 +1579,8 @@ bool VulkanRenderer::DrawFrameWithLoading(float time, LoadingAnimation* loadingA
         
         // 统一渲染所有按钮的文本（在所有按钮之后，只渲染一遍）
         // 使用批量渲染API，避免文本相互覆盖
-        if (textRenderer) {
-            textRenderer->BeginTextBatch();
+        if (params.textRenderer) {
+            params.textRenderer->BeginTextBatch();
             
             // 使用Button的RenderText方法，但会在TextRenderer中累积顶点
             for (Button* btn : textButtons) {
@@ -1596,19 +1588,19 @@ bool VulkanRenderer::DrawFrameWithLoading(float time, LoadingAnimation* loadingA
             }
             
             // 添加FPS文本到批次
-            if (fps > 0.0f) {
+            if (params.fps > 0.0f) {
                 char fpsText[32];
-                sprintf_s(fpsText, "FPS: %.1f", fps);
+                sprintf_s(fpsText, "FPS: %.1f", params.fps);
                 float textX = 10.0f;
                 float textY = 10.0f;
                 float flippedY = (float)m_swapchainExtent.height - textY;
-                textRenderer->AddTextToBatch(fpsText, textX, flippedY,
+                params.textRenderer->AddTextToBatch(fpsText, textX, flippedY,
                                             1.0f, 1.0f, 0.0f, 1.0f);
             }
             
             // 一次性渲染所有累积的文本（包括按钮文本和FPS文本）
             // Scaled模式：使用整个窗口大小，viewport无偏移
-            textRenderer->EndTextBatch(m_commandBuffers[imageIndex], 
+            params.textRenderer->EndTextBatch(m_commandBuffers[imageIndex], 
                                       (float)m_swapchainExtent.width, 
                                       (float)m_swapchainExtent.height,
                                       0.0f, 0.0f);

@@ -84,29 +84,31 @@ static HICON CreateIconFromImageData(const renderer::image::ImageData& imageData
     return hIcon;
 }
 
-HWND Window::s_hwnd = nullptr;
-HINSTANCE Window::s_hInstance = nullptr;
-int Window::s_width = 0;
-int Window::s_height = 0;
-bool Window::s_running = true;
-bool Window::s_fullscreen = false;
-int Window::s_windowedWidth = 0;
-int Window::s_windowedHeight = 0;
-int Window::s_windowedX = 0;
-int Window::s_windowedY = 0;
-DWORD Window::s_windowedStyle = 0;
-const char* Window::s_className = "VulkanShaderWindow";
-std::function<void(float, float, bool)> Window::s_mouseMoveCallback = nullptr;
-int Window::s_lastMouseX = 0;
-int Window::s_lastMouseY = 0;
-bool Window::s_leftButtonDown = false;
-std::function<void(int, bool)> Window::s_keyCallback = nullptr;
-bool Window::s_keyStates[256] = {false};
+Window::Window() {
+}
+
+Window::~Window() {
+    Destroy();
+}
 
 LRESULT CALLBACK Window::WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+    // 从窗口用户数据中获取Window实例指针
+    Window* window = nullptr;
+    if (uMsg == WM_NCCREATE) {
+        CREATESTRUCT* cs = (CREATESTRUCT*)lParam;
+        window = (Window*)cs->lpCreateParams;
+        SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)window);
+    } else {
+        window = (Window*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
+    }
+    
+    if (!window) {
+        return DefWindowProc(hwnd, uMsg, wParam, lParam);
+    }
+    
     switch (uMsg) {
         case WM_DESTROY:
-            s_running = false;
+            window->m_running = false;
             PostQuitMessage(0);
             return 0;
         case WM_SIZE:
@@ -117,11 +119,11 @@ LRESULT CALLBACK Window::WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM 
                 return 0;
             }
             // 只有在窗口正常大小或最大化时才更新尺寸
-            s_width = LOWORD(lParam);
-            s_height = HIWORD(lParam);
+            window->m_width = LOWORD(lParam);
+            window->m_height = HIWORD(lParam);
             // 确保尺寸有效（至少为1，避免除零错误）
-            if (s_width < 1) s_width = 1;
-            if (s_height < 1) s_height = 1;
+            if (window->m_width < 1) window->m_width = 1;
+            if (window->m_height < 1) window->m_height = 1;
             return 0;
         case WM_GETMINMAXINFO: {
             // Set minimum window size (like Godot)
@@ -131,48 +133,48 @@ LRESULT CALLBACK Window::WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM 
             return 0;
         }
         case WM_LBUTTONDOWN:
-            s_leftButtonDown = true;
-            s_lastMouseX = LOWORD(lParam);
-            s_lastMouseY = HIWORD(lParam);
+            window->m_leftButtonDown = true;
+            window->m_lastMouseX = LOWORD(lParam);
+            window->m_lastMouseY = HIWORD(lParam);
             SetCapture(hwnd);  // 捕获鼠标，即使移出窗口也能接收消息
             return 0;
         case WM_LBUTTONUP:
-            s_leftButtonDown = false;
+            window->m_leftButtonDown = false;
             ReleaseCapture();  // 释放鼠标捕获
             return 0;
         case WM_MOUSEMOVE:
-            if (s_leftButtonDown && s_mouseMoveCallback) {
+            if (window->m_leftButtonDown && window->m_mouseMoveCallback) {
                 int currentX = LOWORD(lParam);
                 int currentY = HIWORD(lParam);
-                float deltaX = (float)(currentX - s_lastMouseX);
-                float deltaY = (float)(currentY - s_lastMouseY);
-                s_mouseMoveCallback(deltaX, deltaY, true);
-                s_lastMouseX = currentX;
-                s_lastMouseY = currentY;
+                float deltaX = (float)(currentX - window->m_lastMouseX);
+                float deltaY = (float)(currentY - window->m_lastMouseY);
+                window->m_mouseMoveCallback(deltaX, deltaY, true);
+                window->m_lastMouseX = currentX;
+                window->m_lastMouseY = currentY;
             }
             return 0;
         case WM_KEYDOWN:
         case WM_SYSKEYDOWN:
             if (wParam < 256) {
-                if (!s_keyStates[wParam]) {
-                    s_keyStates[wParam] = true;
-                    if (s_keyCallback) {
-                        s_keyCallback((int)wParam, true);
+                if (!window->m_keyStates[wParam]) {
+                    window->m_keyStates[wParam] = true;
+                    if (window->m_keyCallback) {
+                        window->m_keyCallback((int)wParam, true);
                     }
                 }
             }
             if (wParam == VK_ESCAPE) {
-                s_running = false;
+                window->m_running = false;
                 PostQuitMessage(0);
             }
             return 0;
         case WM_KEYUP:
         case WM_SYSKEYUP:
             if (wParam < 256) {
-                if (s_keyStates[wParam]) {
-                    s_keyStates[wParam] = false;
-                    if (s_keyCallback) {
-                        s_keyCallback((int)wParam, false);
+                if (window->m_keyStates[wParam]) {
+                    window->m_keyStates[wParam] = false;
+                    if (window->m_keyCallback) {
+                        window->m_keyCallback((int)wParam, false);
                     }
                 }
             }
@@ -182,14 +184,14 @@ LRESULT CALLBACK Window::WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM 
 }
 
 bool Window::Create(HINSTANCE hInstance, int width, int height, const char* title, const char* className, bool fullscreen, const char* iconPath) {
-    s_hInstance = hInstance;
-    s_width = width;
-    s_height = height;
-    s_running = true;
-    s_fullscreen = fullscreen;
+    m_hInstance = hInstance;
+    m_width = width;
+    m_height = height;
+    m_running = true;
+    m_fullscreen = fullscreen;
     
     if (className) {
-        s_className = className;
+        m_className = className;
     }
     
     // 如果提供了图标路径，先加载图标（创建32x32图标用于任务栏）
@@ -229,7 +231,7 @@ bool Window::Create(HINSTANCE hInstance, int width, int height, const char* titl
     wc.cbSize = sizeof(WNDCLASSEX);
     wc.lpfnWndProc = WindowProc;
     wc.hInstance = hInstance;
-    wc.lpszClassName = s_className;
+    wc.lpszClassName = m_className;
     wc.hCursor = LoadCursor(NULL, IDC_ARROW);
     wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
     
@@ -258,20 +260,20 @@ bool Window::Create(HINSTANCE hInstance, int width, int height, const char* titl
         dmScreenSettings.dmSize = sizeof(dmScreenSettings);
         EnumDisplaySettings(NULL, ENUM_CURRENT_SETTINGS, &dmScreenSettings);
         
-        s_width = dmScreenSettings.dmPelsWidth;
-        s_height = dmScreenSettings.dmPelsHeight;
+        m_width = dmScreenSettings.dmPelsWidth;
+        m_height = dmScreenSettings.dmPelsHeight;
         
-        s_hwnd = CreateWindowEx(
+        m_hwnd = CreateWindowEx(
             WS_EX_APPWINDOW,
-            s_className,
+            m_className,
             title,
             WS_POPUP | WS_VISIBLE,
             0, 0,
-            s_width, s_height,
-            NULL, NULL, hInstance, NULL
+            m_width, m_height,
+            NULL, NULL, hInstance, this  // 传递this指针
         );
         
-        if (s_hwnd == NULL) {
+        if (m_hwnd == NULL) {
             ShowError("Failed to create fullscreen window");
             return false;
         }
@@ -279,7 +281,7 @@ bool Window::Create(HINSTANCE hInstance, int width, int height, const char* titl
         // 隐藏鼠标光标（可选，全屏时更美观）
         ShowCursor(FALSE);
         
-        ShowWindow(s_hwnd, SW_SHOWMAXIMIZED);
+        ShowWindow(m_hwnd, SW_SHOWMAXIMIZED);
     } else {
         // 窗口模式
         RECT rect = {0, 0, width, height};
@@ -293,40 +295,40 @@ bool Window::Create(HINSTANCE hInstance, int width, int height, const char* titl
         int windowX = (screenWidth - windowWidth) / 2;
         int windowY = (screenHeight - windowHeight) / 2;
         
-        s_hwnd = CreateWindowEx(
+        m_hwnd = CreateWindowEx(
             0,
-            s_className,
+            m_className,
             title,
             WS_OVERLAPPEDWINDOW,
             windowX, windowY,
             windowWidth, windowHeight,
-            NULL, NULL, hInstance, NULL
+            NULL, NULL, hInstance, this  // 传递this指针
         );
         
-        if (s_hwnd == NULL) {
+        if (m_hwnd == NULL) {
             ShowError("Failed to create window");
             return false;
         }
         
         // 显示正常大小的窗口
-        ShowWindow(s_hwnd, SW_SHOWNORMAL);
+        ShowWindow(m_hwnd, SW_SHOWNORMAL);
     }
     
-    UpdateWindow(s_hwnd);
+    UpdateWindow(m_hwnd);
     
     // 如果创建了图标，在窗口完全创建后设置（按照Godot的方式）
-    if (hIcon && s_hwnd) {
+    if (hIcon && m_hwnd) {
         // 按照Godot的方式：先清除错误，然后设置图标
         // 注意：Godot 先设置 ICON_SMALL，再设置 ICON_BIG
         SetLastError(0);
-        LRESULT result_small = SendMessage(s_hwnd, WM_SETICON, ICON_SMALL, (LPARAM)(hIconSm ? hIconSm : hIcon));
+        LRESULT result_small = SendMessage(m_hwnd, WM_SETICON, ICON_SMALL, (LPARAM)(hIconSm ? hIconSm : hIcon));
         DWORD error = GetLastError();
         if (error) {
             printf("[ICON] Error setting ICON_SMALL: %lu\n", error);
         }
         
         SetLastError(0);
-        LRESULT result_big = SendMessage(s_hwnd, WM_SETICON, ICON_BIG, (LPARAM)hIcon);
+        LRESULT result_big = SendMessage(m_hwnd, WM_SETICON, ICON_BIG, (LPARAM)hIcon);
         error = GetLastError();
         if (error) {
             printf("[ICON] Error setting ICON_BIG: %lu\n", error);
@@ -335,24 +337,24 @@ bool Window::Create(HINSTANCE hInstance, int width, int height, const char* titl
         printf("[ICON] Set icon - Small: %p, Big: %p\n", (void*)result_small, (void*)result_big);
         
         // 额外尝试：设置窗口类图标（某些情况下需要）
-        SetClassLongPtr(s_hwnd, GCLP_HICON, (LONG_PTR)hIcon);
-        SetClassLongPtr(s_hwnd, GCLP_HICONSM, (LONG_PTR)(hIconSm ? hIconSm : hIcon));
+        SetClassLongPtr(m_hwnd, GCLP_HICON, (LONG_PTR)hIcon);
+        SetClassLongPtr(m_hwnd, GCLP_HICONSM, (LONG_PTR)(hIconSm ? hIconSm : hIcon));
         
         // 强制刷新窗口和任务栏
-        InvalidateRect(s_hwnd, NULL, TRUE);
-        UpdateWindow(s_hwnd);
+        InvalidateRect(m_hwnd, NULL, TRUE);
+        UpdateWindow(m_hwnd);
         
         // 强制刷新任务栏（通过最小化和恢复窗口）
         // 注意：这可能会闪烁，但可以确保任务栏图标更新
-        BOOL isVisible = IsWindowVisible(s_hwnd);
+        BOOL isVisible = IsWindowVisible(m_hwnd);
         if (isVisible) {
-            ShowWindow(s_hwnd, SW_MINIMIZE);
-            ShowWindow(s_hwnd, SW_RESTORE);
+            ShowWindow(m_hwnd, SW_MINIMIZE);
+            ShowWindow(m_hwnd, SW_RESTORE);
             printf("[ICON] Forced taskbar refresh\n");
         }
     } else {
         if (!hIcon) printf("[ICON] No icon to set (hIcon is null)\n");
-        if (!s_hwnd) printf("[ICON] No window handle (s_hwnd is null)\n");
+        if (!m_hwnd) printf("[ICON] No window handle (m_hwnd is null)\n");
     }
     
     return true;
@@ -362,13 +364,13 @@ void Window::Destroy() {
     // 恢复鼠标光标（如果之前隐藏了）
     ShowCursor(TRUE);
     
-    if (s_hwnd) {
-        DestroyWindow(s_hwnd);
-        s_hwnd = nullptr;
+    if (m_hwnd) {
+        DestroyWindow(m_hwnd);
+        m_hwnd = nullptr;
     }
     
-    if (s_hInstance) {
-        UnregisterClass(s_className, s_hInstance);
+    if (m_hInstance) {
+        UnregisterClass(m_className, m_hInstance);
     }
 }
 
@@ -385,7 +387,7 @@ void Window::ProcessMessages() {
     MSG msg = {};
     while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
         if (msg.message == WM_QUIT) {
-            s_running = false;
+            m_running = false;
             break;
         }
         TranslateMessage(&msg);
@@ -394,7 +396,7 @@ void Window::ProcessMessages() {
 }
 
 bool Window::SetIcon(const std::string& iconPath) {
-    if (!s_hwnd) {
+    if (!m_hwnd) {
         printf("[ICON] SetIcon: No window handle\n");
         return false;
     }
@@ -430,14 +432,14 @@ bool Window::SetIcon(const std::string& iconPath) {
     // 按照Godot的方式：先清除错误，然后设置图标
     // 注意：Godot 先设置 ICON_SMALL，再设置 ICON_BIG
     SetLastError(0);
-    LRESULT result_small = SendMessage(s_hwnd, WM_SETICON, ICON_SMALL, (LPARAM)hiconSm);
+    LRESULT result_small = SendMessage(m_hwnd, WM_SETICON, ICON_SMALL, (LPARAM)hiconSm);
     DWORD error = GetLastError();
     if (error) {
         printf("[ICON] SetIcon: Error setting ICON_SMALL: %lu\n", error);
     }
     
     SetLastError(0);
-    LRESULT result_big = SendMessage(s_hwnd, WM_SETICON, ICON_BIG, (LPARAM)hicon);
+    LRESULT result_big = SendMessage(m_hwnd, WM_SETICON, ICON_BIG, (LPARAM)hicon);
     error = GetLastError();
     if (error) {
         printf("[ICON] SetIcon: Error setting ICON_BIG: %lu\n", error);
@@ -446,18 +448,18 @@ bool Window::SetIcon(const std::string& iconPath) {
     printf("[ICON] SetIcon: Set icon - Small: %p, Big: %p\n", (void*)result_small, (void*)result_big);
     
     // 额外尝试：设置窗口类图标（某些情况下需要）
-    SetClassLongPtr(s_hwnd, GCLP_HICON, (LONG_PTR)hicon);
-    SetClassLongPtr(s_hwnd, GCLP_HICONSM, (LONG_PTR)hiconSm);
+    SetClassLongPtr(m_hwnd, GCLP_HICON, (LONG_PTR)hicon);
+    SetClassLongPtr(m_hwnd, GCLP_HICONSM, (LONG_PTR)hiconSm);
     
     // 强制刷新窗口和任务栏
-    InvalidateRect(s_hwnd, NULL, TRUE);
-    UpdateWindow(s_hwnd);
+    InvalidateRect(m_hwnd, NULL, TRUE);
+    UpdateWindow(m_hwnd);
     
     // 强制刷新任务栏（通过最小化和恢复窗口）
-    BOOL isVisible = IsWindowVisible(s_hwnd);
+    BOOL isVisible = IsWindowVisible(m_hwnd);
     if (isVisible) {
-        ShowWindow(s_hwnd, SW_MINIMIZE);
-        ShowWindow(s_hwnd, SW_RESTORE);
+        ShowWindow(m_hwnd, SW_MINIMIZE);
+        ShowWindow(m_hwnd, SW_RESTORE);
         printf("[ICON] SetIcon: Forced taskbar refresh\n");
     }
     
@@ -465,24 +467,24 @@ bool Window::SetIcon(const std::string& iconPath) {
 }
 
 void Window::SetMouseMoveCallback(std::function<void(float, float, bool)> callback) {
-    s_mouseMoveCallback = callback;
+    m_mouseMoveCallback = callback;
 }
 
 void Window::SetKeyCallback(std::function<void(int, bool)> callback) {
-    s_keyCallback = callback;
+    m_keyCallback = callback;
 }
 
-bool Window::IsKeyPressed(int keyCode) {
+bool Window::IsKeyPressed(int keyCode) const {
     if (keyCode >= 0 && keyCode < 256) {
-        return s_keyStates[keyCode];
+        return m_keyStates[keyCode];
     }
     return false;
 }
 
-bool Window::IsMinimized() {
-    if (!s_hwnd) {
+bool Window::IsMinimized() const {
+    if (!m_hwnd) {
         return false;
     }
-    return IsIconic(s_hwnd) != FALSE;
+    return IsIconic(m_hwnd) != FALSE;
 }
 

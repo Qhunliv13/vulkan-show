@@ -2,6 +2,7 @@
 #include "text/text_renderer.h"
 #include "shader/shader_loader.h"
 #include "window/window.h"
+#include "core/render_context.h"
 // 注意：window.h已经包含了windows.h，所以LoadImage宏可能已经被定义
 // 在包含image_loader.h之前取消宏定义
 #ifdef LoadImage
@@ -9,7 +10,7 @@
 #endif
 #include "image/image_loader.h"
 #include "texture/texture.h"
-#include "vulkan/vulkan_renderer.h"  // 包含 StretchParams 定义
+#include "core/stretch_params.h"
 #include <algorithm>
 #include <cmath>
 #include <fstream>
@@ -24,18 +25,21 @@ Button::~Button() {
     Cleanup();
 }
 
-bool Button::Initialize(VkDevice device, VkPhysicalDevice physicalDevice, 
-                       VkCommandPool commandPool, VkQueue graphicsQueue, 
-                       VkRenderPass renderPass, VkExtent2D swapchainExtent,
+bool Button::Initialize(IRenderContext* renderContext,
                        const ButtonConfig& config,
                        TextRenderer* textRenderer,
                        bool usePureShader) {
-    m_device = device;
-    m_physicalDevice = physicalDevice;
-    m_commandPool = commandPool;
-    m_graphicsQueue = graphicsQueue;
-    m_renderPass = renderPass;
-    m_swapchainExtent = swapchainExtent;
+    if (!renderContext) {
+        return false;
+    }
+    
+    m_renderContext = renderContext;
+    m_device = renderContext->GetDevice();
+    m_physicalDevice = renderContext->GetPhysicalDevice();
+    m_commandPool = renderContext->GetCommandPool();
+    m_graphicsQueue = renderContext->GetGraphicsQueue();
+    m_renderPass = renderContext->GetRenderPass();
+    m_swapchainExtent = renderContext->GetSwapchainExtent();
     m_usePureShader = usePureShader;
     
     // 从配置中设置按钮属性
@@ -49,8 +53,8 @@ bool Button::Initialize(VkDevice device, VkPhysicalDevice physicalDevice,
     m_useRelativePosition = config.useRelativePosition;
     m_relativeX = config.relativeX;
     m_relativeY = config.relativeY;
-    m_screenWidth = (float)swapchainExtent.width;
-    m_screenHeight = (float)swapchainExtent.height;
+    m_screenWidth = (float)m_swapchainExtent.width;
+    m_screenHeight = (float)m_swapchainExtent.height;
     m_shapeType = config.shapeType;
     
     // 文本相关配置
@@ -143,7 +147,7 @@ bool Button::Initialize(VkDevice device, VkPhysicalDevice physicalDevice,
         if (!CreateFullscreenQuadBuffer()) {
             return false;
         }
-        if (!CreatePureShaderPipeline(renderPass)) {
+        if (!CreatePureShaderPipeline(m_renderPass)) {
             return false;
         }
     } else {
@@ -151,13 +155,26 @@ bool Button::Initialize(VkDevice device, VkPhysicalDevice physicalDevice,
         if (!CreateButtonBuffer()) {
             return false;
         }
-        if (!CreatePipeline(renderPass)) {
+        if (!CreatePipeline(m_renderPass)) {
             return false;
         }
     }
     
     m_initialized = true;
     return true;
+}
+
+// 兼容旧接口的初始化方法（已废弃）
+bool Button::Initialize(VkDevice device, VkPhysicalDevice physicalDevice, 
+                       VkCommandPool commandPool, VkQueue graphicsQueue, 
+                       VkRenderPass renderPass, VkExtent2D swapchainExtent,
+                       const ButtonConfig& config,
+                       TextRenderer* textRenderer,
+                       bool usePureShader) {
+    // 创建临时渲染上下文（仅用于向后兼容）
+    VulkanRenderContext tempContext(device, physicalDevice, commandPool, 
+                                   graphicsQueue, renderPass, swapchainExtent);
+    return Initialize(&tempContext, config, textRenderer, usePureShader);
 }
 
 void Button::Cleanup() {
@@ -330,6 +347,11 @@ void Button::UpdateButtonBuffer() {
 }
 
 uint32_t Button::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
+    if (m_renderContext) {
+        return m_renderContext->FindMemoryType(typeFilter, properties);
+    }
+    
+    // 向后兼容：如果没有渲染上下文，使用旧方法
     VkPhysicalDeviceMemoryProperties memProperties;
     vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &memProperties);
     

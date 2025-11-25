@@ -9,75 +9,63 @@
 #include <string>
 #include <memory>
 #include "core/constants.h"
+#include "core/stretch_params.h"
+#include "core/irenderer.h"
 
-// Canvas Items 模式的拉伸参数
-struct StretchParams {
-    float stretchScaleX = 1.0f;      // X轴拉伸比例
-    float stretchScaleY = 1.0f;      // Y轴拉伸比例
-    float logicalWidth = 800.0f;     // 逻辑宽度（viewportWidth）
-    float logicalHeight = 800.0f;    // 逻辑高度（viewportHeight）
-    float screenWidth = 800.0f;      // 屏幕宽度
-    float screenHeight = 800.0f;     // 屏幕高度
-    float marginX = 0.0f;            // X轴边距（offsetX）
-    float marginY = 0.0f;            // Y轴边距（offsetY）
-};
+// 前向声明
+class LoadingAnimation;
+class Button;
+class TextRenderer;
+class Slider;
 
-class VulkanRenderer {
+class VulkanRenderer : public IRenderer {
 public:
     VulkanRenderer();
     ~VulkanRenderer();
     
-    bool Initialize(HWND hwnd, HINSTANCE hInstance);
-    void Cleanup();
+    // IRenderer 接口实现
+    bool Initialize(HWND hwnd, HINSTANCE hInstance) override;
+    void Cleanup() override;
     
-    bool CreateGraphicsPipeline(const std::string& vertShaderPath, const std::string& fragShaderPath);
-    bool CreateLoadingCubesPipeline(const std::string& vertShaderPath, const std::string& fragShaderPath);
+    bool DrawFrame(float time, bool useLoadingCubes = false, 
+                  TextRenderer* textRenderer = nullptr, float fps = 0.0f) override;
+    bool DrawFrameWithLoading(const DrawFrameWithLoadingParams& params) override;
+    
+    void SetAspectRatioMode(AspectRatioMode mode) override { m_aspectRatioMode = mode; }
+    void SetStretchMode(StretchMode mode) override { m_stretchMode = mode; }
+    void SetBackgroundStretchMode(BackgroundStretchMode mode) override { m_backgroundStretchMode = mode; }
+    
+    VkExtent2D GetUIBaseSize() const override;
+    VkExtent2D GetSwapchainExtent() const override { return m_swapchainExtent; }
+    
+    VkDevice GetDevice() const override { return m_device; }
+    VkPhysicalDevice GetPhysicalDevice() const override { return m_physicalDevice; }
+    VkCommandPool GetCommandPool() const override { return m_commandPool; }
+    VkQueue GetGraphicsQueue() const override { return m_graphicsQueue; }
+    VkRenderPass GetRenderPass() const override { return m_renderPass; }
+    
+    const StretchParams& GetStretchParams() const override { return m_stretchParams; }
+    
+    bool LoadBackgroundTexture(const std::string& filepath) override;
+    
+    void SetMouseInput(float deltaX, float deltaY, bool buttonDown) override;
+    void SetKeyInput(bool w, bool a, bool s, bool d) override;
+    void UpdateCamera(float deltaTime) override;
+    
+    bool CreateGraphicsPipeline(const std::string& vertShaderPath, const std::string& fragShaderPath) override;
+    bool CreateLoadingCubesPipeline(const std::string& vertShaderPath, const std::string& fragShaderPath) override;
+    
+    bool IsRayTracingSupported() const override { return m_rayTracingSupported; }
+    bool CreateRayTracingPipeline() override;
+    
+    // VulkanRenderer 特有的方法（不在接口中）
     void RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex, float time, bool useLoadingCubes = false, class TextRenderer* textRenderer = nullptr, float fps = 0.0f);
-    bool DrawFrame(float time, bool useLoadingCubes = false, class TextRenderer* textRenderer = nullptr, float fps = 0.0f);
-    void SetAspectRatioMode(AspectRatioMode mode) { m_aspectRatioMode = mode; }
-    void SetStretchMode(StretchMode mode) { m_stretchMode = mode; }
-    void SetBackgroundStretchMode(BackgroundStretchMode mode) { m_backgroundStretchMode = mode; }
-    
-    // 获取UI基准尺寸（基于背景纹理大小，如果没有背景则使用800x800）
-    VkExtent2D GetUIBaseSize() const;
-    bool DrawFrameWithLoading(float time, class LoadingAnimation* loadingAnim, 
-                              class Button* button = nullptr,
-                              class TextRenderer* textRenderer = nullptr,
-                              class Button* colorButton = nullptr,
-                              class Button* leftButton = nullptr,
-                              const std::vector<class Button*>* additionalButtons = nullptr,
-                              class Slider* slider = nullptr,
-                              const std::vector<class Slider*>* additionalSliders = nullptr,
-                              float fps = 0.0f);
-    
-    VkExtent2D GetSwapchainExtent() const { return m_swapchainExtent; }
-    VkFormat GetSwapchainFormat() const { return m_swapchainImageFormat; }
-    uint32_t GetSwapchainImageCount() const { return m_swapchainImageCount; }
-    
-    // 获取Vulkan对象（用于加载动画等）
-    VkDevice GetDevice() const { return m_device; }
-    VkPhysicalDevice GetPhysicalDevice() const { return m_physicalDevice; }
-    VkCommandPool GetCommandPool() const { return m_commandPool; }
-    VkQueue GetGraphicsQueue() const { return m_graphicsQueue; }
-    VkRenderPass GetRenderPass() const { return m_renderPass; }
-    
-    // 获取Scaled模式的拉伸参数（已废弃，Scaled模式不使用此结构）
-    const StretchParams& GetStretchParams() const { return m_stretchParams; }
-    
-    // 背景纹理管理
-    bool LoadBackgroundTexture(const std::string& filepath);
     void CleanupBackgroundTexture();
     bool HasBackgroundTexture() const;
-    
-    // 相机控制（用于loading_cubes shader）
-    void SetMouseInput(float deltaX, float deltaY, bool buttonDown);  // 设置鼠标输入
-    void SetKeyInput(bool w, bool a, bool s, bool d);  // 设置键盘输入
-    void UpdateCamera(float deltaTime);  // 更新相机状态（基于累积的输入）
     void ResetCamera();  // 重置相机状态
     
-    // 光线追踪支持
-    bool IsRayTracingSupported() const { return m_rayTracingSupported; }
-    bool CreateRayTracingPipeline();  // 创建光线追踪管线
+    VkFormat GetSwapchainFormat() const { return m_swapchainImageFormat; }
+    uint32_t GetSwapchainImageCount() const { return m_swapchainImageCount; }
     
 private:
     // 绘制背景纹理（保持宽高比居中填充窗口）
