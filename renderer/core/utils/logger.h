@@ -4,43 +4,26 @@
 #include <fstream>
 #include <memory>
 #include <mutex>
+#include "core/interfaces/ilogger.h"
 
-// 日志级别
-enum class LogLevel {
-    Debug,
-    Info,
-    Warning,
-    Error,
-    Fatal
-};
-
-// 统一日志系统 - 单例模式，线程安全
-class Logger {
+// 统一日志系统 - 实现 ILogger 接口，支持依赖注入
+// 保留单例方法以支持向后兼容，但推荐使用依赖注入
+class Logger : public ILogger {
 public:
-    // 获取单例实例
+    // 获取单例实例（向后兼容）
     static Logger& GetInstance();
     
-    // 初始化日志系统
-    bool Initialize(const std::string& logFile = "");
-    
-    // 清理日志系统
-    void Shutdown();
-    
-    // 日志输出函数
-    void Log(LogLevel level, const std::string& message, const char* file = nullptr, int line = 0);
-    
-    // 便捷函数
-    void Debug(const std::string& message, const char* file = nullptr, int line = 0);
-    void Info(const std::string& message, const char* file = nullptr, int line = 0);
-    void Warning(const std::string& message, const char* file = nullptr, int line = 0);
-    void Error(const std::string& message, const char* file = nullptr, int line = 0);
-    void Fatal(const std::string& message, const char* file = nullptr, int line = 0);
-    
-    // 设置最小日志级别
-    void SetMinLevel(LogLevel level) { m_minLevel = level; }
-    
-    // 是否输出到控制台
-    void SetConsoleOutput(bool enable) { m_consoleOutput = enable; }
+    // ILogger 接口实现
+    bool Initialize(const std::string& logFile = "") override;
+    void Shutdown() override;
+    void Log(LogLevel level, const std::string& message, const char* file = nullptr, int line = 0) override;
+    void Debug(const std::string& message, const char* file = nullptr, int line = 0) override;
+    void Info(const std::string& message, const char* file = nullptr, int line = 0) override;
+    void Warning(const std::string& message, const char* file = nullptr, int line = 0) override;
+    void Error(const std::string& message, const char* file = nullptr, int line = 0) override;
+    void Fatal(const std::string& message, const char* file = nullptr, int line = 0) override;
+    void SetMinLevel(LogLevel level) override { m_minLevel = level; }
+    void SetConsoleOutput(bool enable) override { m_consoleOutput = enable; }
 
 private:
     Logger() = default;

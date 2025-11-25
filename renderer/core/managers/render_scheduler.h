@@ -7,7 +7,7 @@
 #include "core/interfaces/iinput_provider.h"
 
 // 前向声明
-class TextRenderer;
+class ITextRenderer;
 class Window;
 
 // 渲染调度器 - 负责根据场景状态调度渲染逻辑（使用接口解耦）
@@ -21,7 +21,7 @@ public:
                    ISceneProvider* sceneProvider,
                    IUIRenderProvider* uiRenderProvider,
                    IInputProvider* inputProvider,
-                   TextRenderer* textRenderer,
+                   ITextRenderer* textRenderer,
                    Window* window,
                    StretchMode stretchMode);
     
@@ -42,7 +42,7 @@ private:
     ISceneProvider* m_sceneProvider = nullptr;
     IUIRenderProvider* m_uiRenderProvider = nullptr;
     IInputProvider* m_inputProvider = nullptr;
-    TextRenderer* m_textRenderer = nullptr;
+    ITextRenderer* m_textRenderer = nullptr;
     Window* m_window = nullptr;  // 仅用于获取窗口句柄，不用于输入
     StretchMode m_stretchMode = StretchMode::Fit;
 };

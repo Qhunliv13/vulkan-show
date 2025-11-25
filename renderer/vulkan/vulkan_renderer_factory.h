@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/irenderer_factory.h"
+#include "core/interfaces/irenderer_factory.h"
 
 // Vulkan 渲染器工厂实现
 class VulkanRendererFactory : public IRendererFactory {

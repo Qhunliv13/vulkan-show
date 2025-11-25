@@ -8,7 +8,7 @@
 #include "ui/color_controller/color_controller.h"
 
 // 前向声明
-class TextRenderer;
+class ITextRenderer;
 class IRenderer;
 class LoadingAnimation;
 class Window;
@@ -22,7 +22,7 @@ public:
     // 初始化颜色UI组件
     bool Initialize(IRenderer* renderer,
                    const VulkanRenderContext& renderContext,
-                   TextRenderer* textRenderer,
+                   ITextRenderer* textRenderer,
                    Window* window,
                    StretchMode stretchMode,
                    float screenWidth,

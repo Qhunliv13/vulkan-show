@@ -2,7 +2,7 @@
 #include "text/text_renderer.h"
 #include "shader/shader_loader.h"
 #include "window/window.h"
-#include "core/render_context.h"
+#include "core/config/render_context.h"
 // 注意：window.h已经包含了windows.h，所以LoadImage宏可能已经被定义
 // 在包含image_loader.h之前取消宏定义
 #ifdef LoadImage
@@ -10,7 +10,7 @@
 #endif
 #include "image/image_loader.h"
 #include "texture/texture.h"
-#include "core/stretch_params.h"
+#include "core/config/stretch_params.h"
 #include <algorithm>
 #include <cmath>
 #include <fstream>

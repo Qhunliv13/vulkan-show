@@ -8,14 +8,15 @@
 #include <vector>
 #include <string>
 #include <memory>
-#include "core/constants.h"
-#include "core/stretch_params.h"
-#include "core/irenderer.h"
+#include "core/config/constants.h"
+#include "core/config/stretch_params.h"
+#include "core/interfaces/irenderer.h"
 
 // 前向声明
 class LoadingAnimation;
 class Button;
-class TextRenderer;
+class ITextRenderer;
+class TextRenderer;  // 用于内部实现
 class Slider;
 
 class VulkanRenderer : public IRenderer {
@@ -28,7 +29,7 @@ public:
     void Cleanup() override;
     
     bool DrawFrame(float time, bool useLoadingCubes = false, 
-                  TextRenderer* textRenderer = nullptr, float fps = 0.0f) override;
+                  ITextRenderer* textRenderer = nullptr, float fps = 0.0f) override;
     bool DrawFrameWithLoading(const DrawFrameWithLoadingParams& params) override;
     
     void SetAspectRatioMode(AspectRatioMode mode) override { m_aspectRatioMode = mode; }
@@ -59,7 +60,7 @@ public:
     bool CreateRayTracingPipeline() override;
     
     // VulkanRenderer 特有的方法（不在接口中）
-    void RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex, float time, bool useLoadingCubes = false, class TextRenderer* textRenderer = nullptr, float fps = 0.0f);
+    void RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex, float time, bool useLoadingCubes = false, ITextRenderer* textRenderer = nullptr, float fps = 0.0f);
     void CleanupBackgroundTexture();
     bool HasBackgroundTexture() const;
     void ResetCamera();  // 重置相机状态

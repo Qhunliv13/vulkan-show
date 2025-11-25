@@ -8,7 +8,7 @@
 #include "ui/button/button.h"
 
 // 前向声明
-class TextRenderer;
+class ITextRenderer;
 class IRenderer;
 class Window;
 
@@ -20,7 +20,7 @@ public:
     
     // 初始化按钮组件
     bool Initialize(const VulkanRenderContext& renderContext, 
-                   TextRenderer* textRenderer,
+                   ITextRenderer* textRenderer,
                    Window* window,
                    StretchMode stretchMode,
                    float screenWidth, 
@@ -80,7 +80,7 @@ private:
     float m_buttonColorB = 1.0f;
     float m_buttonColorA = 1.0f;
     
-    TextRenderer* m_textRenderer = nullptr;
+    ITextRenderer* m_textRenderer = nullptr;
     Window* m_window = nullptr;
 };
 

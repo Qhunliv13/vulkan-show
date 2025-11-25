@@ -4,6 +4,7 @@
 #include "core/interfaces/iuirender_provider.h"
 #include "core/interfaces/iinput_provider.h"
 #include "text/text_renderer.h"
+#include "core/interfaces/itext_renderer.h"
 #include "window/window.h"
 #include "ui/button/button.h"
 #include "ui/slider/slider.h"
@@ -21,7 +22,7 @@ void RenderScheduler::Initialize(IRenderer* renderer,
                                  ISceneProvider* sceneProvider,
                                  IUIRenderProvider* uiRenderProvider,
                                  IInputProvider* inputProvider,
-                                 TextRenderer* textRenderer,
+                                 ITextRenderer* textRenderer,
                                  Window* window,
                                  StretchMode stretchMode) {
     m_renderer = renderer;

@@ -1,11 +1,17 @@
 #include "core/ui/color_ui_manager.h"
 #include "ui/color_controller/color_controller.h"
-#include "text/text_renderer.h"
+#include "core/interfaces/itext_renderer.h"
+#include "text/text_renderer.h"  // 需要用于转换
 #include "core/interfaces/irenderer.h"
 #include "loading/loading_animation.h"
 #include "window/window.h"
 #include <stdio.h>
 #include <windows.h>
+
+// 辅助函数：将 ITextRenderer* 转换为 TextRenderer*（用于向后兼容）
+static TextRenderer* ToTextRenderer(ITextRenderer* tr) {
+    return tr ? static_cast<TextRenderer*>(tr) : nullptr;
+}
 
 ColorUIManager::ColorUIManager() {
 }
@@ -16,7 +22,7 @@ ColorUIManager::~ColorUIManager() {
 
 bool ColorUIManager::Initialize(IRenderer* renderer,
                                 const VulkanRenderContext& renderContext,
-                                TextRenderer* textRenderer,
+                                ITextRenderer* textRenderer,
                                 Window* window,
                                 StretchMode stretchMode,
                                 float screenWidth,

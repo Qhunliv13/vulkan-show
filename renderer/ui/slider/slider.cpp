@@ -2,8 +2,8 @@
 #include "ui/button/button.h"
 #include "shader/shader_loader.h"
 #include "window/window.h"
-#include "core/render_context.h"
-#include "core/stretch_params.h"
+#include "core/config/render_context.h"
+#include "core/config/stretch_params.h"
 #include <algorithm>
 #include <cmath>
 #include <fstream>

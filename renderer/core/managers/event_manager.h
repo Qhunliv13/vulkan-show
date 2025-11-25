@@ -13,6 +13,9 @@ class UIManager;
 class SceneManager;
 class Window;
 class ISceneProvider;
+class IEventBus;
+class IRenderer;
+class IConfigProvider;
 
 // 事件管理器 - 统一处理所有窗口消息和输入事件（完全接管事件处理）
 class EventManager {
@@ -25,7 +28,11 @@ public:
                    UIManager* uiManager, 
                    IRenderer* renderer,
                    Window* window,
-                   ISceneProvider* sceneProvider);
+                   ISceneProvider* sceneProvider,
+                   IEventBus* eventBus = nullptr);
+    
+    // 设置事件处理器（用于处理按钮点击等事件）
+    void SetupEventHandlers(SceneManager* sceneManager, IRenderer* renderer, IConfigProvider* configProvider);
     
     // 统一的消息处理接口 - 处理所有Windows消息
     bool ProcessMessage(const MSG& msg, StretchMode stretchMode);
@@ -59,6 +66,7 @@ private:
     IRenderer* m_renderer = nullptr;
     Window* m_window = nullptr;
     ISceneProvider* m_sceneProvider = nullptr;  // 使用接口而不是具体类
+    IEventBus* m_eventBus = nullptr;  // 事件总线（可选，用于解耦）
     std::function<void()> m_onStateChangeCallback;
 };
 

@@ -1,10 +1,16 @@
 #include "core/ui/button_ui_manager.h"
 #include "ui/button/button.h"
-#include "text/text_renderer.h"
+#include "core/interfaces/itext_renderer.h"
+#include "text/text_renderer.h"  // 需要用于转换
 #include "core/interfaces/irenderer.h"
 #include "window/window.h"
 #include <stdio.h>
 #include <windows.h>
+
+// 辅助函数：将 ITextRenderer* 转换为 TextRenderer*（用于向后兼容）
+static TextRenderer* ToTextRenderer(ITextRenderer* tr) {
+    return tr ? static_cast<TextRenderer*>(tr) : nullptr;
+}
 
 ButtonUIManager::ButtonUIManager() {
 }
@@ -14,7 +20,7 @@ ButtonUIManager::~ButtonUIManager() {
 }
 
 bool ButtonUIManager::Initialize(const VulkanRenderContext& renderContext, 
-                                 TextRenderer* textRenderer,
+                                 ITextRenderer* textRenderer,
                                  Window* window,
                                  StretchMode stretchMode,
                                  float screenWidth, 
@@ -180,7 +186,7 @@ bool ButtonUIManager::InitializeEnterButton(VulkanRenderContext& renderContext, 
     if (m_enterButton->Initialize(
             &renderContext,
             buttonConfig,
-            m_textRendererInitialized ? m_textRenderer : nullptr)) {
+            ToTextRenderer(m_textRenderer))) {
         if (stretchMode == StretchMode::Fit || stretchMode == StretchMode::Disabled) {
             m_enterButton->SetFixedScreenSize(true);
         }
@@ -195,7 +201,7 @@ bool ButtonUIManager::InitializeColorButton(VulkanRenderContext& renderContext, 
     if (m_colorButton->Initialize(
             &renderContext,
             colorButtonConfig,
-            m_textRendererInitialized ? m_textRenderer : nullptr)) {
+            ToTextRenderer(m_textRenderer))) {
         if (stretchMode == StretchMode::Fit || stretchMode == StretchMode::Disabled) {
             m_colorButton->SetFixedScreenSize(true);
         }
@@ -223,7 +229,7 @@ bool ButtonUIManager::InitializeLeftButton(VulkanRenderContext& renderContext, S
     if (m_leftButton->Initialize(
             &renderContext,
             leftButtonConfig,
-            m_textRendererInitialized ? m_textRenderer : nullptr,
+            ToTextRenderer(m_textRenderer),
             false)) {
         if (stretchMode == StretchMode::Fit || stretchMode == StretchMode::Disabled) {
             m_leftButton->SetFixedScreenSize(true);
@@ -239,7 +245,7 @@ bool ButtonUIManager::InitializeLeftButton(VulkanRenderContext& renderContext, S
         if (m_leftButton->Initialize(
                 &renderContext,
                 fallbackConfig,
-                m_textRendererInitialized ? m_textRenderer : nullptr,
+                ToTextRenderer(m_textRenderer),
                 false)) {
             if (stretchMode == StretchMode::Fit || stretchMode == StretchMode::Disabled) {
                 m_leftButton->SetFixedScreenSize(true);
@@ -312,7 +318,7 @@ bool ButtonUIManager::InitializeColorButtons(VulkanRenderContext& renderContext,
             if (m_colorButtons[index]->Initialize(
                     &renderContext,
                     colorBtnConfig,
-                    m_textRendererInitialized ? m_textRenderer : nullptr)) {
+                    ToTextRenderer(m_textRenderer))) {
                 if (stretchMode == StretchMode::Fit || stretchMode == StretchMode::Disabled) {
                     m_colorButtons[index]->SetFixedScreenSize(true);
                 }
@@ -370,7 +376,7 @@ bool ButtonUIManager::InitializeBoxColorButtons(VulkanRenderContext& renderConte
             if (m_boxColorButtons[index]->Initialize(
                     &renderContext,
                     boxBtnConfig,
-                    m_textRendererInitialized ? m_textRenderer : nullptr)) {
+                    ToTextRenderer(m_textRenderer))) {
                 if (stretchMode == StretchMode::Fit || stretchMode == StretchMode::Disabled) {
                     m_boxColorButtons[index]->SetFixedScreenSize(true);
                 }
@@ -394,7 +400,7 @@ bool ButtonUIManager::InitializeColorAdjustButton(VulkanRenderContext& renderCon
     if (m_colorAdjustButton->Initialize(
             &renderContext,
             colorAdjustButtonConfig,
-            m_textRendererInitialized ? m_textRenderer : nullptr,
+            ToTextRenderer(m_textRenderer),
             false)) {
         if (stretchMode == StretchMode::Fit || stretchMode == StretchMode::Disabled) {
             m_colorAdjustButton->SetFixedScreenSize(true);

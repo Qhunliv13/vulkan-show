@@ -2,7 +2,7 @@
 #include "ui/slider/slider.h"
 #include "shader/shader_loader.h"
 #include "window/window.h"
-#include "core/constants.h"
+#include "core/config/constants.h"
 #include "loading/loading_animation.h"
 #include "text/text_renderer.h"
 #include "ui/button/button.h"
@@ -829,7 +829,7 @@ void VulkanRenderer::RecreateSwapchain() {
     }
 }
 
-void VulkanRenderer::RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex, float time, bool useLoadingCubes, TextRenderer* textRenderer, float fps) {
+void VulkanRenderer::RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex, float time, bool useLoadingCubes, ITextRenderer* textRenderer, float fps) {
     VkCommandBufferBeginInfo beginInfo = {};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     
@@ -1135,7 +1135,7 @@ void VulkanRenderer::RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
     }
 }
 
-bool VulkanRenderer::DrawFrame(float time, bool useLoadingCubes, TextRenderer* textRenderer, float fps) {
+bool VulkanRenderer::DrawFrame(float time, bool useLoadingCubes, ITextRenderer* textRenderer, float fps) {
     VkResult result = vkWaitForFences(m_device, 1, &m_inFlightFences[m_currentFrame], VK_TRUE, UINT64_MAX);
     if (result != VK_SUCCESS) {
         Window::ShowError("Failed to wait for fences!");

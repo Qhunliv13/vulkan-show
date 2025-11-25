@@ -9,8 +9,9 @@
 #include "core/interfaces/iuirender_provider.h"
 
 // 前向声明
-class TextRenderer;
+class ITextRenderer;
 class Button;
+class IEventBus;
 class Slider;
 class ColorController;
 class LoadingAnimation;
@@ -27,7 +28,7 @@ public:
     
     // 初始化所有UI组件（使用接口而不是具体类）
     bool Initialize(IRenderer* renderer, 
-                    TextRenderer* textRenderer,
+                    ITextRenderer* textRenderer,
                     Window* window,
                     StretchMode stretchMode);
     
@@ -70,10 +71,9 @@ public:
     void HandleMouseMove(float x, float y);
     void HandleMouseUp();
     
-    // 设置UI组件的回调函数（将业务逻辑从 Application 移入）
-    // 注意：通过依赖注入方式传入 SceneManager、IRenderer 和 IConfigProvider，避免循环依赖
-    // UIManager 不持有这些对象的指针，只在回调中捕获，确保生命周期由 Application 管理
-    void SetupCallbacks(class SceneManager* sceneManager, IRenderer* renderer, class IConfigProvider* configProvider);
+    // 设置UI组件的回调函数（使用事件总线解耦）
+    // 通过事件总线发布事件，而不是直接调用具体类的方法
+    void SetupCallbacks(class IEventBus* eventBus);
 
 private:
     // 初始化加载动画
@@ -93,7 +93,7 @@ private:
     bool m_boxColorButtonsExpanded = false;
     
     IRenderer* m_renderer = nullptr;  // 使用接口而不是具体类
-    TextRenderer* m_textRenderer = nullptr;
+    ITextRenderer* m_textRenderer = nullptr;
     Window* m_window = nullptr;
 };
 

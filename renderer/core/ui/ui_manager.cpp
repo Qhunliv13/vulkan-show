@@ -1,5 +1,6 @@
 #include "core/ui/ui_manager.h"
 #include "core/interfaces/iconfig_provider.h"
+#include "core/interfaces/ievent_bus.h"
 #include "core/ui/button_ui_manager.h"
 #include "core/ui/color_ui_manager.h"
 #include "core/ui/slider_ui_manager.h"
@@ -21,7 +22,7 @@ UIManager::~UIManager() {
 }
 
 bool UIManager::Initialize(IRenderer* renderer, 
-                           TextRenderer* textRenderer,
+                           ITextRenderer* textRenderer,
                            Window* window,
                            StretchMode stretchMode) {
     m_renderer = renderer;
@@ -413,24 +414,21 @@ void UIManager::HandleMouseUp() {
     }
 }
 
-void UIManager::SetupCallbacks(SceneManager* sceneManager, IRenderer* renderer, IConfigProvider* configProvider) {
-    if (!sceneManager || !renderer || !configProvider || !m_buttonManager || !m_colorManager) {
+void UIManager::SetupCallbacks(IEventBus* eventBus) {
+    if (!eventBus || !m_buttonManager || !m_colorManager) {
         return;
     }
     
-    // 生命周期说明：
-    // - sceneManager、renderer、configProvider 的生命周期由 AppInitializer 管理
-    // - UIManager 的生命周期也在 AppInitializer 中管理，且会在这些对象之前被清理
-    // - 回调函数通过值捕获指针，这些指针在回调执行时仍然有效
-    // - 当 AppInitializer 清理时，会先清理 UIManager（包括所有回调），然后清理其他组件
-    // - 因此，回调中捕获的指针在回调的生命周期内是安全的
+    // 使用事件总线解耦：发布事件而不是直接调用具体类的方法
+    // 这样 UIManager 不需要知道 SceneManager 的具体实现
     
-    // 设置进入按钮的回调
+    // 设置进入按钮的回调 - 发布事件
     auto* enterButton = m_buttonManager->GetEnterButton();
     if (enterButton) {
-        enterButton->SetOnClickCallback([sceneManager, renderer, configProvider]() {
+        enterButton->SetOnClickCallback([eventBus]() {
             printf("[DEBUG] Button clicked! Switching to Shader mode\n");
-            sceneManager->SwitchToShader(renderer, configProvider);
+            ButtonClickedEvent event("enter");
+            eventBus->Publish(event);
         });
     }
     
@@ -459,12 +457,13 @@ void UIManager::SetupCallbacks(SceneManager* sceneManager, IRenderer* renderer, 
         });
     }
     
-    // 设置左侧按钮的回调
+    // 设置左侧按钮的回调 - 发布事件
     auto* leftButton = m_buttonManager->GetLeftButton();
     if (leftButton) {
-        leftButton->SetOnClickCallback([sceneManager, renderer, configProvider]() {
+        leftButton->SetOnClickCallback([eventBus]() {
             printf("[DEBUG] Left button clicked! Entering 3D scene (LoadingCubes)\n");
-            sceneManager->SwitchToLoadingCubes(renderer, configProvider);
+            ButtonClickedEvent event("left");
+            eventBus->Publish(event);
         });
     }
     

@@ -8,7 +8,7 @@
 #include "core/config/stretch_params.h"
 
 // 前向声明
-class TextRenderer;
+class ITextRenderer;
 class Button;
 class Slider;
 class LoadingAnimation;
@@ -18,7 +18,7 @@ struct DrawFrameWithLoadingParams {
     float time = 0.0f;
     LoadingAnimation* loadingAnim = nullptr;
     Button* enterButton = nullptr;
-    TextRenderer* textRenderer = nullptr;
+    ITextRenderer* textRenderer = nullptr;
     Button* colorButton = nullptr;
     Button* leftButton = nullptr;
     const std::vector<Button*>* additionalButtons = nullptr;
@@ -38,7 +38,7 @@ public:
     
     // 渲染相关
     virtual bool DrawFrame(float time, bool useLoadingCubes = false, 
-                          TextRenderer* textRenderer = nullptr, float fps = 0.0f) = 0;
+                          ITextRenderer* textRenderer = nullptr, float fps = 0.0f) = 0;
     virtual bool DrawFrameWithLoading(const DrawFrameWithLoadingParams& params) = 0;
     
     // 配置设置

@@ -2,12 +2,13 @@
 
 #include <windows.h>
 #include <memory>
+#include "initialization_result.h"
 
 // 前向声明
 class IRendererFactory;
 class WindowManager;
 class IRenderer;
-class TextRenderer;
+class ITextRenderer;
 class InputHandler;
 class UIManager;
 class EventManager;
@@ -17,6 +18,8 @@ class WindowMessageHandler;
 class Window;
 class IConfigProvider;
 class ISceneProvider;
+class ILogger;
+class IEventBus;
 
 // 应用初始化器 - 管理初始化顺序和依赖关系
 class AppInitializer {
@@ -25,12 +28,14 @@ public:
     ~AppInitializer();
     
     // 初始化所有组件（按正确顺序）
-    bool Initialize(IRendererFactory* rendererFactory, HINSTANCE hInstance, const char* lpCmdLine);
+    // 可选参数：如果提供，则使用依赖注入；否则使用单例（向后兼容）
+    bool Initialize(IRendererFactory* rendererFactory, HINSTANCE hInstance, const char* lpCmdLine,
+                   ILogger* logger = nullptr, IEventBus* eventBus = nullptr);
     
     // 获取组件指针
     WindowManager* GetWindowManager() const { return m_windowManager.get(); }
     IRenderer* GetRenderer() const { return m_renderer; }
-    TextRenderer* GetTextRenderer() const { return m_textRenderer; }
+    ITextRenderer* GetTextRenderer() const { return m_textRenderer; }
     InputHandler* GetInputHandler() const { return m_inputHandler; }
     UIManager* GetUIManager() const { return m_uiManager.get(); }
     EventManager* GetEventManager() const { return m_eventManager.get(); }
@@ -39,6 +44,8 @@ public:
     WindowMessageHandler* GetMessageHandler() const { return m_messageHandler.get(); }
     IConfigProvider* GetConfigProvider() const { return m_configProvider; }
     ISceneProvider* GetSceneProvider() const;
+    ILogger* GetLogger() const { return m_logger; }
+    IEventBus* GetEventBus() const { return m_eventBus; }
     
     // 清理所有资源
     void Cleanup();
@@ -48,22 +55,22 @@ public:
 
 private:
     // 初始化步骤（按依赖顺序）
-    bool InitializeConfig(const char* lpCmdLine);
+    InitializationResult InitializeConfig(const char* lpCmdLine);
     bool InitializeConsole();
-    bool InitializeLogger();
-    bool InitializeWindow(HINSTANCE hInstance);
-    bool InitializeRenderer(IRendererFactory* rendererFactory, HINSTANCE hInstance);
-    bool InitializeInputHandler();
+    InitializationResult InitializeLogger();
+    InitializationResult InitializeWindow(HINSTANCE hInstance);
+    InitializationResult InitializeRenderer(IRendererFactory* rendererFactory, HINSTANCE hInstance);
+    InitializationResult InitializeInputHandler();
     bool InitializeManagers();
-    bool InitializeUI();
-    bool InitializeEventSystem();
-    bool InitializeRenderScheduler();
+    InitializationResult InitializeUI();
+    InitializationResult InitializeEventSystem();
+    InitializationResult InitializeRenderScheduler();
     
     // 组件
     std::unique_ptr<WindowManager> m_windowManager;
     IRenderer* m_renderer = nullptr;
     IRendererFactory* m_rendererFactory = nullptr;
-    TextRenderer* m_textRenderer = nullptr;
+    ITextRenderer* m_textRenderer = nullptr;
     InputHandler* m_inputHandler = nullptr;
     std::unique_ptr<UIManager> m_uiManager;
     std::unique_ptr<EventManager> m_eventManager;
@@ -71,6 +78,8 @@ private:
     std::unique_ptr<RenderScheduler> m_renderScheduler;
     std::unique_ptr<WindowMessageHandler> m_messageHandler;
     IConfigProvider* m_configProvider = nullptr;  // 配置提供者（依赖注入）
+    ILogger* m_logger = nullptr;  // 日志提供者（依赖注入）
+    IEventBus* m_eventBus = nullptr;  // 事件总线（依赖注入）
     
     // 控制台文件指针
     FILE* m_pCout = nullptr;
