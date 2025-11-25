@@ -28,7 +28,7 @@ bool WindowManager::Initialize(HINSTANCE hInstance, IConfigProvider* configProvi
     if (!m_window->Create(hInstance, 
                          config->GetWindowWidth(), 
                          config->GetWindowHeight(), 
-                         "Vulkan Shader Gouyu", 
+                         "A try of vulkan", 
                          nullptr, 
                          false, 
                          config->GetWindowIconPath().c_str())) {

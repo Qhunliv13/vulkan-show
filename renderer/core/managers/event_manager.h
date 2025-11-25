@@ -5,11 +5,10 @@
 #include <windows.h>
 #include "core/config/constants.h"
 #include "core/interfaces/irenderer.h"
-#include "core/interfaces/iwindow_resize_handler.h"
+#include "core/interfaces/iuimanager.h"
+#include "core/interfaces/iinput_handler.h"
 
 // 前向声明
-class InputHandler;
-class UIManager;
 class SceneManager;
 class Window;
 class ISceneProvider;
@@ -18,21 +17,19 @@ class IRenderer;
 class IConfigProvider;
 
 // 事件管理器 - 统一处理所有窗口消息和输入事件（完全接管事件处理）
+// 通过接口和事件总线解耦，避免直接依赖具体类
 class EventManager {
 public:
     EventManager();
     ~EventManager();
     
     // 初始化（使用接口而不是具体类）
-    void Initialize(InputHandler* inputHandler, 
-                   UIManager* uiManager, 
+    void Initialize(IInputHandler* inputHandler, 
+                   IUIManager* uiManager, 
                    IRenderer* renderer,
                    Window* window,
                    ISceneProvider* sceneProvider,
                    IEventBus* eventBus = nullptr);
-    
-    // 设置事件处理器（用于处理按钮点击等事件）
-    void SetupEventHandlers(SceneManager* sceneManager, IRenderer* renderer, IConfigProvider* configProvider);
     
     // 统一的消息处理接口 - 处理所有Windows消息
     bool ProcessMessage(const MSG& msg, StretchMode stretchMode);
@@ -51,9 +48,6 @@ public:
     
     // 处理窗口大小变化（使用接口）
     void HandleWindowResize(StretchMode stretchMode, IRenderer* renderer);
-    
-    // 设置场景状态变化回调（已废弃，使用事件总线）
-    void SetOnStateChangeCallback(std::function<void()> callback) { m_onStateChangeCallback = callback; }
 
 private:
     // 处理单个消息类型
@@ -61,12 +55,11 @@ private:
     bool HandleMouseMessage(const MSG& msg, StretchMode stretchMode);
     bool HandleKeyboardMessage(const MSG& msg);
     
-    InputHandler* m_inputHandler = nullptr;
-    UIManager* m_uiManager = nullptr;  // UIManager 实现了 IWindowResizeHandler
+    IInputHandler* m_inputHandler = nullptr;  // 使用接口而不是具体类
+    IUIManager* m_uiManager = nullptr;  // 使用接口而不是具体类
     IRenderer* m_renderer = nullptr;
     Window* m_window = nullptr;
     ISceneProvider* m_sceneProvider = nullptr;  // 使用接口而不是具体类
-    IEventBus* m_eventBus = nullptr;  // 事件总线（可选，用于解耦）
-    std::function<void()> m_onStateChangeCallback;
+    IEventBus* m_eventBus = nullptr;  // 事件总线（用于解耦）
 };
 

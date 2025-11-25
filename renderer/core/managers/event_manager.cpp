@@ -1,6 +1,4 @@
 #include "core/managers/event_manager.h"
-#include "core/utils/input_handler.h"
-#include "core/ui/ui_manager.h"
 #include "core/interfaces/iscene_provider.h"
 #include "core/utils/logger.h"
 #include "core/utils/event_bus.h"
@@ -16,8 +14,8 @@ EventManager::EventManager() {
 EventManager::~EventManager() {
 }
 
-void EventManager::Initialize(InputHandler* inputHandler, 
-                              UIManager* uiManager, 
+void EventManager::Initialize(IInputHandler* inputHandler, 
+                              IUIManager* uiManager, 
                               IRenderer* renderer,
                               Window* window,
                               ISceneProvider* sceneProvider,
@@ -28,25 +26,6 @@ void EventManager::Initialize(InputHandler* inputHandler,
     m_window = window;
     m_sceneProvider = sceneProvider;
     m_eventBus = eventBus;
-}
-
-void EventManager::SetupEventHandlers(SceneManager* sceneManager, IRenderer* renderer, IConfigProvider* configProvider) {
-    if (!m_eventBus || !sceneManager || !renderer || !configProvider) {
-        return;
-    }
-    
-    // 订阅按钮点击事件，处理场景切换
-    m_eventBus->Subscribe(EventType::ButtonClicked, [sceneManager, renderer, configProvider](const Event& e) {
-        const ButtonClickedEvent& buttonEvent = static_cast<const ButtonClickedEvent&>(e);
-        
-        if (buttonEvent.buttonId == "enter") {
-            printf("[DEBUG] Button clicked! Switching to Shader mode\n");
-            sceneManager->SwitchToShader(renderer, configProvider);
-        } else if (buttonEvent.buttonId == "left") {
-            printf("[DEBUG] Left button clicked! Entering 3D scene (LoadingCubes)\n");
-            sceneManager->SwitchToLoadingCubes(renderer, configProvider);
-        }
-    });
 }
 
 void EventManager::HandleMouseClick(int x, int y, StretchMode stretchMode) {

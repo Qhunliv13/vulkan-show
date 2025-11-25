@@ -7,6 +7,7 @@
 #include "core/interfaces/irenderer.h"
 #include "core/interfaces/iwindow_resize_handler.h"
 #include "core/interfaces/iuirender_provider.h"
+#include "core/interfaces/iuimanager.h"
 
 // 前向声明
 class ITextRenderer;
@@ -20,8 +21,8 @@ class ColorUIManager;
 class SliderUIManager;
 class Window;
 
-// UI管理器 - 负责所有UI组件的生命周期管理（实现 IWindowResizeHandler 和 IUIRenderProvider 接口）
-class UIManager : public IWindowResizeHandler, public IUIRenderProvider {
+// UI管理器 - 负责所有UI组件的生命周期管理（实现多个接口以支持不同使用场景）
+class UIManager : public IWindowResizeHandler, public IUIRenderProvider, public IUIManager {
 public:
     UIManager();
     ~UIManager();
@@ -66,10 +67,11 @@ public:
     void GetButtonColor(float& r, float& g, float& b, float& a) const;
     void SetButtonColor(float r, float g, float b, float a);
     
-    // 统一的事件处理接口（解耦 EventManager）
-    bool HandleClick(float x, float y);
-    void HandleMouseMove(float x, float y);
-    void HandleMouseUp();
+    // IUIManager 接口实现
+    bool HandleClick(float x, float y) override;
+    void HandleMouseMove(float x, float y) override;
+    void HandleMouseUp() override;
+    // HandleWindowResize 已在 IWindowResizeHandler 中实现
     
     // 设置UI组件的回调函数（使用事件总线解耦）
     // 通过事件总线发布事件，而不是直接调用具体类的方法

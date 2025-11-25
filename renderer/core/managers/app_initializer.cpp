@@ -11,8 +11,8 @@
 #include "core/utils/event_bus.h"
 #include "core/interfaces/ilogger.h"
 #include "core/interfaces/ievent_bus.h"
+#include "core/interfaces/iinput_provider.h"
 #include "core/ui/ui_manager.h"
-#include "core/managers/event_manager.h"
 #include "core/managers/scene_manager.h"
 #include "core/managers/render_scheduler.h"
 #include "core/handlers/window_message_handler.h"
@@ -300,12 +300,14 @@ InitializationResult AppInitializer::InitializeInputHandler() {
         return InitializationResult::Failure("Invalid parameters for input handler initialization");
     }
     
-    m_inputHandler = new InputHandler();
-    if (!m_inputHandler) {
+    InputHandler* inputHandler = new InputHandler();
+    if (!inputHandler) {
         return InitializationResult::Failure("Failed to create InputHandler");
     }
     
-    m_inputHandler->Initialize(m_renderer, m_windowManager->GetWindow(), m_configProvider->GetStretchMode());
+    inputHandler->Initialize(m_renderer, m_windowManager->GetWindow(), m_configProvider->GetStretchMode());
+    m_inputHandlerImpl = inputHandler;  // 保存具体实现指针
+    m_inputHandler = inputHandler;  // InputHandler 实现了 IInputHandler 接口
     return InitializationResult::Success();
 }
 
@@ -367,12 +369,27 @@ InitializationResult AppInitializer::InitializeEventSystem() {
     // 获取事件总线（使用依赖注入或单例）
     IEventBus* eventBus = m_eventBus ? m_eventBus : &EventBus::GetInstance();
     
-    // 初始化事件管理器（使用ISceneProvider接口）
+    // 初始化事件管理器（使用接口而不是具体类）
     m_eventManager->Initialize(m_inputHandler, m_uiManager.get(), m_renderer, 
                                m_windowManager->GetWindow(), m_sceneManager.get(), eventBus);
     
-    // 设置事件处理器（处理按钮点击等事件）
-    m_eventManager->SetupEventHandlers(m_sceneManager.get(), m_renderer, m_configProvider);
+    // 设置事件处理器（通过事件总线订阅按钮点击事件，处理场景切换）
+    // 将事件处理逻辑放在AppInitializer中，避免EventManager直接依赖SceneManager
+    eventBus->Subscribe(EventType::ButtonClicked, [this](const Event& e) {
+        const ButtonClickedEvent& buttonEvent = static_cast<const ButtonClickedEvent&>(e);
+        
+        if (buttonEvent.buttonId == "enter") {
+            if (m_logger) {
+                m_logger->Info("Button clicked! Switching to Shader mode");
+            }
+            m_sceneManager->SwitchToShader(m_renderer, m_configProvider);
+        } else if (buttonEvent.buttonId == "left") {
+            if (m_logger) {
+                m_logger->Info("Left button clicked! Entering 3D scene (LoadingCubes)");
+            }
+            m_sceneManager->SwitchToLoadingCubes(m_renderer, m_configProvider);
+        }
+    });
     
     // 初始化窗口消息处理器（返回 void，无需检查）
     m_messageHandler->Initialize(m_eventManager.get(), m_windowManager->GetWindow(), 
@@ -387,10 +404,13 @@ InitializationResult AppInitializer::InitializeRenderScheduler() {
     }
     
     // 使用接口而不是具体类（依赖注入）
+    // InputHandler 同时实现了 IInputProvider 和 IInputHandler 接口
+    // 通过保存的具体实现指针进行类型转换
+    IInputProvider* inputProvider = static_cast<IInputProvider*>(m_inputHandlerImpl);
     m_renderScheduler->Initialize(m_renderer, 
                                   m_sceneManager.get(),  // ISceneProvider*
                                   m_uiManager.get(),    // IUIRenderProvider*
-                                  m_inputHandler,       // IInputProvider*
+                                  inputProvider,       // IInputProvider*
                                   m_textRenderer, 
                                   m_windowManager->GetWindow(), 
                                   m_configProvider->GetStretchMode());
@@ -400,6 +420,10 @@ InitializationResult AppInitializer::InitializeRenderScheduler() {
 
 ISceneProvider* AppInitializer::GetSceneProvider() const {
     return m_sceneManager.get();  // SceneManager 继承自 ISceneProvider，可以隐式转换
+}
+
+IUIManager* AppInitializer::GetUIManager() const {
+    return m_uiManager.get();  // UIManager 实现了 IUIManager 接口，可以隐式转换
 }
 
 void AppInitializer::CleanupPartial(int initializedSteps) {
@@ -429,8 +453,9 @@ void AppInitializer::CleanupPartial(int initializedSteps) {
     
     // 步骤5: 清理输入处理器
     if (initializedSteps >= 6) {
-        if (m_inputHandler) {
-            delete m_inputHandler;
+        if (m_inputHandlerImpl) {
+            delete m_inputHandlerImpl;
+            m_inputHandlerImpl = nullptr;
             m_inputHandler = nullptr;
         }
     }
@@ -524,8 +549,9 @@ void AppInitializer::Cleanup() {
     }
     
     // 5. 清理输入处理器
-    if (m_inputHandler) {
-        delete m_inputHandler;
+    if (m_inputHandlerImpl) {
+        delete m_inputHandlerImpl;
+        m_inputHandlerImpl = nullptr;
         m_inputHandler = nullptr;
     }
     

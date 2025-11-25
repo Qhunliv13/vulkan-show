@@ -5,13 +5,14 @@
 #include "core/config/stretch_params.h"
 #include "core/interfaces/irenderer.h"
 #include "core/interfaces/iinput_provider.h"
+#include "core/interfaces/iinput_handler.h"
 #include <vulkan/vulkan.h>
 
 // 前向声明
 class Window;
 
-// 输入处理器 - 负责坐标转换和输入状态管理（实现 IInputProvider 接口）
-class InputHandler : public IInputProvider {
+// 输入处理器 - 负责坐标转换和输入状态管理（实现 IInputProvider 和 IInputHandler 接口）
+class InputHandler : public IInputProvider, public IInputHandler {
 public:
     InputHandler();
     ~InputHandler();
