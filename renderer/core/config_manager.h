@@ -11,10 +11,8 @@ public:
     // 保留单例方法以支持向后兼容，但推荐使用依赖注入
     static ConfigManager& GetInstance();
     
-    // 初始化配置（从命令行参数解析）
-    void Initialize(const char* lpCmdLine);
-    
     // IConfigProvider 接口实现
+    void Initialize(const char* lpCmdLine) override;
     AspectRatioMode GetAspectRatioMode() const override { return m_aspectMode; }
     StretchMode GetStretchMode() const override { return m_stretchMode; }
     BackgroundStretchMode GetBackgroundStretchMode() const override { return m_backgroundMode; }

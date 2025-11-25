@@ -32,3 +32,10 @@ enum class BackgroundStretchMode {
     Scaled         // Scaled mode: keep aspect ratio, fill entire window with no gaps (min size that covers)
 };
 
+// 应用状态
+enum class AppState {
+    LoadingCubes,  // 显示loading_cubes shader（启动界面）
+    Loading,       // 显示加载动画
+    Shader         // 显示shader
+};
+

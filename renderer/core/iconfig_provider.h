@@ -8,6 +8,9 @@ class IConfigProvider {
 public:
     virtual ~IConfigProvider() = default;
     
+    // 初始化配置（从命令行参数解析）
+    virtual void Initialize(const char* lpCmdLine) = 0;
+    
     // 获取配置值
     virtual AspectRatioMode GetAspectRatioMode() const = 0;
     virtual StretchMode GetStretchMode() const = 0;

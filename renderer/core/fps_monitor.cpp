@@ -1,4 +1,5 @@
 #include "core/fps_monitor.h"
+#include <windows.h>
 
 FPSMonitor::FPSMonitor() {
 }

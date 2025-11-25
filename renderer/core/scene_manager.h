@@ -8,13 +8,6 @@
 class LoadingAnimation;
 class IConfigProvider;
 
-// 应用状态
-enum class AppState {
-    LoadingCubes,  // 显示loading_cubes shader（启动界面）
-    Loading,       // 显示加载动画
-    Shader         // 显示shader
-};
-
 // 场景管理器 - 负责场景状态管理和切换（实现ISceneProvider接口）
 class SceneManager : public ISceneProvider {
 public:

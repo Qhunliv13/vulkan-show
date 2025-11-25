@@ -12,6 +12,7 @@ class InputHandler;
 class UIManager;
 class SceneManager;
 class Window;
+class ISceneProvider;
 
 // 事件管理器 - 统一处理所有窗口消息和输入事件（完全接管事件处理）
 class EventManager {
