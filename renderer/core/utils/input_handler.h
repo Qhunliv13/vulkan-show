@@ -4,13 +4,14 @@
 #include "core/config/constants.h"
 #include "core/config/stretch_params.h"
 #include "core/interfaces/irenderer.h"
+#include "core/interfaces/iinput_provider.h"
 #include <vulkan/vulkan.h>
 
 // 前向声明
 class Window;
 
-// 输入处理器 - 负责坐标转换（使用接口解耦）
-class InputHandler {
+// 输入处理器 - 负责坐标转换和输入状态管理（实现 IInputProvider 接口）
+class InputHandler : public IInputProvider {
 public:
     InputHandler();
     ~InputHandler();
@@ -24,6 +25,11 @@ public:
     
     // 设置拉伸模式（窗口大小变化时可能需要更新）
     void SetStretchMode(StretchMode mode) { m_stretchMode = mode; }
+    
+    // IInputProvider 接口实现
+    bool IsKeyPressed(int keyCode) const override;
+    void GetWASDKeys(bool& w, bool& a, bool& s, bool& d) const override;
+    bool IsEscapePressed() const override;
 
 private:
     IRenderer* m_renderer = nullptr;  // 使用接口而不是具体类

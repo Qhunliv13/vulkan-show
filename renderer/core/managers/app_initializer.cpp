@@ -32,60 +32,79 @@ bool AppInitializer::Initialize(IRendererFactory* rendererFactory, HINSTANCE hIn
         return true;
     }
     
+    // 初始化步骤计数器（用于回滚）
+    int initializedSteps = 0;
+    
     // 1. 初始化配置（最先，其他组件依赖配置）
     if (!InitializeConfig(lpCmdLine)) {
         return false;
     }
+    initializedSteps = 1;
     
     // 2. 初始化控制台（日志系统需要）
     InitializeConsole();
+    initializedSteps = 2;
     
     // 3. 初始化日志系统
     if (!InitializeLogger()) {
         printf("[WARNING] Failed to initialize logger, continuing without file logging\n");
     }
+    initializedSteps = 3;
     
     LOG_INFO("Application initializing...");
     
     // 4. 初始化窗口（渲染器依赖窗口）
     if (!InitializeWindow(hInstance)) {
         LOG_ERROR("Failed to initialize window");
+        CleanupPartial(initializedSteps);
         return false;
     }
+    initializedSteps = 4;
     
     // 5. 初始化渲染器（UI和场景依赖渲染器）
     if (!InitializeRenderer(rendererFactory, hInstance)) {
         LOG_ERROR("Failed to initialize renderer");
+        CleanupPartial(initializedSteps);
         return false;
     }
+    initializedSteps = 5;
     
     // 6. 初始化输入处理器（事件管理器依赖）
     if (!InitializeInputHandler()) {
         LOG_ERROR("Failed to initialize input handler");
+        CleanupPartial(initializedSteps);
         return false;
     }
+    initializedSteps = 6;
     
     // 7. 初始化管理器（基础组件）
     if (!InitializeManagers()) {
         LOG_ERROR("Failed to initialize managers");
+        CleanupPartial(initializedSteps);
         return false;
     }
+    initializedSteps = 7;
     
     // 8. 初始化UI（依赖渲染器和窗口）
     if (!InitializeUI()) {
         LOG_ERROR("Failed to initialize UI");
+        CleanupPartial(initializedSteps);
         return false;
     }
+    initializedSteps = 8;
     
     // 9. 初始化事件系统（依赖UI、场景、输入处理器）
     if (!InitializeEventSystem()) {
         LOG_ERROR("Failed to initialize event system");
+        CleanupPartial(initializedSteps);
         return false;
     }
+    initializedSteps = 9;
     
     // 10. 初始化渲染调度器（依赖所有其他组件）
     if (!InitializeRenderScheduler()) {
         LOG_ERROR("Failed to initialize render scheduler");
+        CleanupPartial(initializedSteps);
         return false;
     }
     
@@ -95,7 +114,9 @@ bool AppInitializer::Initialize(IRendererFactory* rendererFactory, HINSTANCE hIn
 }
 
 bool AppInitializer::InitializeConfig(const char* lpCmdLine) {
-    // 初始化配置管理器并保存引用（用于依赖注入）
+    // 获取配置管理器实例（通过单例获取，但通过接口传递以保持依赖注入）
+    // 注意：ConfigManager 仍然使用单例模式，但通过 IConfigProvider 接口传递，
+    // 这样其他组件只依赖接口，不直接依赖 ConfigManager
     m_configProvider = &ConfigManager::GetInstance();
     m_configProvider->Initialize(lpCmdLine);
     return true;
@@ -260,19 +281,102 @@ bool AppInitializer::InitializeEventSystem() {
 }
 
 bool AppInitializer::InitializeRenderScheduler() {
-    if (!m_renderer || !m_sceneManager || !m_uiManager || !m_textRenderer || !m_windowManager || !m_configProvider) {
+    if (!m_renderer || !m_sceneManager || !m_uiManager || !m_textRenderer || !m_windowManager || !m_configProvider || !m_inputHandler) {
         return false;
     }
     
-    m_renderScheduler->Initialize(m_renderer, m_sceneManager.get(), 
-                                  m_uiManager.get(), m_textRenderer, 
-                                  m_windowManager->GetWindow(), m_configProvider->GetStretchMode());
+    // 使用接口而不是具体类（依赖注入）
+    m_renderScheduler->Initialize(m_renderer, 
+                                  m_sceneManager.get(),  // ISceneProvider*
+                                  m_uiManager.get(),    // IUIRenderProvider*
+                                  m_inputHandler,       // IInputProvider*
+                                  m_textRenderer, 
+                                  m_windowManager->GetWindow(), 
+                                  m_configProvider->GetStretchMode());
     
     return true;
 }
 
 ISceneProvider* AppInitializer::GetSceneProvider() const {
     return m_sceneManager.get();  // SceneManager 继承自 ISceneProvider，可以隐式转换
+}
+
+void AppInitializer::CleanupPartial(int initializedSteps) {
+    // 按初始化顺序的逆序进行部分清理
+    // 注意：这里只清理已初始化的步骤，避免访问未初始化的资源
+    
+    // 步骤9: 清理渲染调度器
+    if (initializedSteps >= 10) {
+        m_renderScheduler.reset();
+    }
+    
+    // 步骤8: 清理事件系统
+    if (initializedSteps >= 9) {
+        m_messageHandler.reset();
+        m_eventManager.reset();
+    }
+    
+    // 步骤7: 清理UI
+    if (initializedSteps >= 8) {
+        m_uiManager.reset();
+    }
+    
+    // 步骤6: 清理管理器
+    if (initializedSteps >= 7) {
+        m_sceneManager.reset();
+    }
+    
+    // 步骤5: 清理输入处理器
+    if (initializedSteps >= 6) {
+        if (m_inputHandler) {
+            delete m_inputHandler;
+            m_inputHandler = nullptr;
+        }
+    }
+    
+    // 步骤4: 清理渲染器
+    if (initializedSteps >= 5) {
+        if (m_textRenderer) {
+            m_textRenderer->Cleanup();
+            delete m_textRenderer;
+            m_textRenderer = nullptr;
+        }
+        if (m_renderer && m_rendererFactory) {
+            m_rendererFactory->DestroyRenderer(m_renderer);
+            m_renderer = nullptr;
+        }
+    }
+    
+    // 步骤3: 清理窗口
+    if (initializedSteps >= 4) {
+        if (m_windowManager) {
+            m_windowManager->Cleanup();
+            m_windowManager.reset();
+        }
+    }
+    
+    // 步骤2-3: 清理日志和控制台（最后清理，因为其他步骤可能需要日志）
+    if (initializedSteps >= 3) {
+        Logger::GetInstance().Shutdown();
+    }
+    
+    if (initializedSteps >= 2) {
+        if (m_pCout) {
+            fclose(m_pCout);
+            m_pCout = nullptr;
+        }
+        if (m_pCin) {
+            fclose(m_pCin);
+            m_pCin = nullptr;
+        }
+        if (m_pCerr) {
+            fclose(m_pCerr);
+            m_pCerr = nullptr;
+        }
+        FreeConsole();
+    }
+    
+    // 步骤1: 配置管理器不需要清理（静态变量）
 }
 
 void AppInitializer::Cleanup() {

@@ -12,5 +12,11 @@ public:
     
     // 检查是否应该处理输入事件（基于当前状态）
     virtual bool ShouldHandleInput() const = 0;
+    
+    // 切换到Loading状态（用于ESC键返回）
+    virtual void SwitchToLoading() = 0;
+    
+    // 检查pipeline是否已创建（用于渲染判断）
+    virtual bool IsLoadingCubesPipelineCreated() const = 0;
 };
 

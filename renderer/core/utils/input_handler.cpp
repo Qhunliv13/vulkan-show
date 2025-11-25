@@ -91,3 +91,30 @@ void InputHandler::ConvertWindowToUICoords(int windowX, int windowY, float& uiX,
     uiY = clickY;
 }
 
+bool InputHandler::IsKeyPressed(int keyCode) const {
+    if (!m_window) {
+        return false;
+    }
+    return m_window->IsKeyPressed(keyCode);
+}
+
+void InputHandler::GetWASDKeys(bool& w, bool& a, bool& s, bool& d) const {
+    if (!m_window) {
+        w = a = s = d = false;
+        return;
+    }
+    
+    // 检查WASD键和方向键
+    w = m_window->IsKeyPressed('W') || m_window->IsKeyPressed(VK_UP);
+    a = m_window->IsKeyPressed('A') || m_window->IsKeyPressed(VK_LEFT);
+    s = m_window->IsKeyPressed('S') || m_window->IsKeyPressed(VK_DOWN);
+    d = m_window->IsKeyPressed('D') || m_window->IsKeyPressed(VK_RIGHT);
+}
+
+bool InputHandler::IsEscapePressed() const {
+    if (!m_window) {
+        return false;
+    }
+    return m_window->IsKeyPressed(VK_ESCAPE);
+}
+

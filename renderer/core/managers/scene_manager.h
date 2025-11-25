@@ -17,6 +17,8 @@ public:
     // ISceneProvider 接口实现
     AppState GetState() const override { return m_appState; }
     bool ShouldHandleInput() const override;
+    void SwitchToLoading() override { m_appState = AppState::Loading; }
+    bool IsLoadingCubesPipelineCreated() const override { return m_loadingCubesPipelineCreated; }
     
     // 设置状态
     void SetState(AppState state) { m_appState = state; }
@@ -27,12 +29,8 @@ public:
     // 切换到LoadingCubes场景（使用接口）
     bool SwitchToLoadingCubes(IRenderer* renderer, IConfigProvider* configProvider);
     
-    // 切换到Loading场景
-    void SwitchToLoading() { m_appState = AppState::Loading; }
-    
     // 检查pipeline是否已创建
     bool IsShaderPipelineCreated() const { return m_shaderPipelineCreated; }
-    bool IsLoadingCubesPipelineCreated() const { return m_loadingCubesPipelineCreated; }
 
 private:
     AppState m_appState = AppState::Loading;

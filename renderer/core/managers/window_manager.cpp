@@ -16,11 +16,13 @@ bool WindowManager::Initialize(HINSTANCE hInstance, IConfigProvider* configProvi
         return true;
     }
     
-    // 如果没有提供配置提供者，使用单例（向后兼容）
-    IConfigProvider* config = configProvider;
-    if (!config) {
-        config = &ConfigManager::GetInstance();
+    // 必须提供配置提供者（不再支持单例，强制依赖注入）
+    if (!configProvider) {
+        LOG_ERROR("WindowManager::Initialize: configProvider cannot be nullptr");
+        return false;
     }
+    
+    IConfigProvider* config = configProvider;
     
     m_window = std::make_unique<Window>();
     if (!m_window->Create(hInstance, 

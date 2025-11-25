@@ -418,6 +418,13 @@ void UIManager::SetupCallbacks(SceneManager* sceneManager, IRenderer* renderer, 
         return;
     }
     
+    // 生命周期说明：
+    // - sceneManager、renderer、configProvider 的生命周期由 AppInitializer 管理
+    // - UIManager 的生命周期也在 AppInitializer 中管理，且会在这些对象之前被清理
+    // - 回调函数通过值捕获指针，这些指针在回调执行时仍然有效
+    // - 当 AppInitializer 清理时，会先清理 UIManager（包括所有回调），然后清理其他组件
+    // - 因此，回调中捕获的指针在回调的生命周期内是安全的
+    
     // 设置进入按钮的回调
     auto* enterButton = m_buttonManager->GetEnterButton();
     if (enterButton) {

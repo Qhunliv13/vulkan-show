@@ -42,6 +42,9 @@ public:
     
     // 清理所有资源
     void Cleanup();
+    
+    // 部分清理（用于初始化失败时的回滚）
+    void CleanupPartial(int initializedSteps);
 
 private:
     // 初始化步骤（按依赖顺序）

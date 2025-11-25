@@ -6,6 +6,7 @@
 #include "core/config/render_context.h"
 #include "core/interfaces/irenderer.h"
 #include "core/interfaces/iwindow_resize_handler.h"
+#include "core/interfaces/iuirender_provider.h"
 
 // 前向声明
 class TextRenderer;
@@ -18,8 +19,8 @@ class ColorUIManager;
 class SliderUIManager;
 class Window;
 
-// UI管理器 - 负责所有UI组件的生命周期管理（实现 IWindowResizeHandler 接口）
-class UIManager : public IWindowResizeHandler {
+// UI管理器 - 负责所有UI组件的生命周期管理（实现 IWindowResizeHandler 和 IUIRenderProvider 接口）
+class UIManager : public IWindowResizeHandler, public IUIRenderProvider {
 public:
     UIManager();
     ~UIManager();
@@ -36,23 +37,22 @@ public:
     // IWindowResizeHandler 接口实现
     void HandleWindowResize(StretchMode stretchMode, IRenderer* renderer) override;
     
-    // 获取UI组件（用于渲染和事件处理）
-    Button* GetEnterButton() const;
-    Button* GetColorButton() const;
-    Button* GetLeftButton() const;
+    // IUIRenderProvider 接口实现
+    LoadingAnimation* GetLoadingAnimation() const override { return m_loadingAnim; }
+    Button* GetEnterButton() const override;
+    Button* GetColorButton() const override;
+    Button* GetLeftButton() const override;
+    Slider* GetOrangeSlider() const override;
+    void GetAllButtons(std::vector<Button*>& buttons) const override;
+    void GetAllSliders(std::vector<Slider*>& sliders) const override;
+    
+    // 其他UI组件获取方法（非接口方法）
     Button* GetColorAdjustButton() const;
-    Slider* GetOrangeSlider() const;
     ColorController* GetColorController() const;
     
     const std::vector<std::unique_ptr<Button>>& GetColorButtons() const;
     const std::vector<std::unique_ptr<Button>>& GetBoxColorButtons() const;
     const std::vector<std::unique_ptr<ColorController>>& GetBoxColorControllers() const;
-    
-    LoadingAnimation* GetLoadingAnimation() const { return m_loadingAnim; }
-    
-    // 获取所有按钮和滑块（用于渲染）
-    void GetAllButtons(std::vector<Button*>& buttons) const;
-    void GetAllSliders(std::vector<Slider*>& sliders) const;
     
     // 获取颜色按钮展开状态
     bool AreColorButtonsExpanded() const { return m_colorButtonsExpanded; }
