@@ -3,8 +3,8 @@
 #define NOMINMAX
 
 #include <windows.h>
-#include "renderer/core/application.h"
-#include "renderer/core/irenderer_factory.h"
+#include "renderer/core/managers/application.h"
+#include "renderer/core/interfaces/irenderer_factory.h"
 #include "renderer/vulkan/vulkan_renderer_factory.h"
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
