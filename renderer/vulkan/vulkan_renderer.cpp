@@ -24,8 +24,6 @@
 #include "ui/slider/slider.h"
 #include "window/window.h"
 
-using namespace renderer::shader;
-
 // pimpl 实现细节
 struct VulkanRenderer::Impl {
     std::unique_ptr<RenderCommandBuffer> commandBuffer;
@@ -73,7 +71,7 @@ void VulkanRenderer::Cleanup() {
     }
     
     // 清理同步对象
-    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+    for (int i = 0; i < config::MAX_FRAMES_IN_FLIGHT; i++) {
         if (m_imageAvailableSemaphores[i] != VK_NULL_HANDLE) {
             vkDestroySemaphore(m_device, m_imageAvailableSemaphores[i], nullptr);
         }
@@ -305,7 +303,7 @@ bool VulkanRenderer::CreateSwapchain() {
     m_swapchainImageFormat = formats[0].format;
     m_swapchainExtent = capabilities.currentExtent;
     if (m_swapchainExtent.width == UINT32_MAX) {
-        m_swapchainExtent = { WINDOW_WIDTH, WINDOW_HEIGHT };
+        m_swapchainExtent = { config::WINDOW_WIDTH, config::WINDOW_HEIGHT };
     }
     
     uint32_t imageCount = capabilities.minImageCount + 1;
@@ -438,17 +436,17 @@ bool VulkanRenderer::CreateGraphicsPipeline(const std::string& vertShaderPath, c
     // 尝试加载SPIR-V文件或编译GLSL文件
     size_t vertExtPos = vertShaderPath.find_last_of('.');
     if (vertExtPos != std::string::npos && vertShaderPath.substr(vertExtPos) == ".spv") {
-        vertShaderCode = ShaderLoader::LoadSPIRV(vertShaderPath);
+        vertShaderCode = renderer::shader::ShaderLoader::LoadSPIRV(vertShaderPath);
     } else {
         // 尝试从GLSL编译
-        vertShaderCode = ShaderLoader::CompileGLSLFromFile(vertShaderPath, VK_SHADER_STAGE_VERTEX_BIT);
+        vertShaderCode = renderer::shader::ShaderLoader::CompileGLSLFromFile(vertShaderPath, VK_SHADER_STAGE_VERTEX_BIT);
     }
     
     size_t fragExtPos = fragShaderPath.find_last_of('.');
     if (fragExtPos != std::string::npos && fragShaderPath.substr(fragExtPos) == ".spv") {
-        fragShaderCode = ShaderLoader::LoadSPIRV(fragShaderPath);
+        fragShaderCode = renderer::shader::ShaderLoader::LoadSPIRV(fragShaderPath);
     } else {
-        fragShaderCode = ShaderLoader::CompileGLSLFromFile(fragShaderPath, VK_SHADER_STAGE_FRAGMENT_BIT);
+        fragShaderCode = renderer::shader::ShaderLoader::CompileGLSLFromFile(fragShaderPath, VK_SHADER_STAGE_FRAGMENT_BIT);
     }
     
     if (vertShaderCode.empty() || fragShaderCode.empty()) {
@@ -456,8 +454,8 @@ bool VulkanRenderer::CreateGraphicsPipeline(const std::string& vertShaderPath, c
         return false;
     }
     
-    VkShaderModule vertShaderModule = ShaderLoader::CreateShaderModuleFromSPIRV(m_device, vertShaderCode);
-    VkShaderModule fragShaderModule = ShaderLoader::CreateShaderModuleFromSPIRV(m_device, fragShaderCode);
+    VkShaderModule vertShaderModule = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(m_device, vertShaderCode);
+    VkShaderModule fragShaderModule = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(m_device, fragShaderCode);
     
     if (vertShaderModule == VK_NULL_HANDLE || fragShaderModule == VK_NULL_HANDLE) {
         Window::ShowError("Failed to create shader modules!");
@@ -593,17 +591,17 @@ bool VulkanRenderer::CreateLoadingCubesPipeline(const std::string& vertShaderPat
     // 尝试加载SPIR-V文件或编译GLSL文件
     size_t vertExtPos = vertShaderPath.find_last_of('.');
     if (vertExtPos != std::string::npos && vertShaderPath.substr(vertExtPos) == ".spv") {
-        vertShaderCode = ShaderLoader::LoadSPIRV(vertShaderPath);
+        vertShaderCode = renderer::shader::ShaderLoader::LoadSPIRV(vertShaderPath);
     } else {
         // 尝试从GLSL编译
-        vertShaderCode = ShaderLoader::CompileGLSLFromFile(vertShaderPath, VK_SHADER_STAGE_VERTEX_BIT);
+        vertShaderCode = renderer::shader::ShaderLoader::CompileGLSLFromFile(vertShaderPath, VK_SHADER_STAGE_VERTEX_BIT);
     }
     
     size_t fragExtPos = fragShaderPath.find_last_of('.');
     if (fragExtPos != std::string::npos && fragShaderPath.substr(fragExtPos) == ".spv") {
-        fragShaderCode = ShaderLoader::LoadSPIRV(fragShaderPath);
+        fragShaderCode = renderer::shader::ShaderLoader::LoadSPIRV(fragShaderPath);
     } else {
-        fragShaderCode = ShaderLoader::CompileGLSLFromFile(fragShaderPath, VK_SHADER_STAGE_FRAGMENT_BIT);
+        fragShaderCode = renderer::shader::ShaderLoader::CompileGLSLFromFile(fragShaderPath, VK_SHADER_STAGE_FRAGMENT_BIT);
     }
     
     if (vertShaderCode.empty() || fragShaderCode.empty()) {
@@ -611,8 +609,8 @@ bool VulkanRenderer::CreateLoadingCubesPipeline(const std::string& vertShaderPat
         return false;
     }
     
-    VkShaderModule vertShaderModule = ShaderLoader::CreateShaderModuleFromSPIRV(m_device, vertShaderCode);
-    VkShaderModule fragShaderModule = ShaderLoader::CreateShaderModuleFromSPIRV(m_device, fragShaderCode);
+    VkShaderModule vertShaderModule = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(m_device, vertShaderCode);
+    VkShaderModule fragShaderModule = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(m_device, fragShaderCode);
     
     if (vertShaderModule == VK_NULL_HANDLE || fragShaderModule == VK_NULL_HANDLE) {
         Window::ShowError("Failed to create loading cubes shader modules!");
@@ -780,9 +778,9 @@ bool VulkanRenderer::CreateCommandBuffers() {
 }
 
 bool VulkanRenderer::CreateSyncObjects() {
-    m_imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
-    m_renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
-    m_inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
+    m_imageAvailableSemaphores.resize(config::MAX_FRAMES_IN_FLIGHT);
+    m_renderFinishedSemaphores.resize(config::MAX_FRAMES_IN_FLIGHT);
+    m_inFlightFences.resize(config::MAX_FRAMES_IN_FLIGHT);
     
     VkSemaphoreCreateInfo semaphoreInfo = {};
     semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -791,7 +789,7 @@ bool VulkanRenderer::CreateSyncObjects() {
     fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
     fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
     
-    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+    for (int i = 0; i < config::MAX_FRAMES_IN_FLIGHT; i++) {
         VkResult result1 = vkCreateSemaphore(m_device, &semaphoreInfo, nullptr, &m_imageAvailableSemaphores[i]);
         VkResult result2 = vkCreateSemaphore(m_device, &semaphoreInfo, nullptr, &m_renderFinishedSemaphores[i]);
         VkResult result3 = vkCreateFence(m_device, &fenceInfo, nullptr, &m_inFlightFences[i]);
@@ -894,8 +892,8 @@ void VulkanRenderer::RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
     
     // Calculate viewport and scissor with stretch mode and aspect ratio scaling (like Godot)
     // Reference: Godot's window.cpp _update_viewport_size() and viewport.cpp _set_size()
-    const float baseWidth = (float)WINDOW_WIDTH;   // desired_res (target resolution)
-    const float baseHeight = (float)WINDOW_HEIGHT;
+    const float baseWidth = (float)config::WINDOW_WIDTH;   // desired_res (target resolution)
+    const float baseHeight = (float)config::WINDOW_HEIGHT;
     const float targetAspect = baseWidth / baseHeight;  // 800/800 = 1.0
     const float videoModeAspect = (float)m_swapchainExtent.width / (float)m_swapchainExtent.height;
     
@@ -976,7 +974,6 @@ void VulkanRenderer::RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
         }
         case StretchMode::Fit: {
             // Fit模式：保持宽高比，添加黑边（letterbox/pillarbox）以适应窗口
-            // 参考Godot的AspectRatioMode::Keep实现，确保内容不变形
             const float currentAspect = (float)m_swapchainExtent.width / (float)m_swapchainExtent.height;
             
             if (currentAspect > targetAspect) {
@@ -1223,7 +1220,7 @@ bool VulkanRenderer::DrawFrame(float time, bool useLoadingCubes, ITextRenderer* 
         return false;
     }
     
-    m_currentFrame = (m_currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+    m_currentFrame = (m_currentFrame + 1) % config::MAX_FRAMES_IN_FLIGHT;
     
     return true;
 }
@@ -1279,8 +1276,8 @@ bool VulkanRenderer::DrawFrameWithLoading(const DrawFrameWithLoadingParams& para
     
     // 根据不同的拉伸模式设置视口和坐标系
     // UI基准使用背景纹理的原始尺寸（唯一的耦合点）
-    float baseWidth = (float)WINDOW_WIDTH;   // 默认宽度 800（如果没有背景）
-    float baseHeight = (float)WINDOW_HEIGHT; // 默认高度 800（如果没有背景）
+    float baseWidth = (float)config::WINDOW_WIDTH;   // 默认宽度 800（如果没有背景）
+    float baseHeight = (float)config::WINDOW_HEIGHT; // 默认高度 800（如果没有背景）
     if (m_backgroundTextureWidth > 0 && m_backgroundTextureHeight > 0) {
         // 使用背景纹理的原始尺寸作为UI基准
         baseWidth = (float)m_backgroundTextureWidth;
@@ -1675,7 +1672,7 @@ bool VulkanRenderer::DrawFrameWithLoading(const DrawFrameWithLoadingParams& para
         return false;
     }
     
-    m_currentFrame = (m_currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+    m_currentFrame = (m_currentFrame + 1) % config::MAX_FRAMES_IN_FLIGHT;
     
     return true;
 }
@@ -1853,7 +1850,7 @@ Extent2D VulkanRenderer::GetUIBaseSize() const {
         return Extent2D(m_backgroundTextureWidth, m_backgroundTextureHeight);
     } else {
         // 如果没有背景，使用默认的800x800
-        return Extent2D(WINDOW_WIDTH, WINDOW_HEIGHT);
+        return Extent2D(config::WINDOW_WIDTH, config::WINDOW_HEIGHT);
     }
 }
 

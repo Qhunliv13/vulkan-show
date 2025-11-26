@@ -1,6 +1,7 @@
-#include "core/managers/initialization_chain.h"
-#include <algorithm>
-#include <queue>
+#include "core/managers/initialization_chain.h"  // 1. 对应头文件
+
+#include <algorithm>  // 2. 系统头文件
+#include <queue>  // 2. 系统头文件
 
 InitializationChain::InitializationChain() {
 }

@@ -2,13 +2,13 @@
 
 #include <windows.h>  // 2. 系统头文件
 
+#include "core/interfaces/iconfig_provider.h"  // 4. 项目头文件（接口）
 #include "core/interfaces/ievent_bus.h"  // 4. 项目头文件（接口）
-#include "core/interfaces/iscene_provider.h"
-#include "core/interfaces/iconfig_provider.h"
-#include "core/managers/scene_manager.h"
-#include "core/utils/logger.h"
-#include "core/utils/event_bus.h"
-#include "window/window.h"
+#include "core/interfaces/iscene_provider.h"  // 4. 项目头文件（接口）
+#include "core/managers/scene_manager.h"  // 4. 项目头文件（管理器）
+#include "core/utils/event_bus.h"  // 4. 项目头文件（工具）
+#include "core/utils/logger.h"  // 4. 项目头文件（工具）
+#include "window/window.h"  // 4. 项目头文件（窗口）
 
 EventManager::EventManager() {
 }

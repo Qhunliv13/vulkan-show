@@ -58,6 +58,8 @@ public:
     virtual uint32_t FindMemoryType(uint32_t typeFilter, MemoryPropertyFlag properties) const = 0;
 };
 
-// 注意：Vulkan 相关的工厂函数已移至 vulkan_render_context_factory.h
-// 此设计实现了接口层与具体实现的完全解耦，允许未来支持其他渲染后端（OpenGL、DirectX等）
+/**
+ * 注意：Vulkan 相关的工厂函数已移至 vulkan_render_context_factory.h
+ * 此设计实现了接口层与具体实现的完全解耦，允许未来支持其他渲染后端（OpenGL、DirectX等）
+ */
 

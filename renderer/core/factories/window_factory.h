@@ -1,5 +1,7 @@
 #pragma once
 
+#include <memory>  // 2. 系统头文件
+
 #include "core/interfaces/iwindow_factory.h"  // 4. 项目头文件（接口）
 
 /**

@@ -40,13 +40,12 @@ bool UIManager::Initialize(IRenderer* renderer,
         return false;
     }
     
-    // 获取窗口尺寸
     RECT clientRect;
     GetClientRect(m_window->GetHandle(), &clientRect);
     float screenWidth = (float)(clientRect.right - clientRect.left);
     float screenHeight = (float)(clientRect.bottom - clientRect.top);
     
-    // 计算UI基准尺寸
+    // 根据拉伸模式计算UI基准尺寸（Fit/Disabled模式使用渲染器UI基准尺寸，其他模式使用交换链尺寸）
     Extent2D uiExtent = {};
     if (stretchMode == StretchMode::Fit || stretchMode == StretchMode::Disabled) {
         uiExtent = m_renderer->GetUIBaseSize();
@@ -59,8 +58,7 @@ bool UIManager::Initialize(IRenderer* renderer,
         }
     }
     
-    // 创建渲染上下文（使用工厂函数，避免头文件包含 vulkan.h）
-    // 通过 IRenderDevice 接口获取设备信息（遵循接口隔离原则）
+    // 通过 IRenderDevice 接口获取设备信息（遵循接口隔离原则，避免直接依赖 Vulkan 实现）
     IRenderDevice* renderDevice = m_renderer->GetRenderDevice();
     if (!renderDevice) {
         return false;
@@ -76,12 +74,11 @@ bool UIManager::Initialize(IRenderer* renderer,
         vkExtent
     ));
     
-    // 初始化加载动画
     if (!InitializeLoadingAnimation(m_renderer, *renderContext, stretchMode, screenWidth, screenHeight)) {
         return false;
     }
     
-    // 创建并初始化子管理器
+    // 创建并初始化子管理器（按依赖顺序：按钮、滑块、颜色）
     m_buttonManager = std::make_unique<ButtonUIManager>();
     if (!m_buttonManager->Initialize(*renderContext, textRenderer, m_window, stretchMode, screenWidth, screenHeight)) {
         return false;
@@ -97,7 +94,7 @@ bool UIManager::Initialize(IRenderer* renderer,
         return false;
     }
     
-    // 同步按钮颜色
+    // 同步按钮颜色（确保颜色管理器和按钮管理器的初始颜色一致）
     float r, g, b, a;
     m_buttonManager->GetButtonColor(r, g, b, a);
     m_colorManager->SetButtonColor(r, g, b, a);
@@ -118,6 +115,30 @@ void UIManager::Cleanup() {
     }
 }
 
+void UIManager::UnsubscribeFromEvents(IEventBus* eventBus) {
+    if (!eventBus) {
+        return;
+    }
+    
+    // 取消所有事件订阅（避免在对象销毁后仍接收到事件）
+    if (m_uiClickSubscriptionId != 0) {
+        eventBus->Unsubscribe(EventType::UIClick, m_uiClickSubscriptionId);
+        m_uiClickSubscriptionId = 0;
+    }
+    if (m_mouseMoveUISubscriptionId != 0) {
+        eventBus->Unsubscribe(EventType::MouseMovedUI, m_mouseMoveUISubscriptionId);
+        m_mouseMoveUISubscriptionId = 0;
+    }
+    if (m_mouseUpSubscriptionId != 0) {
+        eventBus->Unsubscribe(EventType::MouseUp, m_mouseUpSubscriptionId);
+        m_mouseUpSubscriptionId = 0;
+    }
+    if (m_windowResizeSubscriptionId != 0) {
+        eventBus->Unsubscribe(EventType::WindowResizeRequest, m_windowResizeSubscriptionId);
+        m_windowResizeSubscriptionId = 0;
+    }
+}
+
 void UIManager::HandleWindowResize(StretchMode stretchMode, IRenderer* renderer) {
     // 委托给子管理器
     if (m_buttonManager) {
@@ -130,7 +151,7 @@ void UIManager::HandleWindowResize(StretchMode stretchMode, IRenderer* renderer)
         m_colorManager->HandleWindowResize(stretchMode, renderer);
     }
     
-    // 更新加载动画位置
+    // 非Fit/Scaled模式需要更新加载动画位置（因为使用屏幕坐标而非相对坐标）
     if (stretchMode != StretchMode::Fit && stretchMode != StretchMode::Scaled && m_window) {
         RECT clientRect;
         GetClientRect(m_window->GetHandle(), &clientRect);
@@ -148,12 +169,11 @@ void UIManager::HandleWindowResize(StretchMode stretchMode, IRenderer* renderer)
 void UIManager::GetAllButtons(std::vector<Button*>& buttons) const {
     buttons.clear();
     
-    // 从按钮管理器获取所有按钮
     if (m_buttonManager) {
         m_buttonManager->GetAllButtons(buttons);
     }
     
-    // 添加颜色控制器的按钮
+    // 收集颜色控制器中的按钮（颜色控制器内部包含按钮组件）
     if (m_colorManager) {
         auto* colorController = m_colorManager->GetColorController();
         if (colorController) {
@@ -163,7 +183,7 @@ void UIManager::GetAllButtons(std::vector<Button*>& buttons) const {
             }
         }
         
-        // 添加方块颜色控制器的按钮
+        // 收集方块颜色控制器中的按钮（每个方块有独立的颜色控制器）
         const auto& boxColorControllers = m_colorManager->GetBoxColorControllers();
         for (const auto& controller : boxColorControllers) {
             if (controller && controller->IsVisible()) {
@@ -215,10 +235,10 @@ bool UIManager::InitializeLoadingAnimation(IRenderer* renderer, const IRenderCon
 }
 
 bool UIManager::HandleClick(float x, float y) {
-    // 按层级从高到低处理点击（封装内部组件遍历逻辑）
+    // 按层级从高到低处理点击（颜色控制器层级最高，按钮层级较低）
     bool clicked = false;
     
-    // 检查颜色控制器（滑块应该在按钮之前检查，因为滑块层级更高）
+    // 检查颜色控制器（层级最高，优先处理）
     if (m_colorManager) {
         auto* colorController = m_colorManager->GetColorController();
         if (!clicked && colorController && colorController->IsVisible()) {
@@ -243,7 +263,7 @@ bool UIManager::HandleClick(float x, float y) {
         }
     }
     
-    // 检查按钮（通过按钮管理器）
+    // 检查按钮（通过按钮管理器，层级低于颜色控制器）
     if (!clicked && m_buttonManager) {
         const auto& colorButtons = m_buttonManager->GetColorButtons();
         for (size_t i = 0; i < colorButtons.size(); i++) {
@@ -292,7 +312,7 @@ bool UIManager::HandleClick(float x, float y) {
         }
     }
     
-    // 检查滑块
+    // 检查滑块（层级最低）
     if (!clicked && m_sliderManager) {
         auto* orangeSlider = m_sliderManager->GetOrangeSlider();
         if (orangeSlider) {
@@ -312,7 +332,7 @@ bool UIManager::HandleClick(float x, float y) {
 
 void UIManager::HandleMouseMove(float x, float y) {
     if (x >= 0.0f && y >= 0.0f) {
-        // 处理按钮悬停效果（通过子管理器）
+        // 鼠标在视口内：处理按钮悬停效果
         if (m_buttonManager) {
             const auto& colorButtons = m_buttonManager->GetColorButtons();
             for (const auto& button : colorButtons) {
@@ -349,7 +369,7 @@ void UIManager::HandleMouseMove(float x, float y) {
             }
         }
         
-        // 处理滑块
+        // 处理滑块悬停效果
         if (m_sliderManager) {
             auto* orangeSlider = m_sliderManager->GetOrangeSlider();
             if (orangeSlider) {
@@ -357,7 +377,7 @@ void UIManager::HandleMouseMove(float x, float y) {
             }
         }
         
-        // 处理颜色控制器
+        // 处理颜色控制器悬停效果
         if (m_colorManager) {
             auto* colorController = m_colorManager->GetColorController();
             if (colorController && colorController->IsVisible()) {
@@ -372,7 +392,7 @@ void UIManager::HandleMouseMove(float x, float y) {
             }
         }
     } else {
-        // 鼠标在视口外，清除所有按钮的悬停状态
+        // 鼠标在视口外：清除所有按钮的悬停状态（使用无效坐标触发清除）
         if (m_buttonManager) {
             const auto& colorButtons = m_buttonManager->GetColorButtons();
             for (const auto& button : colorButtons) {
@@ -412,7 +432,7 @@ void UIManager::HandleMouseMove(float x, float y) {
 }
 
 void UIManager::HandleMouseUp() {
-    // 处理滑块
+    // 处理滑块鼠标释放（结束拖拽操作）
     if (m_sliderManager) {
         auto* orangeSlider = m_sliderManager->GetOrangeSlider();
         if (orangeSlider) {
@@ -420,7 +440,7 @@ void UIManager::HandleMouseUp() {
         }
     }
     
-    // 处理颜色控制器
+    // 处理颜色控制器鼠标释放（结束颜色调整操作）
     if (m_colorManager) {
         auto* colorController = m_colorManager->GetColorController();
         if (colorController) {
@@ -441,8 +461,8 @@ void UIManager::SubscribeToEvents(IEventBus* eventBus) {
         return;
     }
     
-    // 订阅UI点击事件
-    eventBus->Subscribe(EventType::UIClick, [this](const Event& e) {
+    // 订阅UI点击事件（使用SubscribeWithId保存订阅ID，以便在Cleanup时取消订阅）
+    m_uiClickSubscriptionId = eventBus->SubscribeWithId(EventType::UIClick, [this](const Event& e) {
         const UIClickEvent& clickEvent = static_cast<const UIClickEvent&>(e);
         HandleClick(clickEvent.uiX, clickEvent.uiY);
         // 如果拉伸模式不是Fit，需要更新UI组件位置
@@ -452,18 +472,18 @@ void UIManager::SubscribeToEvents(IEventBus* eventBus) {
     });
     
     // 订阅UI鼠标移动事件
-    eventBus->Subscribe(EventType::MouseMovedUI, [this](const Event& e) {
+    m_mouseMoveUISubscriptionId = eventBus->SubscribeWithId(EventType::MouseMovedUI, [this](const Event& e) {
         const MouseMovedUIEvent& moveEvent = static_cast<const MouseMovedUIEvent&>(e);
         HandleMouseMove(moveEvent.uiX, moveEvent.uiY);
     });
     
     // 订阅鼠标释放事件
-    eventBus->Subscribe(EventType::MouseUp, [this](const Event& e) {
+    m_mouseUpSubscriptionId = eventBus->SubscribeWithId(EventType::MouseUp, [this](const Event& e) {
         HandleMouseUp();
     });
     
     // 订阅窗口大小变化事件
-    eventBus->Subscribe(EventType::WindowResizeRequest, [this](const Event& e) {
+    m_windowResizeSubscriptionId = eventBus->SubscribeWithId(EventType::WindowResizeRequest, [this](const Event& e) {
         const WindowResizeRequestEvent& resizeEvent = static_cast<const WindowResizeRequestEvent&>(e);
         if (resizeEvent.renderer) {
             HandleWindowResize(resizeEvent.stretchMode, resizeEvent.renderer);
@@ -477,9 +497,9 @@ void UIManager::SetupCallbacks(IEventBus* eventBus) {
     }
     
     // 使用事件总线解耦：发布事件而不是直接调用具体类的方法
-    // 这样 UIManager 不需要知道 SceneManager 的具体实现
+    // 这样 UIManager 不需要知道 SceneManager 的具体实现，符合依赖倒置原则
     
-    // 设置进入按钮的回调 - 发布事件
+    // 设置进入按钮的回调（发布事件通知场景切换）
     auto* enterButton = m_buttonManager->GetEnterButton();
     if (enterButton) {
         enterButton->SetOnClickCallback([eventBus]() {
@@ -489,7 +509,7 @@ void UIManager::SetupCallbacks(IEventBus* eventBus) {
         });
     }
     
-    // 设置颜色按钮的回调
+    // 设置颜色按钮的回调（切换方块颜色按钮的显示状态）
     auto* colorButton = m_buttonManager->GetColorButton();
     if (colorButton) {
         colorButton->SetOnClickCallback([this]() {
@@ -514,7 +534,7 @@ void UIManager::SetupCallbacks(IEventBus* eventBus) {
         });
     }
     
-    // 设置左侧按钮的回调 - 发布事件
+    // 设置左侧按钮的回调（发布事件通知进入3D场景）
     auto* leftButton = m_buttonManager->GetLeftButton();
     if (leftButton) {
         leftButton->SetOnClickCallback([eventBus]() {
@@ -524,7 +544,7 @@ void UIManager::SetupCallbacks(IEventBus* eventBus) {
         });
     }
     
-    // 设置颜色按钮的回调（9个颜色按钮）
+    // 设置颜色按钮的回调（9个颜色按钮，点击后显示对应方块的颜色控制器）
     const auto& colorButtons = m_buttonManager->GetColorButtons();
     for (size_t i = 0; i < colorButtons.size(); i++) {
         if (colorButtons[i]) {
@@ -542,7 +562,7 @@ void UIManager::SetupCallbacks(IEventBus* eventBus) {
         }
     }
     
-    // 设置方块颜色按钮的回调
+    // 设置方块颜色按钮的回调（点击后显示对应方块的颜色控制器）
     const auto& boxColorButtons = m_buttonManager->GetBoxColorButtons();
     for (size_t i = 0; i < boxColorButtons.size(); i++) {
         if (boxColorButtons[i]) {
@@ -560,7 +580,7 @@ void UIManager::SetupCallbacks(IEventBus* eventBus) {
         }
     }
     
-    // 设置颜色调整按钮的回调
+    // 设置颜色调整按钮的回调（切换主颜色控制器的显示状态）
     auto* colorAdjustButton = m_buttonManager->GetColorAdjustButton();
     if (colorAdjustButton) {
         colorAdjustButton->SetOnClickCallback([this]() {
@@ -574,15 +594,14 @@ void UIManager::SetupCallbacks(IEventBus* eventBus) {
         });
     }
     
-    // 设置颜色控制器的回调，更新按钮颜色
+    // 设置颜色控制器的回调（颜色变化时同步更新所有相关按钮的颜色）
     auto* colorController = m_colorManager->GetColorController();
     if (colorController) {
         colorController->SetOnColorChangedCallback([this](float r, float g, float b, float a) {
-            // 更新颜色管理器的内部状态
+            // 同步更新颜色管理器和按钮管理器的颜色状态
             m_colorManager->SetButtonColor(r, g, b, a);
-            // 更新按钮管理器的颜色
             m_buttonManager->SetButtonColor(r, g, b, a);
-            // 实际更新颜色按钮的颜色
+            // 更新颜色按钮的视觉颜色
             auto* colorButton = m_buttonManager->GetColorButton();
             if (colorButton) {
                 colorButton->SetColor(r, g, b, a);

@@ -9,8 +9,6 @@
 #include "shader/shader_loader.h"  // 4. 项目头文件
 #include "window/window.h"         // 4. 项目头文件
 
-using namespace renderer::shader;
-
 TextRenderer::TextRenderer() {
 }
 
@@ -642,16 +640,16 @@ bool TextRenderer::CreatePipeline(VkRenderPass renderPass) {
     std::vector<char> fragShaderCode;
     
     // 尝试加载 SPIR-V 文件
-    vertShaderCode = ShaderLoader::LoadSPIRV("renderer/text/text.vert.spv");
-    fragShaderCode = ShaderLoader::LoadSPIRV("renderer/text/text.frag.spv");
+    vertShaderCode = renderer::shader::ShaderLoader::LoadSPIRV("renderer/text/text.vert.spv");
+    fragShaderCode = renderer::shader::ShaderLoader::LoadSPIRV("renderer/text/text.frag.spv");
     
     // 如果 SPIR-V 文件不存在，尝试编译 GLSL
     if (vertShaderCode.empty()) {
-        vertShaderCode = ShaderLoader::CompileGLSLFromFile(
+        vertShaderCode = renderer::shader::ShaderLoader::CompileGLSLFromFile(
             "renderer/text/text.vert", VK_SHADER_STAGE_VERTEX_BIT);
     }
     if (fragShaderCode.empty()) {
-        fragShaderCode = ShaderLoader::CompileGLSLFromFile(
+        fragShaderCode = renderer::shader::ShaderLoader::CompileGLSLFromFile(
             "renderer/text/text.frag", VK_SHADER_STAGE_FRAGMENT_BIT);
     }
     
@@ -660,8 +658,8 @@ bool TextRenderer::CreatePipeline(VkRenderPass renderPass) {
         return false;
     }
     
-    VkShaderModule vertShaderModule = ShaderLoader::CreateShaderModuleFromSPIRV(m_device, vertShaderCode);
-    VkShaderModule fragShaderModule = ShaderLoader::CreateShaderModuleFromSPIRV(m_device, fragShaderCode);
+    VkShaderModule vertShaderModule = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(m_device, vertShaderCode);
+    VkShaderModule fragShaderModule = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(m_device, fragShaderCode);
     
     if (vertShaderModule == VK_NULL_HANDLE || fragShaderModule == VK_NULL_HANDLE) {
         Window::ShowError("Failed to create shader modules!");

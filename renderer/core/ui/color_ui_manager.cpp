@@ -38,11 +38,11 @@ bool ColorUIManager::Initialize(IRenderer* renderer,
     m_loadingAnim = loadingAnim;
     m_window = window;
     
-    // 初始化向量大小
+    // 预分配向量大小（9个方块颜色控制器）
     m_boxColorControllers.resize(9);
     m_boxColorControllersInitialized.resize(9, false);
     
-    // 创建非const副本以传递给需要修改的方法
+    // 创建非const IRenderContext 副本（ColorController组件需要非const引用）
     Extent2D extent = renderContext.GetSwapchainExtent();
     VkExtent2D vkExtent = { extent.width, extent.height };
     std::unique_ptr<IRenderContext> nonConstContextPtr(CreateVulkanRenderContext(
@@ -174,7 +174,7 @@ bool ColorUIManager::InitializeColorController(IRenderer* renderer, IRenderConte
         m_colorControllerInitialized = true;
         printf("[DEBUG] Color controller initialized successfully\n");
         
-        // 设置颜色控制器的回调
+        // 设置颜色变化回调（颜色变化时更新内部状态）
         m_colorController->SetOnColorChangedCallback([this](float r, float g, float b, float a) {
             m_buttonColorR = r;
             m_buttonColorG = g;

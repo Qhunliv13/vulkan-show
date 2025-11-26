@@ -113,7 +113,7 @@ private:
     std::unique_ptr<IRenderer> m_renderer;  // 使用 unique_ptr 管理渲染器生命周期
     IRendererFactory* m_rendererFactory = nullptr;
     ITextRenderer* m_textRenderer = nullptr;
-    class InputHandler* m_inputHandlerImpl = nullptr;  // 保存具体实现指针，用于类型转换
+    std::unique_ptr<class InputHandler> m_inputHandlerImpl;  // 使用 unique_ptr 管理 InputHandler 生命周期
     IInputHandler* m_inputHandler = nullptr;  // 使用接口类型（用于 EventManager）
     std::unique_ptr<class UIManager> m_uiManager;  // 前向声明，减少头文件依赖
     std::unique_ptr<class UIRenderProviderAdapter> m_uiRenderProviderAdapter;  // UI渲染提供者适配器

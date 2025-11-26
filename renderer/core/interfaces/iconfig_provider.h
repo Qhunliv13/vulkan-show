@@ -22,12 +22,10 @@ public:
     virtual void Initialize(const char* lpCmdLine) = 0;
     
     // 获取配置值
-    virtual AspectRatioMode GetAspectRatioMode() const = 0;
     virtual StretchMode GetStretchMode() const = 0;
     virtual BackgroundStretchMode GetBackgroundStretchMode() const = 0;
     
     // 设置配置值
-    virtual void SetAspectRatioMode(AspectRatioMode mode) = 0;
     virtual void SetStretchMode(StretchMode mode) = 0;
     virtual void SetBackgroundStretchMode(BackgroundStretchMode mode) = 0;
     

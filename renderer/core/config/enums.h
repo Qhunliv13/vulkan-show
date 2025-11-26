@@ -1,18 +1,8 @@
 #pragma once
 
-// 渲染和窗口相关的枚举类型定义
-
 /**
- * 宽高比模式（类似 Godot 引擎）
- * 控制内容在窗口中的显示方式
+ * 渲染和窗口相关的枚举类型定义
  */
-enum class AspectRatioMode {
-    Keep,        // 保持宽高比，添加黑边（letterbox/pillarbox）
-    Expand,      // 拉伸填充整个窗口
-    KeepWidth,   // 保持宽度，自适应高度
-    KeepHeight,  // 保持高度，自适应宽度
-    Center       // 居中显示，不缩放
-};
 
 /**
  * 拉伸模式（类似 Godot 引擎）

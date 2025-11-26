@@ -21,7 +21,7 @@ SliderUIManager::~SliderUIManager() {
 
 bool SliderUIManager::Initialize(const IRenderContext& renderContext, IWindow* window, StretchMode stretchMode) {
     m_window = window;
-    // 创建非const副本以传递给需要修改的方法
+    // 创建非const IRenderContext 副本（Slider组件需要非const引用）
     Extent2D extent = renderContext.GetSwapchainExtent();
     VkExtent2D vkExtent = { extent.width, extent.height };
     std::unique_ptr<IRenderContext> nonConstContextPtr(CreateVulkanRenderContext(
@@ -67,11 +67,12 @@ void SliderUIManager::GetAllSliders(std::vector<Slider*>& sliders,
                                    const std::vector<std::unique_ptr<ColorController>>* boxColorControllers) const {
     sliders.clear();
     
+    // 添加橙色滑块
     if (m_sliderInitialized && m_orangeSlider) {
         sliders.push_back(m_orangeSlider.get());
     }
     
-    // 添加颜色控制器的滑块
+    // 收集颜色控制器中的滑块（颜色控制器内部包含RGBA四个滑块）
     if (colorController && colorController->IsVisible()) {
         std::vector<Slider*> colorControllerSliders = colorController->GetSliders();
         for (Slider* slider : colorControllerSliders) {
@@ -79,7 +80,7 @@ void SliderUIManager::GetAllSliders(std::vector<Slider*>& sliders,
         }
     }
     
-    // 添加方块颜色控制器的滑块
+    // 收集方块颜色控制器中的滑块（每个方块有独立的颜色控制器）
     if (boxColorControllers) {
         for (const auto& controller : *boxColorControllers) {
             if (controller && controller->IsVisible()) {

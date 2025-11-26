@@ -2,8 +2,10 @@
 
 #include "core/config/render_context.h"  // 4. 项目头文件
 
-// Vulkan 相关前向声明（避免在抽象接口头文件中暴露）
-// 使用前向声明而非完整包含 vulkan.h，减少编译依赖和编译时间
+/**
+ * Vulkan 相关前向声明（避免在抽象接口头文件中暴露）
+ * 使用前向声明而非完整包含 vulkan.h，减少编译依赖和编译时间
+ */
 struct VkDevice_T;
 struct VkPhysicalDevice_T;
 struct VkCommandPool_T;

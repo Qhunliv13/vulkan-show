@@ -48,6 +48,19 @@ void FPSMonitor::Update() {
     }
 }
 
+void FPSMonitor::Cleanup() {
+    if (!m_initialized) {
+        return;
+    }
+    
+    m_fps = 0.0f;
+    m_deltaTime = 0.0f;
+    m_totalTime = 0.0f;
+    m_fpsUpdateTimer = 0.0f;
+    m_fpsFrameCount = 0;
+    m_initialized = false;
+}
+
 void FPSMonitor::Reset() {
     QueryPerformanceCounter(&m_lastTime);
     m_fps = 0.0f;

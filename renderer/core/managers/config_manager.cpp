@@ -10,7 +10,6 @@ void ConfigManager::Initialize(const char* lpCmdLine) {
 
 void ConfigManager::ParseCommandLine(const char* lpCmdLine) {
     // 重置为默认值
-    m_aspectMode = AspectRatioMode::Keep;
     m_stretchMode = StretchMode::Fit;
     m_backgroundMode = BackgroundStretchMode::Fit;
     
@@ -21,19 +20,6 @@ void ConfigManager::ParseCommandLine(const char* lpCmdLine) {
     std::string cmdLine(lpCmdLine);
     std::string cmdLineLower = cmdLine;
     std::transform(cmdLineLower.begin(), cmdLineLower.end(), cmdLineLower.begin(), ::tolower);
-    
-    // 解析宽高比模式
-    if (cmdLineLower.find("--aspect=keep") != std::string::npos || cmdLineLower.find("-a keep") != std::string::npos) {
-        m_aspectMode = AspectRatioMode::Keep;
-    } else if (cmdLineLower.find("--aspect=expand") != std::string::npos || cmdLineLower.find("-a expand") != std::string::npos) {
-        m_aspectMode = AspectRatioMode::Expand;
-    } else if (cmdLineLower.find("--aspect=keepwidth") != std::string::npos || cmdLineLower.find("-a keepwidth") != std::string::npos) {
-        m_aspectMode = AspectRatioMode::KeepWidth;
-    } else if (cmdLineLower.find("--aspect=keepheight") != std::string::npos || cmdLineLower.find("-a keepheight") != std::string::npos) {
-        m_aspectMode = AspectRatioMode::KeepHeight;
-    } else if (cmdLineLower.find("--aspect=center") != std::string::npos || cmdLineLower.find("-a center") != std::string::npos) {
-        m_aspectMode = AspectRatioMode::Center;
-    }
     
     // 解析拉伸模式
     if (cmdLineLower.find("--stretch=disabled") != std::string::npos || cmdLineLower.find("-s disabled") != std::string::npos) {

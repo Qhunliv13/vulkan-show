@@ -120,11 +120,21 @@ public:
      * 订阅事件总线的事件（统一通信模式）
      * 
      * 订阅UI相关事件，实现事件驱动的UI交互
-     * 注意：必须在 Cleanup() 时取消所有订阅
+     * 使用 SubscribeWithId 保存订阅ID，以便后续取消订阅
      * 
      * @param eventBus 事件总线（不拥有所有权，由外部管理生命周期）
      */
     void SubscribeToEvents(IEventBus* eventBus);
+    
+    /**
+     * 取消所有事件订阅
+     * 
+     * 在 Cleanup() 之前调用，取消所有已订阅的事件
+     * 避免在对象销毁后仍接收到事件导致悬空指针
+     * 
+     * @param eventBus 事件总线（不拥有所有权，由外部管理生命周期）
+     */
+    void UnsubscribeFromEvents(IEventBus* eventBus);
 
 private:
     // 初始化加载动画

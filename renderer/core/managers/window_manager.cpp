@@ -1,10 +1,10 @@
 #include "core/managers/window_manager.h"  // 1. 对应头文件
 
 #include "core/interfaces/iconfig_provider.h"  // 4. 项目头文件（接口）
-#include "core/interfaces/iwindow_factory.h"
-#include "core/interfaces/ievent_bus.h"
-#include "core/interfaces/ilogger.h"
-#include "window/window.h"
+#include "core/interfaces/iwindow_factory.h"  // 4. 项目头文件（接口）
+#include "core/interfaces/ievent_bus.h"  // 4. 项目头文件（接口）
+#include "core/interfaces/ilogger.h"  // 4. 项目头文件（接口）
+#include "window/window.h"  // 4. 项目头文件（窗口实现）
 
 WindowManager::WindowManager() {
 }

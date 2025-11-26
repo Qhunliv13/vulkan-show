@@ -1,37 +1,37 @@
 #include "core/managers/app_initializer.h"  // 1. 对应头文件
 
-#include <windows.h>                        // 2. 系统头文件
-#include <io.h>
-#include <fcntl.h>
+#include <fcntl.h>  // 2. 系统头文件
+#include <io.h>  // 2. 系统头文件
+#include <windows.h>  // 2. 系统头文件
 
-#include "core/managers/initialization_result.h"  // 3. 项目头文件（按依赖层级）
-#include "core/managers/app_initialization_config.h"
-#include "core/interfaces/iconfig_provider.h"
-#include "core/interfaces/ilogger.h"
-#include "core/interfaces/ievent_bus.h"
-#include "core/interfaces/irenderer_factory.h"
-#include "core/interfaces/irenderer.h"
-#include "core/interfaces/ipipeline_manager.h"  // 需要完整定义
-#include "core/interfaces/icamera_controller.h"  // 需要完整定义
-#include "core/interfaces/irender_device.h"  // 需要完整定义
-#include "core/interfaces/iinput_provider.h"
-#include "core/interfaces/iwindow_factory.h"
-#include "core/interfaces/itext_renderer_factory.h"
-#include "core/interfaces/itext_renderer.h"
-#include "core/interfaces/iscene_provider.h"
-#include "core/managers/event_manager.h"
-#include "core/managers/window_manager.h"
-#include "core/managers/scene_manager.h"
-#include "core/managers/render_scheduler.h"
-#include "core/handlers/window_message_handler.h"
-#include "core/utils/logger.h"
-#include "core/utils/event_bus.h"
-#include "core/utils/input_handler.h"
-#include "core/ui/ui_manager.h"
-#include "core/ui/ui_render_provider_adapter.h"
-#include "core/ui/ui_window_resize_adapter.h"
-#include "text/text_renderer.h"
-#include "window/window.h"
+#include "core/managers/app_initialization_config.h"  // 4. 项目头文件（配置）
+#include "core/managers/initialization_result.h"  // 4. 项目头文件（初始化结果）
+#include "core/interfaces/icamera_controller.h"  // 4. 项目头文件（接口）
+#include "core/interfaces/iconfig_provider.h"  // 4. 项目头文件（接口）
+#include "core/interfaces/ievent_bus.h"  // 4. 项目头文件（接口）
+#include "core/interfaces/iinput_provider.h"  // 4. 项目头文件（接口）
+#include "core/interfaces/ilogger.h"  // 4. 项目头文件（接口）
+#include "core/interfaces/ipipeline_manager.h"  // 4. 项目头文件（接口）
+#include "core/interfaces/irender_device.h"  // 4. 项目头文件（接口）
+#include "core/interfaces/irenderer.h"  // 4. 项目头文件（接口）
+#include "core/interfaces/irenderer_factory.h"  // 4. 项目头文件（接口）
+#include "core/interfaces/iscene_provider.h"  // 4. 项目头文件（接口）
+#include "core/interfaces/itext_renderer.h"  // 4. 项目头文件（接口）
+#include "core/interfaces/itext_renderer_factory.h"  // 4. 项目头文件（接口）
+#include "core/interfaces/iwindow_factory.h"  // 4. 项目头文件（接口）
+#include "core/handlers/window_message_handler.h"  // 4. 项目头文件（处理器）
+#include "core/managers/event_manager.h"  // 4. 项目头文件（管理器）
+#include "core/managers/render_scheduler.h"  // 4. 项目头文件（管理器）
+#include "core/managers/scene_manager.h"  // 4. 项目头文件（管理器）
+#include "core/managers/window_manager.h"  // 4. 项目头文件（管理器）
+#include "core/ui/ui_manager.h"  // 4. 项目头文件（UI）
+#include "core/ui/ui_render_provider_adapter.h"  // 4. 项目头文件（UI）
+#include "core/ui/ui_window_resize_adapter.h"  // 4. 项目头文件（UI）
+#include "core/utils/event_bus.h"  // 4. 项目头文件（工具）
+#include "core/utils/input_handler.h"  // 4. 项目头文件（工具）
+#include "core/utils/logger.h"  // 4. 项目头文件（工具）
+#include "text/text_renderer.h"  // 4. 项目头文件（文字渲染器）
+#include "window/window.h"  // 4. 项目头文件（窗口）
 
 AppInitializer::AppInitializer() {
 }
@@ -232,7 +232,6 @@ InitializationResult AppInitializer::InitializeRenderer(IRendererFactory* render
         m_renderer.reset();  // unique_ptr 自动清理
         return InitializationResult::Failure("ConfigProvider not initialized");
     }
-    m_renderer->SetAspectRatioMode(m_configProvider->GetAspectRatioMode());
     m_renderer->SetStretchMode(m_configProvider->GetStretchMode());
     m_renderer->SetBackgroundStretchMode(m_configProvider->GetBackgroundStretchMode());
     
@@ -291,14 +290,14 @@ InitializationResult AppInitializer::InitializeInputHandler() {
         return InitializationResult::Failure("Invalid parameters for input handler initialization");
     }
     
-    InputHandler* inputHandler = new InputHandler();
+    auto inputHandler = std::make_unique<InputHandler>();
     if (!inputHandler) {
         return InitializationResult::Failure("Failed to create InputHandler");
     }
     
     inputHandler->Initialize(m_renderer.get(), m_windowManager->GetWindow(), m_configProvider->GetStretchMode());
-    m_inputHandlerImpl = inputHandler;  // 保存具体实现指针
-    m_inputHandler = inputHandler;  // InputHandler 实现了 IInputHandler 接口
+    m_inputHandler = inputHandler.get();  // InputHandler 实现了 IInputHandler 接口
+    m_inputHandlerImpl = std::move(inputHandler);  // 使用 unique_ptr 管理生命周期
     return InitializationResult::Success();
 }
 
@@ -417,7 +416,7 @@ InitializationResult AppInitializer::InitializeRenderScheduler() {
     // 使用接口而不是具体类（依赖注入）
     // InputHandler 同时实现了 IInputProvider 和 IInputHandler 接口
     // 通过保存的具体实现指针进行类型转换
-    IInputProvider* inputProvider = static_cast<IInputProvider*>(m_inputHandlerImpl);
+    IInputProvider* inputProvider = static_cast<IInputProvider*>(m_inputHandlerImpl.get());
     // 使用适配器而不是直接使用 UIManager，实现接口职责单一
     IUIRenderProvider* uiRenderProvider = m_uiRenderProviderAdapter.get();
     m_renderScheduler->Initialize(m_renderer.get(), 
@@ -500,8 +499,7 @@ void AppInitializer::CleanupPartial(int initializedSteps) {
     // 步骤5: 清理输入处理器
     if (initializedSteps >= 6) {
         if (m_inputHandlerImpl) {
-            delete m_inputHandlerImpl;
-            m_inputHandlerImpl = nullptr;
+            m_inputHandlerImpl.reset();
             m_inputHandler = nullptr;
         }
     }
@@ -602,8 +600,7 @@ void AppInitializer::Cleanup() {
     
     // 5. 清理输入处理器
     if (m_inputHandlerImpl) {
-        delete m_inputHandlerImpl;
-        m_inputHandlerImpl = nullptr;
+        m_inputHandlerImpl.reset();
         m_inputHandler = nullptr;
     }
     

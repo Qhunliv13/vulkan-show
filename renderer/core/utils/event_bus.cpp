@@ -2,6 +2,22 @@
 
 #include <algorithm>       // 2. 系统头文件
 
+void EventBus::Initialize() {
+    if (m_initialized) {
+        return;
+    }
+    
+    m_handlers.clear();
+    m_nextId = 1;
+    m_initialized = true;
+}
+
+void EventBus::Cleanup() {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    Clear();
+    m_initialized = false;
+}
+
 void EventBus::Subscribe(EventType type, EventHandler handler) {
     std::lock_guard<std::mutex> lock(m_mutex);
     m_handlers[type].push_back({m_nextId++, handler});

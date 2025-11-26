@@ -35,16 +35,15 @@ bool ButtonUIManager::Initialize(const IRenderContext& renderContext,
     m_window = window;
     m_textRendererInitialized = (textRenderer != nullptr);
     
-    // 初始化向量大小
+    // 预分配向量大小（9个颜色按钮和9个方块颜色按钮）
     m_colorButtons.resize(9);
     m_boxColorButtons.resize(9);
     m_colorButtonsInitialized.resize(9, false);
     m_boxColorButtonsInitialized.resize(9, false);
     
-    // 创建非const副本以传递给需要修改的方法
-    // 注意：Button 等组件仍需要 Vulkan 对象，这里通过接口获取并创建临时对象
-    // 由于 Button 等组件直接依赖 Vulkan，我们需要创建一个包装器
-    // TODO: 未来可以进一步重构 Button 等组件使用 IRenderContext 接口
+    // 创建非const IRenderContext 副本（Button组件需要非const引用）
+    // 注意：Button 等组件当前直接依赖 Vulkan，通过接口获取设备信息后创建临时对象
+    // 未来可考虑重构为使用 IRenderContext 接口，避免直接依赖 Vulkan 实现
     Extent2D extent = renderContext.GetSwapchainExtent();
     VkExtent2D vkExtent = { extent.width, extent.height };
     std::unique_ptr<IRenderContext> nonConstContextPtr(CreateVulkanRenderContext(
@@ -427,7 +426,7 @@ bool ButtonUIManager::InitializeColorAdjustButton(IRenderContext& renderContext,
 }
 
 void ButtonUIManager::UpdateButtonPositions(float screenWidth, float screenHeight, StretchMode stretchMode, IRenderer* renderer) {
-    // 更新按钮位置
+    // 更新所有按钮的位置（窗口大小变化时重新计算相对坐标）
     if (m_enterButton) {
         m_enterButton->UpdateForWindowResize(screenWidth, screenHeight);
     }
@@ -438,7 +437,7 @@ void ButtonUIManager::UpdateButtonPositions(float screenWidth, float screenHeigh
         m_leftButton->UpdateForWindowResize(screenWidth, screenHeight);
     }
     
-    // 更新其他UI组件位置
+    // 更新颜色按钮和方块颜色按钮的位置
     for (int i = 0; i < 9; i++) {
         if (m_colorButtonsInitialized[i] && m_colorButtons[i]) {
             m_colorButtons[i]->UpdateForWindowResize(screenWidth, screenHeight);

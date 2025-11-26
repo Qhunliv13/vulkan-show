@@ -22,8 +22,6 @@
 #include "texture/texture.h"                               // 4. 项目头文件
 #include "window/window.h"                                 // 4. 项目头文件
 
-using namespace renderer::shader;
-
 Button::Button() {
 }
 
@@ -392,8 +390,8 @@ uint32_t Button::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags prope
 
 bool Button::CreatePipeline(VkRenderPass renderPass) {
     // 加载shader（使用按钮专用的shader，支持纹理）
-    std::vector<char> vertCode = ShaderLoader::LoadSPIRV("renderer/ui/button/button.vert.spv");
-    std::vector<char> fragCode = ShaderLoader::LoadSPIRV("renderer/ui/button/button.frag.spv");
+    std::vector<char> vertCode = renderer::shader::ShaderLoader::LoadSPIRV("renderer/ui/button/button.vert.spv");
+    std::vector<char> fragCode = renderer::shader::ShaderLoader::LoadSPIRV("renderer/ui/button/button.frag.spv");
     
     if (vertCode.empty() || fragCode.empty()) {
         // 如果SPIR-V文件不存在，尝试从源码编译
@@ -403,8 +401,8 @@ bool Button::CreatePipeline(VkRenderPass renderPass) {
         if (vertFile.is_open() && fragFile.is_open()) {
             std::string vertSource((std::istreambuf_iterator<char>(vertFile)), std::istreambuf_iterator<char>());
             std::string fragSource((std::istreambuf_iterator<char>(fragFile)), std::istreambuf_iterator<char>());
-            vertCode = ShaderLoader::CompileGLSLFromSource(vertSource, VK_SHADER_STAGE_VERTEX_BIT, "button.vert");
-            fragCode = ShaderLoader::CompileGLSLFromSource(fragSource, VK_SHADER_STAGE_FRAGMENT_BIT, "button.frag");
+            vertCode = renderer::shader::ShaderLoader::CompileGLSLFromSource(vertSource, VK_SHADER_STAGE_VERTEX_BIT, "button.vert");
+            fragCode = renderer::shader::ShaderLoader::CompileGLSLFromSource(fragSource, VK_SHADER_STAGE_FRAGMENT_BIT, "button.frag");
         }
         #endif
     }
@@ -414,8 +412,8 @@ bool Button::CreatePipeline(VkRenderPass renderPass) {
         return false;
     }
     
-    VkShaderModule vertShaderModule = ShaderLoader::CreateShaderModuleFromSPIRV(m_device, vertCode);
-    VkShaderModule fragShaderModule = ShaderLoader::CreateShaderModuleFromSPIRV(m_device, fragCode);
+    VkShaderModule vertShaderModule = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(m_device, vertCode);
+    VkShaderModule fragShaderModule = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(m_device, fragCode);
     
     if (vertShaderModule == VK_NULL_HANDLE || fragShaderModule == VK_NULL_HANDLE) {
         Window::ShowError("Failed to create shader modules for button!");
@@ -1194,8 +1192,8 @@ bool Button::CreateFullscreenQuadBuffer() {
 
 bool Button::CreatePureShaderPipeline(VkRenderPass renderPass) {
     // 加载纯shader（使用新创建的shader文件）
-    std::vector<char> vertCode = ShaderLoader::LoadSPIRV("renderer/ui/button/button_pure.vert.spv");
-    std::vector<char> fragCode = ShaderLoader::LoadSPIRV("renderer/ui/button/button_pure.frag.spv");
+    std::vector<char> vertCode = renderer::shader::ShaderLoader::LoadSPIRV("renderer/ui/button/button_pure.vert.spv");
+    std::vector<char> fragCode = renderer::shader::ShaderLoader::LoadSPIRV("renderer/ui/button/button_pure.frag.spv");
     
     if (vertCode.empty() || fragCode.empty()) {
         // 如果SPIR-V文件不存在，尝试从源码编译
@@ -1205,8 +1203,8 @@ bool Button::CreatePureShaderPipeline(VkRenderPass renderPass) {
         if (vertFile.is_open() && fragFile.is_open()) {
             std::string vertSource((std::istreambuf_iterator<char>(vertFile)), std::istreambuf_iterator<char>());
             std::string fragSource((std::istreambuf_iterator<char>(fragFile)), std::istreambuf_iterator<char>());
-            vertCode = ShaderLoader::CompileGLSLFromSource(vertSource, VK_SHADER_STAGE_VERTEX_BIT, "button_pure.vert");
-            fragCode = ShaderLoader::CompileGLSLFromSource(fragSource, VK_SHADER_STAGE_FRAGMENT_BIT, "button_pure.frag");
+            vertCode = renderer::shader::ShaderLoader::CompileGLSLFromSource(vertSource, VK_SHADER_STAGE_VERTEX_BIT, "button_pure.vert");
+            fragCode = renderer::shader::ShaderLoader::CompileGLSLFromSource(fragSource, VK_SHADER_STAGE_FRAGMENT_BIT, "button_pure.frag");
         }
         #endif
     }
@@ -1216,8 +1214,8 @@ bool Button::CreatePureShaderPipeline(VkRenderPass renderPass) {
         return false;
     }
     
-    VkShaderModule vertShaderModule = ShaderLoader::CreateShaderModuleFromSPIRV(m_device, vertCode);
-    VkShaderModule fragShaderModule = ShaderLoader::CreateShaderModuleFromSPIRV(m_device, fragCode);
+    VkShaderModule vertShaderModule = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(m_device, vertCode);
+    VkShaderModule fragShaderModule = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(m_device, fragCode);
     
     if (vertShaderModule == VK_NULL_HANDLE || fragShaderModule == VK_NULL_HANDLE) {
         Window::ShowError("Failed to create pure shader modules for button!");

@@ -20,6 +20,12 @@ void InputHandler::Initialize(IRenderer* renderer, Window* window, StretchMode s
     m_stretchMode = stretchMode;
 }
 
+void InputHandler::Cleanup() {
+    m_renderer = nullptr;
+    m_window = nullptr;
+    m_stretchMode = StretchMode::Fit;
+}
+
 void InputHandler::ConvertWindowToUICoords(int windowX, int windowY, float& uiX, float& uiY) {
     if (!m_renderer) {
         uiX = -1.0f;

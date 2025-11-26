@@ -1,5 +1,10 @@
 #include "window/window.h"  // 1. 对应头文件
 
+// 确保在包含Gdiplus之前NOMINMAX已定义（window.h中已定义）
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+
 #include <gdiplus.h>  // 2. 系统头文件
 #pragma comment(lib, "gdiplus.lib")
 
@@ -9,6 +14,7 @@
 #undef LoadImage
 #endif
 
+#include "core/config/constants.h"      // 4. 项目头文件（配置）
 #include "core/interfaces/ievent_bus.h"  // 4. 项目头文件（接口）
 #include "image/image_loader.h"          // 4. 项目头文件
 
@@ -28,19 +34,26 @@ static void encode_uint16(uint16_t value, uint8_t* buffer) {
 
 // 辅助函数：从ImageData创建指定尺寸的图标
 static HICON CreateIconFromImageData(const renderer::image::ImageData& imageData, uint32_t targetSize) {
-    using namespace Gdiplus;
-    
     // 创建源位图
-    Bitmap* sourceBitmap = new Bitmap(imageData.width, imageData.height, PixelFormat32bppARGB);
-    if (sourceBitmap->GetLastStatus() != Ok) {
+    // 使用static_cast防止宏展开，PixelFormat32bppARGB = 0x0026200A
+    const Gdiplus::PixelFormat pixelFormat = static_cast<Gdiplus::PixelFormat>(0x0026200A);
+    Gdiplus::Bitmap* sourceBitmap = new Gdiplus::Bitmap(
+        static_cast<INT>(imageData.width), 
+        static_cast<INT>(imageData.height), 
+        pixelFormat);
+    if (sourceBitmap->GetLastStatus() != Gdiplus::Ok) {
         delete sourceBitmap;
         return nullptr;
     }
     
     // 复制像素数据到源位图
-    BitmapData sourceData;
-    Rect sourceRect(0, 0, imageData.width, imageData.height);
-    if (sourceBitmap->LockBits(&sourceRect, ImageLockModeWrite, PixelFormat32bppARGB, &sourceData) == Ok) {
+    Gdiplus::BitmapData sourceData;
+    Gdiplus::Rect sourceRect(0, 0, static_cast<INT>(imageData.width), static_cast<INT>(imageData.height));
+    // 使用局部变量防止宏展开
+    // ImageLockModeWrite = 1, PixelFormat32bppARGB = 0x0026200A
+    const Gdiplus::ImageLockMode lockMode = static_cast<Gdiplus::ImageLockMode>(1);
+    const Gdiplus::PixelFormat lockFormat = static_cast<Gdiplus::PixelFormat>(0x0026200A);
+    if (sourceBitmap->LockBits(&sourceRect, lockMode, lockFormat, &sourceData) == Gdiplus::Ok) {
         uint8_t* dst = (uint8_t*)sourceData.Scan0;
         const uint8_t* src = imageData.pixels.data();
         
@@ -61,19 +74,23 @@ static HICON CreateIconFromImageData(const renderer::image::ImageData& imageData
     }
     
     // 创建目标尺寸的位图
-    Bitmap* targetBitmap = new Bitmap(targetSize, targetSize, PixelFormat32bppARGB);
-    if (targetBitmap->GetLastStatus() != Ok) {
+    // 重用之前定义的pixelFormat变量
+    Gdiplus::Bitmap* targetBitmap = new Gdiplus::Bitmap(
+        static_cast<INT>(targetSize), 
+        static_cast<INT>(targetSize), 
+        pixelFormat);
+    if (targetBitmap->GetLastStatus() != Gdiplus::Ok) {
         delete sourceBitmap;
         delete targetBitmap;
         return nullptr;
     }
     
     // 使用高质量缩放
-    Graphics* g = Graphics::FromImage(targetBitmap);
+    Gdiplus::Graphics* g = Gdiplus::Graphics::FromImage(targetBitmap);
     if (g) {
-        g->SetInterpolationMode(InterpolationModeHighQualityBicubic);
-        g->SetSmoothingMode(SmoothingModeAntiAlias);
-        g->SetPixelOffsetMode(PixelOffsetModeHalf);
+        g->SetInterpolationMode(Gdiplus::InterpolationModeHighQualityBicubic);
+        g->SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
+        g->SetPixelOffsetMode(Gdiplus::PixelOffsetModeHalf);
         g->DrawImage(sourceBitmap, 0, 0, targetSize, targetSize);
         delete g;
     }
@@ -130,8 +147,8 @@ LRESULT CALLBACK Window::WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM 
         case WM_GETMINMAXINFO: {
             // Set minimum window size (like Godot)
             MINMAXINFO* mmi = (MINMAXINFO*)lParam;
-            mmi->ptMinTrackSize.x = 400;  // WINDOW_MIN_WIDTH
-            mmi->ptMinTrackSize.y = 400;  // WINDOW_MIN_HEIGHT
+            mmi->ptMinTrackSize.x = config::WINDOW_MIN_WIDTH;
+            mmi->ptMinTrackSize.y = config::WINDOW_MIN_HEIGHT;
             return 0;
         }
         case WM_LBUTTONDOWN:

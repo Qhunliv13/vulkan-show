@@ -1,6 +1,9 @@
 #include "image/image_loader.h"  // 1. 对应头文件
 
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
 #include <windows.h>  // 2. 系统头文件
+#include <objidl.h>   // 2. 系统头文件（提供IStream等COM接口定义，GDI+需要）
 #include <fstream>
 #include <vector>
 #include <algorithm>
@@ -22,19 +25,16 @@
 
 #include "window/window.h"  // 4. 项目头文件
 
-using namespace Gdiplus;
-using namespace renderer::image;
-
 // GDI+初始化辅助类
 class GdiplusInitializer {
 public:
     GdiplusInitializer() {
-        GdiplusStartupInput gdiplusStartupInput;
-        GdiplusStartup(&m_gdiplusToken, &gdiplusStartupInput, NULL);
+        Gdiplus::GdiplusStartupInput gdiplusStartupInput;
+        Gdiplus::GdiplusStartup(&m_gdiplusToken, &gdiplusStartupInput, NULL);
     }
     
     ~GdiplusInitializer() {
-        GdiplusShutdown(m_gdiplusToken);
+        Gdiplus::GdiplusShutdown(m_gdiplusToken);
     }
     
 private:
@@ -43,7 +43,7 @@ private:
 
 static GdiplusInitializer g_gdiplusInit;
 
-ImageData ImageLoader::LoadImage(const std::string& filepath) {
+renderer::image::ImageData renderer::image::ImageLoader::LoadImage(const std::string& filepath) {
     // 检查文件扩展名
     size_t dotPos = filepath.find_last_of('.');
     if (dotPos != std::string::npos) {
@@ -62,14 +62,14 @@ ImageData ImageLoader::LoadImage(const std::string& filepath) {
     return ImageLoader::LoadPNG(filepath);
 }
 
-ImageData ImageLoader::LoadPNG(const std::string& filepath) {
+renderer::image::ImageData renderer::image::ImageLoader::LoadPNG(const std::string& filepath) {
     ImageData result;
     
     // 使用GDI+加载PNG
     std::wstring wpath(filepath.begin(), filepath.end());
-    Bitmap* bitmap = new Bitmap(wpath.c_str());
+    Gdiplus::Bitmap* bitmap = new Gdiplus::Bitmap(wpath.c_str());
     
-    if (bitmap->GetLastStatus() != Ok) {
+    if (bitmap->GetLastStatus() != Gdiplus::Ok) {
         Window::ShowError("Failed to load image: " + filepath);
         delete bitmap;
         return result;
@@ -82,35 +82,28 @@ ImageData ImageLoader::LoadPNG(const std::string& filepath) {
     // 分配像素数据
     result.pixels.resize(result.width * result.height * result.channels);
     
-    // 读取像素数据
-    BitmapData bitmapData;
-    Rect rect(0, 0, result.width, result.height);
-    
-    if (bitmap->LockBits(&rect, ImageLockModeRead, PixelFormat32bppARGB, &bitmapData) == Ok) {
-        uint8_t* src = (uint8_t*)bitmapData.Scan0;
-        uint8_t* dst = result.pixels.data();
-        
-        for (uint32_t y = 0; y < result.height; y++) {
-            for (uint32_t x = 0; x < result.width; x++) {
-                uint8_t* srcPixel = src + (y * bitmapData.Stride + x * 4);
-                uint8_t* dstPixel = dst + ((y * result.width + x) * 4);
-                
-                // BGRA -> RGBA
-                dstPixel[0] = srcPixel[2];  // R
-                dstPixel[1] = srcPixel[1];  // G
-                dstPixel[2] = srcPixel[0];  // B
-                dstPixel[3] = srcPixel[3];  // A
-            }
+    // 使用GetPixel方法逐个读取像素，避免Rect构造的宏冲突问题
+    // 虽然性能略低，但更解耦，不依赖Rect构造
+    for (uint32_t y = 0; y < result.height; y++) {
+        for (uint32_t x = 0; x < result.width; x++) {
+                    Gdiplus::Color color;
+                    if (bitmap->GetPixel(static_cast<INT>(x), static_cast<INT>(y), &color) == Gdiplus::Ok) {
+                        uint32_t index = (y * result.width + x) * 4;
+                        // 使用GetValue()和位操作避免GetR/GetG/GetB/GetA可能的宏冲突
+                        Gdiplus::ARGB argb = color.GetValue();
+                        result.pixels[index] = (argb >> 16) & 0xFF;     // R
+                        result.pixels[index + 1] = (argb >> 8) & 0xFF;  // G
+                        result.pixels[index + 2] = argb & 0xFF;         // B
+                        result.pixels[index + 3] = (argb >> 24) & 0xFF; // A
+                    }
         }
-        
-        bitmap->UnlockBits(&bitmapData);
     }
     
     delete bitmap;
     return result;
 }
 
-ImageData ImageLoader::LoadImageFromMemory(const uint8_t* data, size_t size) {
+renderer::image::ImageData renderer::image::ImageLoader::LoadImageFromMemory(const uint8_t* data, size_t size) {
     ImageData result;
     
     // 从内存创建流
@@ -125,18 +118,42 @@ ImageData ImageLoader::LoadImageFromMemory(const uint8_t* data, size_t size) {
     GlobalUnlock(hMem);
     
     if (CreateStreamOnHGlobal(hMem, TRUE, &stream) == S_OK) {
-        Bitmap* bitmap = new Bitmap(stream);
+        Gdiplus::Bitmap* bitmap = new Gdiplus::Bitmap(stream);
         
-        if (bitmap->GetLastStatus() == Ok) {
+        if (bitmap->GetLastStatus() == Gdiplus::Ok) {
             result.width = bitmap->GetWidth();
             result.height = bitmap->GetHeight();
             result.channels = 4;
             result.pixels.resize(result.width * result.height * result.channels);
             
-            BitmapData bitmapData;
-            Rect rect(0, 0, result.width, result.height);
+            // 使用GetPixel方法逐个读取像素，避免Rect构造的宏冲突问题
+            // 虽然性能略低，但更解耦，不依赖Rect构造
+            for (uint32_t y = 0; y < result.height; y++) {
+                for (uint32_t x = 0; x < result.width; x++) {
+                    Gdiplus::Color color;
+                    if (bitmap->GetPixel(static_cast<INT>(x), static_cast<INT>(y), &color) == Gdiplus::Ok) {
+                        uint32_t index = (y * result.width + x) * 4;
+                        // 使用GetValue()和位操作避免GetR/GetG/GetB/GetA可能的宏冲突
+                        Gdiplus::ARGB argb = color.GetValue();
+                        result.pixels[index] = (argb >> 16) & 0xFF;     // R
+                        result.pixels[index + 1] = (argb >> 8) & 0xFF;  // G
+                        result.pixels[index + 2] = argb & 0xFF;         // B
+                        result.pixels[index + 3] = (argb >> 24) & 0xFF; // A
+                    }
+                }
+            }
             
-            if (bitmap->LockBits(&rect, ImageLockModeRead, PixelFormat32bppARGB, &bitmapData) == Ok) {
+            // 注释掉LockBits方法，改用GetPixel避免Rect宏冲突
+            /*
+            Gdiplus::BitmapData bitmapData;
+            // 使用临时变量避免宏展开问题
+            INT rectX = 0;
+            INT rectY = 0;
+            INT rectWidth = static_cast<INT>(result.width);
+            INT rectHeight = static_cast<INT>(result.height);
+            Gdiplus::Rect rect(rectX, rectY, rectWidth, rectHeight);
+            
+            if (bitmap->LockBits(&rect, Gdiplus::ImageLockModeRead, Gdiplus::PixelFormat32bppARGB, &bitmapData) == Gdiplus::Ok) {
                 uint8_t* src = (uint8_t*)bitmapData.Scan0;
                 uint8_t* dst = result.pixels.data();
                 
@@ -154,6 +171,7 @@ ImageData ImageLoader::LoadImageFromMemory(const uint8_t* data, size_t size) {
                 
                 bitmap->UnlockBits(&bitmapData);
             }
+            */
         }
         
         delete bitmap;
@@ -164,7 +182,7 @@ ImageData ImageLoader::LoadImageFromMemory(const uint8_t* data, size_t size) {
     return result;
 }
 
-ImageData ImageLoader::LoadWebP(const std::string& filepath) {
+renderer::image::ImageData renderer::image::ImageLoader::LoadWebP(const std::string& filepath) {
     ImageData result;
     
 #ifdef USE_STB_IMAGE

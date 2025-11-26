@@ -10,18 +10,15 @@
 
 #include "window/window.h"  // 4. 项目头文件
 
-using namespace renderer::texture;
-using namespace renderer::image;
-
-Texture::Texture() {
+renderer::texture::Texture::Texture() {
 }
 
-Texture::~Texture() {
+renderer::texture::Texture::~Texture() {
     // 析构函数中不清理资源，需要显式调用Cleanup
     // 原因：VkDevice可能已经被销毁，在析构函数中清理可能导致未定义行为
 }
 
-bool Texture::LoadFromFile(VkDevice device, VkPhysicalDevice physicalDevice,
+bool renderer::texture::Texture::LoadFromFile(VkDevice device, VkPhysicalDevice physicalDevice,
                            VkCommandPool commandPool, VkQueue graphicsQueue,
                            const std::string& filepath) {
     printf("[TEXTURE] LoadFromFile: Loading texture from %s\n", filepath.c_str());
@@ -34,7 +31,7 @@ bool Texture::LoadFromFile(VkDevice device, VkPhysicalDevice physicalDevice,
     #undef LoadImage
     #endif
     printf("[TEXTURE] Loading image data...\n");
-    ImageData imageData = renderer::image::ImageLoader::LoadImage(filepath);
+    renderer::image::ImageData imageData = renderer::image::ImageLoader::LoadImage(filepath);
     if (imageData.width == 0 || imageData.height == 0) {
         printf("[TEXTURE] ERROR: Failed to load image data (width=%u, height=%u)\n", 
                imageData.width, imageData.height);
@@ -56,9 +53,9 @@ bool Texture::LoadFromFile(VkDevice device, VkPhysicalDevice physicalDevice,
     return result;
 }
 
-bool Texture::CreateFromImageData(VkDevice device, VkPhysicalDevice physicalDevice,
+bool renderer::texture::Texture::CreateFromImageData(VkDevice device, VkPhysicalDevice physicalDevice,
                                   VkCommandPool commandPool, VkQueue graphicsQueue,
-                                  const ImageData& imageData) {
+                                  const renderer::image::ImageData& imageData) {
     m_device = device;
     m_physicalDevice = physicalDevice;
     m_width = imageData.width;
@@ -92,7 +89,7 @@ bool Texture::CreateFromImageData(VkDevice device, VkPhysicalDevice physicalDevi
     return true;
 }
 
-void Texture::Cleanup(VkDevice device) {
+void renderer::texture::Texture::Cleanup(VkDevice device) {
     printf("[TEXTURE] Cleanup: Cleaning up texture resources (%ux%u)\n", m_width, m_height);
     
     if (m_sampler != VK_NULL_HANDLE) {
@@ -126,7 +123,7 @@ void Texture::Cleanup(VkDevice device) {
     printf("[TEXTURE] Cleanup completed\n");
 }
 
-bool Texture::CreateImage(VkDevice device, VkPhysicalDevice physicalDevice,
+bool renderer::texture::Texture::CreateImage(VkDevice device, VkPhysicalDevice physicalDevice,
                          uint32_t width, uint32_t height, VkFormat format,
                          VkImageUsageFlags usage) {
     printf("[TEXTURE] CreateImage: Creating VkImage %ux%u, format=%u, usage=0x%x\n",
@@ -183,7 +180,7 @@ bool Texture::CreateImage(VkDevice device, VkPhysicalDevice physicalDevice,
     return true;
 }
 
-bool Texture::CreateImageView(VkDevice device, VkFormat format, VkImageAspectFlags aspectFlags) {
+bool renderer::texture::Texture::CreateImageView(VkDevice device, VkFormat format, VkImageAspectFlags aspectFlags) {
     printf("[TEXTURE] CreateImageView: Creating image view, format=%u, aspectFlags=0x%x\n",
            (uint32_t)format, aspectFlags);
     
@@ -209,7 +206,7 @@ bool Texture::CreateImageView(VkDevice device, VkFormat format, VkImageAspectFla
     return true;
 }
 
-bool Texture::CreateSampler(VkDevice device) {
+bool renderer::texture::Texture::CreateSampler(VkDevice device) {
     printf("[TEXTURE] CreateSampler: Creating texture sampler (linear filtering, clamp to edge addressing)\n");
     
     VkSamplerCreateInfo samplerInfo = {};
@@ -241,8 +238,8 @@ bool Texture::CreateSampler(VkDevice device) {
     return true;
 }
 
-bool Texture::UploadImageData(VkDevice device, VkCommandPool commandPool, VkQueue graphicsQueue,
-                             const ImageData& imageData) {
+bool renderer::texture::Texture::UploadImageData(VkDevice device, VkCommandPool commandPool, VkQueue graphicsQueue,
+                             const renderer::image::ImageData& imageData) {
     VkDeviceSize imageSize = imageData.width * imageData.height * 4;  // RGBA
     printf("[TEXTURE] UploadImageData: Uploading %llu bytes (%ux%u RGBA) to GPU\n",
            imageSize, imageData.width, imageData.height);
@@ -290,7 +287,7 @@ bool Texture::UploadImageData(VkDevice device, VkCommandPool commandPool, VkQueu
     return true;
 }
 
-void Texture::TransitionImageLayout(VkDevice device, VkCommandPool commandPool, VkQueue graphicsQueue,
+void renderer::texture::Texture::TransitionImageLayout(VkDevice device, VkCommandPool commandPool, VkQueue graphicsQueue,
                                    VkImageLayout oldLayout, VkImageLayout newLayout) {
     VkCommandBufferAllocateInfo allocInfo = {};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -364,7 +361,7 @@ void Texture::TransitionImageLayout(VkDevice device, VkCommandPool commandPool, 
     vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
 }
 
-void Texture::CopyBufferToImage(VkDevice device, VkCommandPool commandPool, VkQueue graphicsQueue,
+void renderer::texture::Texture::CopyBufferToImage(VkDevice device, VkCommandPool commandPool, VkQueue graphicsQueue,
                                VkBuffer buffer, uint32_t width, uint32_t height) {
     VkCommandBufferAllocateInfo allocInfo = {};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -407,7 +404,7 @@ void Texture::CopyBufferToImage(VkDevice device, VkCommandPool commandPool, VkQu
     vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
 }
 
-uint32_t Texture::FindMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeFilter,
+uint32_t renderer::texture::Texture::FindMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeFilter,
                                  VkMemoryPropertyFlags properties) {
     VkPhysicalDeviceMemoryProperties memProperties;
     vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
@@ -422,7 +419,7 @@ uint32_t Texture::FindMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeF
     return 0;
 }
 
-VkBuffer Texture::CreateStagingBuffer(VkDevice device, VkPhysicalDevice physicalDevice,
+VkBuffer renderer::texture::Texture::CreateStagingBuffer(VkDevice device, VkPhysicalDevice physicalDevice,
                                       VkDeviceSize size, VkDeviceMemory& bufferMemory) {
     if (physicalDevice == VK_NULL_HANDLE) {
         Window::ShowError("Physical device is null, cannot create staging buffer!");
@@ -463,12 +460,12 @@ VkBuffer Texture::CreateStagingBuffer(VkDevice device, VkPhysicalDevice physical
     return stagingBuffer;
 }
 
-void Texture::DestroyStagingBuffer(VkDevice device, VkBuffer buffer, VkDeviceMemory bufferMemory) {
+void renderer::texture::Texture::DestroyStagingBuffer(VkDevice device, VkBuffer buffer, VkDeviceMemory bufferMemory) {
     vkDestroyBuffer(device, buffer, nullptr);
     vkFreeMemory(device, bufferMemory, nullptr);
 }
 
-VkDescriptorImageInfo Texture::GetDescriptorInfo() const {
+VkDescriptorImageInfo renderer::texture::Texture::GetDescriptorInfo() const {
     VkDescriptorImageInfo imageInfo = {};
     imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     imageInfo.imageView = m_imageView;

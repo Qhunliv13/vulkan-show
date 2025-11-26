@@ -38,7 +38,6 @@ public:
                   ITextRenderer* textRenderer = nullptr, float fps = 0.0f) override;
     bool DrawFrameWithLoading(const DrawFrameWithLoadingParams& params) override;
     
-    void SetAspectRatioMode(AspectRatioMode mode) override { m_aspectRatioMode = mode; }
     void SetStretchMode(StretchMode mode) override { m_stretchMode = mode; }
     void SetBackgroundStretchMode(BackgroundStretchMode mode) override { m_backgroundStretchMode = mode; }
     
@@ -139,7 +138,6 @@ private:
     uint32_t m_currentFrame = 0;
     
     HWND m_hwnd = nullptr;
-    AspectRatioMode m_aspectRatioMode = AspectRatioMode::Keep;
     StretchMode m_stretchMode = StretchMode::Scaled;
     BackgroundStretchMode m_backgroundStretchMode = BackgroundStretchMode::Fit;  // 背景拉伸模式
     

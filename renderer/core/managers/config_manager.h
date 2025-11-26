@@ -24,11 +24,9 @@ public:
     
     // IConfigProvider 接口实现
     void Initialize(const char* lpCmdLine) override;
-    AspectRatioMode GetAspectRatioMode() const override { return m_aspectMode; }
     StretchMode GetStretchMode() const override { return m_stretchMode; }
     BackgroundStretchMode GetBackgroundStretchMode() const override { return m_backgroundMode; }
     
-    void SetAspectRatioMode(AspectRatioMode mode) override { m_aspectMode = mode; }
     void SetStretchMode(StretchMode mode) override { m_stretchMode = mode; }
     void SetBackgroundStretchMode(BackgroundStretchMode mode) override { m_backgroundMode = mode; }
     
@@ -65,7 +63,6 @@ private:
     void ParseCommandLine(const char* lpCmdLine);
     
     // 配置值
-    AspectRatioMode m_aspectMode = AspectRatioMode::Keep;
     StretchMode m_stretchMode = StretchMode::Fit;
     BackgroundStretchMode m_backgroundMode = BackgroundStretchMode::Fit;
     
@@ -78,8 +75,8 @@ private:
     std::string m_windowIconPath = "assets/test.png";
     
     // 窗口配置
-    int m_windowWidth = WINDOW_WIDTH;
-    int m_windowHeight = WINDOW_HEIGHT;
+    int m_windowWidth = config::WINDOW_WIDTH;
+    int m_windowHeight = config::WINDOW_HEIGHT;
     
     // 日志路径
     std::string m_logPath = "shader_app.log";

@@ -11,8 +11,6 @@
 #include "shader/shader_loader.h"  // 4. 项目头文件
 #include "window/window.h"
 
-using namespace renderer::shader;
-
 LoadingAnimation::LoadingAnimation() {
 }
 
@@ -367,8 +365,8 @@ uint32_t LoadingAnimation::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyF
 
 bool LoadingAnimation::CreatePipeline(VkRenderPass renderPass) {
     // 加载shader
-    std::vector<char> vertCode = ShaderLoader::LoadSPIRV("renderer/loading/loading.vert.spv");
-    std::vector<char> fragCode = ShaderLoader::LoadSPIRV("renderer/loading/loading.frag.spv");
+    std::vector<char> vertCode = renderer::shader::ShaderLoader::LoadSPIRV("renderer/loading/loading.vert.spv");
+    std::vector<char> fragCode = renderer::shader::ShaderLoader::LoadSPIRV("renderer/loading/loading.frag.spv");
     
     if (vertCode.empty() || fragCode.empty()) {
         // 如果SPIR-V文件不存在，尝试从源码编译
@@ -378,8 +376,8 @@ bool LoadingAnimation::CreatePipeline(VkRenderPass renderPass) {
         if (vertFile.is_open() && fragFile.is_open()) {
             std::string vertSource((std::istreambuf_iterator<char>(vertFile)), std::istreambuf_iterator<char>());
             std::string fragSource((std::istreambuf_iterator<char>(fragFile)), std::istreambuf_iterator<char>());
-            vertCode = ShaderLoader::CompileGLSLFromSource(vertSource, VK_SHADER_STAGE_VERTEX_BIT, "loading.vert");
-            fragCode = ShaderLoader::CompileGLSLFromSource(fragSource, VK_SHADER_STAGE_FRAGMENT_BIT, "loading.frag");
+            vertCode = renderer::shader::ShaderLoader::CompileGLSLFromSource(vertSource, VK_SHADER_STAGE_VERTEX_BIT, "loading.vert");
+            fragCode = renderer::shader::ShaderLoader::CompileGLSLFromSource(fragSource, VK_SHADER_STAGE_FRAGMENT_BIT, "loading.frag");
         }
         #endif
     }
@@ -389,8 +387,8 @@ bool LoadingAnimation::CreatePipeline(VkRenderPass renderPass) {
         return false;
     }
     
-    VkShaderModule vertShaderModule = ShaderLoader::CreateShaderModuleFromSPIRV(m_device, vertCode);
-    VkShaderModule fragShaderModule = ShaderLoader::CreateShaderModuleFromSPIRV(m_device, fragCode);
+    VkShaderModule vertShaderModule = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(m_device, vertCode);
+    VkShaderModule fragShaderModule = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(m_device, fragCode);
     
     if (vertShaderModule == VK_NULL_HANDLE || fragShaderModule == VK_NULL_HANDLE) {
         Window::ShowError("Failed to create shader modules for loading animation!");

@@ -57,7 +57,6 @@ public:
     virtual bool DrawFrameWithLoading(const DrawFrameWithLoadingParams& params) = 0;
     
     // 配置设置
-    virtual void SetAspectRatioMode(AspectRatioMode mode) = 0;
     virtual void SetStretchMode(StretchMode mode) = 0;
     virtual void SetBackgroundStretchMode(BackgroundStretchMode mode) = 0;
     

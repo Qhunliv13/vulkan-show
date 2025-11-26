@@ -1,5 +1,6 @@
 #pragma once
 
+#define NOMINMAX  // 禁用Windows.h中的min/max宏，避免与Gdiplus冲突
 #include <windows.h>  // 2. 系统头文件
 #include <string>     // 2. 系统头文件
 

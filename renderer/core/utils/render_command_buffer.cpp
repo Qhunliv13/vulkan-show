@@ -8,7 +8,21 @@ RenderCommandBuffer::RenderCommandBuffer() {
 }
 
 RenderCommandBuffer::~RenderCommandBuffer() {
+    Cleanup();
+}
+
+void RenderCommandBuffer::Initialize() {
+    if (m_initialized) {
+        return;
+    }
+    
+    m_commands.clear();
+    m_initialized = true;
+}
+
+void RenderCommandBuffer::Cleanup() {
     Clear();
+    m_initialized = false;
 }
 
 void RenderCommandBuffer::AddCommand(std::shared_ptr<IRenderCommand> command) {

@@ -1,6 +1,6 @@
 #include "core/managers/initialization_phase.h"  // 1. 对应头文件
 
-#include <stdio.h>
+#include <stdio.h>  // 2. 系统头文件
 
 InitializationPhaseManager::InitializationPhaseManager() {
 }
