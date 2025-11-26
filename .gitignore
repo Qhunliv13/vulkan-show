@@ -1,0 +1,18 @@
+# 排除目录
+example/
+Lib/
+test/
+
+# 排除日志文件
+*.log
+*.log.*
+
+# 排除其他常见临时文件
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# 保留 .obj 文件（不排除）
+# 保留 .py 文件（不排除）
+
