@@ -1,9 +1,11 @@
 #include "ui/slider/slider.h"
 #include "ui/button/button.h"
 #include "shader/shader_loader.h"
+#include "core/types/render_types.h"
 #include "window/window.h"
 #include "core/config/render_context.h"
 #include "core/config/stretch_params.h"
+#include <vulkan/vulkan.h>
 #include <algorithm>
 #include <cmath>
 #include <fstream>
@@ -25,12 +27,15 @@ bool Slider::Initialize(IRenderContext* renderContext,
     }
     
     m_renderContext = renderContext;
-    m_device = renderContext->GetDevice();
-    m_physicalDevice = renderContext->GetPhysicalDevice();
-    m_commandPool = renderContext->GetCommandPool();
-    m_graphicsQueue = renderContext->GetGraphicsQueue();
-    m_renderPass = renderContext->GetRenderPass();
-    m_swapchainExtent = renderContext->GetSwapchainExtent();
+    // 将抽象句柄转换为 Vulkan 类型
+    m_device = static_cast<VkDevice>(renderContext->GetDevice());
+    m_physicalDevice = static_cast<VkPhysicalDevice>(renderContext->GetPhysicalDevice());
+    m_commandPool = static_cast<VkCommandPool>(renderContext->GetCommandPool());
+    m_graphicsQueue = static_cast<VkQueue>(renderContext->GetGraphicsQueue());
+    m_renderPass = static_cast<VkRenderPass>(renderContext->GetRenderPass());
+    // 将 Extent2D 转换为 VkExtent2D
+    Extent2D extent = renderContext->GetSwapchainExtent();
+    m_swapchainExtent = { extent.width, extent.height };
     m_usePureShader = usePureShader;
     
     // 从配置中设置滑块属性
@@ -125,9 +130,10 @@ bool Slider::Initialize(VkDevice device, VkPhysicalDevice physicalDevice,
                        const SliderConfig& config,
                        bool usePureShader) {
     // 创建临时渲染上下文（仅用于向后兼容）
-    VulkanRenderContext tempContext(device, physicalDevice, commandPool, 
-                                   graphicsQueue, renderPass, swapchainExtent);
-    return Initialize(&tempContext, config, usePureShader);
+    // 使用工厂函数创建 IRenderContext
+    std::unique_ptr<IRenderContext> tempContext(CreateVulkanRenderContext(
+        device, physicalDevice, commandPool, graphicsQueue, renderPass, swapchainExtent));
+    return Initialize(tempContext.get(), config, usePureShader);
 }
 
 void Slider::Cleanup() {
@@ -374,7 +380,21 @@ void Slider::UpdateFillBuffer() {
 
 uint32_t Slider::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
     if (m_renderContext) {
-        return m_renderContext->FindMemoryType(typeFilter, properties);
+        // 将 VkMemoryPropertyFlags 转换为 MemoryPropertyFlag
+        MemoryPropertyFlag memFlags = MemoryPropertyFlag::None;
+        if (properties & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) {
+            memFlags = memFlags | MemoryPropertyFlag::DeviceLocal;
+        }
+        if (properties & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
+            memFlags = memFlags | MemoryPropertyFlag::HostVisible;
+        }
+        if (properties & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) {
+            memFlags = memFlags | MemoryPropertyFlag::HostCoherent;
+        }
+        if (properties & VK_MEMORY_PROPERTY_HOST_CACHED_BIT) {
+            memFlags = memFlags | MemoryPropertyFlag::HostCached;
+        }
+        return m_renderContext->FindMemoryType(typeFilter, memFlags);
     }
     
     // 向后兼容：如果没有渲染上下文，使用旧方法

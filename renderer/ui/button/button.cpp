@@ -1,8 +1,10 @@
 #include "ui/button/button.h"
 #include "text/text_renderer.h"
 #include "shader/shader_loader.h"
+#include "core/types/render_types.h"
 #include "window/window.h"
 #include "core/config/render_context.h"
+#include <vulkan/vulkan.h>  // 需要 Vulkan 类型定义
 // 注意：window.h已经包含了windows.h，所以LoadImage宏可能已经被定义
 // 在包含image_loader.h之前取消宏定义
 #ifdef LoadImage
@@ -34,12 +36,15 @@ bool Button::Initialize(IRenderContext* renderContext,
     }
     
     m_renderContext = renderContext;
-    m_device = renderContext->GetDevice();
-    m_physicalDevice = renderContext->GetPhysicalDevice();
-    m_commandPool = renderContext->GetCommandPool();
-    m_graphicsQueue = renderContext->GetGraphicsQueue();
-    m_renderPass = renderContext->GetRenderPass();
-    m_swapchainExtent = renderContext->GetSwapchainExtent();
+    // 将抽象句柄转换为 Vulkan 类型
+    m_device = static_cast<VkDevice>(renderContext->GetDevice());
+    m_physicalDevice = static_cast<VkPhysicalDevice>(renderContext->GetPhysicalDevice());
+    m_commandPool = static_cast<VkCommandPool>(renderContext->GetCommandPool());
+    m_graphicsQueue = static_cast<VkQueue>(renderContext->GetGraphicsQueue());
+    m_renderPass = static_cast<VkRenderPass>(renderContext->GetRenderPass());
+    // 将 Extent2D 转换为 VkExtent2D
+    Extent2D extent = renderContext->GetSwapchainExtent();
+    m_swapchainExtent = { extent.width, extent.height };
     m_usePureShader = usePureShader;
     
     // 从配置中设置按钮属性
@@ -172,9 +177,10 @@ bool Button::Initialize(VkDevice device, VkPhysicalDevice physicalDevice,
                        TextRenderer* textRenderer,
                        bool usePureShader) {
     // 创建临时渲染上下文（仅用于向后兼容）
-    VulkanRenderContext tempContext(device, physicalDevice, commandPool, 
-                                   graphicsQueue, renderPass, swapchainExtent);
-    return Initialize(&tempContext, config, textRenderer, usePureShader);
+    // 使用工厂函数创建 IRenderContext
+    std::unique_ptr<IRenderContext> tempContext(CreateVulkanRenderContext(
+        device, physicalDevice, commandPool, graphicsQueue, renderPass, swapchainExtent));
+    return Initialize(tempContext.get(), config, textRenderer, usePureShader);
 }
 
 void Button::Cleanup() {
@@ -348,7 +354,21 @@ void Button::UpdateButtonBuffer() {
 
 uint32_t Button::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
     if (m_renderContext) {
-        return m_renderContext->FindMemoryType(typeFilter, properties);
+        // 将 VkMemoryPropertyFlags 转换为 MemoryPropertyFlag
+        MemoryPropertyFlag memFlags = MemoryPropertyFlag::None;
+        if (properties & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) {
+            memFlags = memFlags | MemoryPropertyFlag::DeviceLocal;
+        }
+        if (properties & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
+            memFlags = memFlags | MemoryPropertyFlag::HostVisible;
+        }
+        if (properties & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) {
+            memFlags = memFlags | MemoryPropertyFlag::HostCoherent;
+        }
+        if (properties & VK_MEMORY_PROPERTY_HOST_CACHED_BIT) {
+            memFlags = memFlags | MemoryPropertyFlag::HostCached;
+        }
+        return m_renderContext->FindMemoryType(typeFilter, memFlags);
     }
     
     // 向后兼容：如果没有渲染上下文，使用旧方法
@@ -731,7 +751,7 @@ void Button::RenderText(VkCommandBuffer commandBuffer, VkExtent2D extent,
         buttonTextDebugCount++;
         
         // 使用中心坐标渲染文本（屏幕坐标）
-        m_textRenderer->RenderTextCentered(commandBuffer, m_text,
+        m_textRenderer->RenderTextCentered(static_cast<CommandBufferHandle>(commandBuffer), m_text,
                                           buttonCenterX, buttonCenterY,
                                           renderScreenWidth, renderScreenHeight,
                                           m_textColorR, m_textColorG, m_textColorB, m_textColorA);

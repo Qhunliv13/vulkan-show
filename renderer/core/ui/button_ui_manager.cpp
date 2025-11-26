@@ -3,7 +3,9 @@
 #include "core/interfaces/itext_renderer.h"
 #include "text/text_renderer.h"  // 需要用于转换
 #include "core/interfaces/irenderer.h"
+#include "core/config/render_context.h"
 #include "window/window.h"
+#include <vulkan/vulkan.h>  // 需要 VkExtent2D 的完整定义
 #include <stdio.h>
 #include <windows.h>
 
@@ -19,9 +21,9 @@ ButtonUIManager::~ButtonUIManager() {
     Cleanup();
 }
 
-bool ButtonUIManager::Initialize(const VulkanRenderContext& renderContext, 
+bool ButtonUIManager::Initialize(const IRenderContext& renderContext, 
                                  ITextRenderer* textRenderer,
-                                 Window* window,
+                                 IWindow* window,
                                  StretchMode stretchMode,
                                  float screenWidth, 
                                  float screenHeight) {
@@ -36,14 +38,20 @@ bool ButtonUIManager::Initialize(const VulkanRenderContext& renderContext,
     m_boxColorButtonsInitialized.resize(9, false);
     
     // 创建非const副本以传递给需要修改的方法
-    VulkanRenderContext nonConstContext(
-        renderContext.GetDevice(),
-        renderContext.GetPhysicalDevice(),
-        renderContext.GetCommandPool(),
-        renderContext.GetGraphicsQueue(),
-        renderContext.GetRenderPass(),
-        renderContext.GetSwapchainExtent()
-    );
+    // 注意：Button 等组件仍需要 Vulkan 对象，这里通过接口获取并创建临时对象
+    // 由于 Button 等组件直接依赖 Vulkan，我们需要创建一个包装器
+    // TODO: 未来可以进一步重构 Button 等组件使用 IRenderContext 接口
+    Extent2D extent = renderContext.GetSwapchainExtent();
+    VkExtent2D vkExtent = { extent.width, extent.height };
+    std::unique_ptr<IRenderContext> nonConstContextPtr(CreateVulkanRenderContext(
+        static_cast<VkDevice>(renderContext.GetDevice()),
+        static_cast<VkPhysicalDevice>(renderContext.GetPhysicalDevice()),
+        static_cast<VkCommandPool>(renderContext.GetCommandPool()),
+        static_cast<VkQueue>(renderContext.GetGraphicsQueue()),
+        static_cast<VkRenderPass>(renderContext.GetRenderPass()),
+        vkExtent
+    ));
+    IRenderContext& nonConstContext = *nonConstContextPtr;
     
     if (!InitializeEnterButton(nonConstContext, stretchMode)) {
         return false;
@@ -171,7 +179,7 @@ void ButtonUIManager::SetButtonColor(float r, float g, float b, float a) {
     m_buttonColorA = a;
 }
 
-bool ButtonUIManager::InitializeEnterButton(VulkanRenderContext& renderContext, StretchMode stretchMode) {
+bool ButtonUIManager::InitializeEnterButton(IRenderContext& renderContext, StretchMode stretchMode) {
     m_enterButton = std::make_unique<Button>();
     ButtonConfig buttonConfig = ButtonConfig::CreateRelativeWithText(
         0.5f, 0.75f, 300.0f, 50.0f,
@@ -195,7 +203,7 @@ bool ButtonUIManager::InitializeEnterButton(VulkanRenderContext& renderContext, 
     return false;
 }
 
-bool ButtonUIManager::InitializeColorButton(VulkanRenderContext& renderContext, StretchMode stretchMode) {
+bool ButtonUIManager::InitializeColorButton(IRenderContext& renderContext, StretchMode stretchMode) {
     m_colorButton = std::make_unique<Button>();
     ButtonConfig colorButtonConfig = ButtonConfig::CreateRelative(0.75f, 0.5f, 80.0f, 40.0f, 0.0f, 0.0f, 1.0f, 1.0f);
     if (m_colorButton->Initialize(
@@ -210,7 +218,7 @@ bool ButtonUIManager::InitializeColorButton(VulkanRenderContext& renderContext, 
     return false;
 }
 
-bool ButtonUIManager::InitializeLeftButton(VulkanRenderContext& renderContext, StretchMode stretchMode) {
+bool ButtonUIManager::InitializeLeftButton(IRenderContext& renderContext, StretchMode stretchMode) {
     m_leftButton = std::make_unique<Button>();
     ButtonConfig leftButtonConfig = ButtonConfig::CreateRelativeWithTexture(
         0.1f, 0.9f, 60.0f, 60.0f,
@@ -256,9 +264,10 @@ bool ButtonUIManager::InitializeLeftButton(VulkanRenderContext& renderContext, S
     return false;
 }
 
-bool ButtonUIManager::InitializeColorButtons(VulkanRenderContext& renderContext, StretchMode stretchMode, 
+bool ButtonUIManager::InitializeColorButtons(IRenderContext& renderContext, StretchMode stretchMode, 
                                            float screenWidth, float screenHeight) {
-    VkExtent2D uiExtent = renderContext.GetSwapchainExtent();
+    Extent2D extent = renderContext.GetSwapchainExtent();
+    VkExtent2D uiExtent = { extent.width, extent.height };
     
     struct ColorInfo {
         float r, g, b;
@@ -331,9 +340,10 @@ bool ButtonUIManager::InitializeColorButtons(VulkanRenderContext& renderContext,
     return true;
 }
 
-bool ButtonUIManager::InitializeBoxColorButtons(VulkanRenderContext& renderContext, StretchMode stretchMode,
+bool ButtonUIManager::InitializeBoxColorButtons(IRenderContext& renderContext, StretchMode stretchMode,
                                                float screenWidth, float screenHeight) {
-    VkExtent2D uiExtent = renderContext.GetSwapchainExtent();
+    Extent2D extent = renderContext.GetSwapchainExtent();
+    VkExtent2D uiExtent = { extent.width, extent.height };
     
     float boxBtnMatrixCenterX = 0.85f;
     float boxBtnMatrixCenterY = 0.5f;
@@ -389,7 +399,7 @@ bool ButtonUIManager::InitializeBoxColorButtons(VulkanRenderContext& renderConte
     return true;
 }
 
-bool ButtonUIManager::InitializeColorAdjustButton(VulkanRenderContext& renderContext, StretchMode stretchMode) {
+bool ButtonUIManager::InitializeColorAdjustButton(IRenderContext& renderContext, StretchMode stretchMode) {
     m_colorAdjustButton = std::make_unique<Button>();
     ButtonConfig colorAdjustButtonConfig = ButtonConfig::CreateRelativeWithTexture(
         0.1f, 0.3f, 60.0f, 60.0f,

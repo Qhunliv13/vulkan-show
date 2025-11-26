@@ -1,5 +1,8 @@
-#include "vulkan/vulkan_renderer_factory.h"
-#include "vulkan/vulkan_renderer.h"
+#include "vulkan/vulkan_renderer_factory.h"  // 1. 对应头文件
+
+#include <memory>  // 2. 系统头文件
+
+#include "vulkan/vulkan_renderer.h"  // 3. 项目头文件
 
 VulkanRendererFactory::VulkanRendererFactory() {
 }
@@ -7,14 +10,7 @@ VulkanRendererFactory::VulkanRendererFactory() {
 VulkanRendererFactory::~VulkanRendererFactory() {
 }
 
-IRenderer* VulkanRendererFactory::CreateRenderer() {
-    return new VulkanRenderer();
-}
-
-void VulkanRendererFactory::DestroyRenderer(IRenderer* renderer) {
-    if (renderer) {
-        renderer->Cleanup();
-        delete renderer;
-    }
+std::unique_ptr<IRenderer> VulkanRendererFactory::CreateRenderer() {
+    return std::make_unique<VulkanRenderer>();
 }
 

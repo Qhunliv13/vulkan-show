@@ -3,8 +3,11 @@
 #include "core/interfaces/itext_renderer.h"
 #include "text/text_renderer.h"  // 需要用于转换
 #include "core/interfaces/irenderer.h"
+#include "core/interfaces/irender_device.h"  // 需要完整定义
+#include "core/config/render_context.h"
 #include "loading/loading_animation.h"
 #include "window/window.h"
+#include <vulkan/vulkan.h>
 #include <stdio.h>
 #include <windows.h>
 
@@ -21,9 +24,9 @@ ColorUIManager::~ColorUIManager() {
 }
 
 bool ColorUIManager::Initialize(IRenderer* renderer,
-                                const VulkanRenderContext& renderContext,
+                                const IRenderContext& renderContext,
                                 ITextRenderer* textRenderer,
-                                Window* window,
+                                IWindow* window,
                                 StretchMode stretchMode,
                                 float screenWidth,
                                 float screenHeight,
@@ -36,14 +39,17 @@ bool ColorUIManager::Initialize(IRenderer* renderer,
     m_boxColorControllersInitialized.resize(9, false);
     
     // 创建非const副本以传递给需要修改的方法
-    VulkanRenderContext nonConstContext(
-        renderContext.GetDevice(),
-        renderContext.GetPhysicalDevice(),
-        renderContext.GetCommandPool(),
-        renderContext.GetGraphicsQueue(),
-        renderContext.GetRenderPass(),
-        renderContext.GetSwapchainExtent()
-    );
+    Extent2D extent = renderContext.GetSwapchainExtent();
+    VkExtent2D vkExtent = { extent.width, extent.height };
+    std::unique_ptr<IRenderContext> nonConstContextPtr(CreateVulkanRenderContext(
+        static_cast<VkDevice>(renderContext.GetDevice()),
+        static_cast<VkPhysicalDevice>(renderContext.GetPhysicalDevice()),
+        static_cast<VkCommandPool>(renderContext.GetCommandPool()),
+        static_cast<VkQueue>(renderContext.GetGraphicsQueue()),
+        static_cast<VkRenderPass>(renderContext.GetRenderPass()),
+        vkExtent
+    ));
+    IRenderContext& nonConstContext = *nonConstContextPtr;
     
     if (!InitializeColorController(renderer, nonConstContext, stretchMode, screenWidth, screenHeight)) {
         return false;
@@ -116,9 +122,10 @@ void ColorUIManager::HandleWindowResize(StretchMode stretchMode, IRenderer* rend
     }
 }
 
-bool ColorUIManager::InitializeColorController(IRenderer* renderer, VulkanRenderContext& renderContext,
+bool ColorUIManager::InitializeColorController(IRenderer* renderer, IRenderContext& renderContext,
                                                StretchMode stretchMode, float screenWidth, float screenHeight) {
-    VkExtent2D uiExtent = renderContext.GetSwapchainExtent();
+    Extent2D extent = renderContext.GetSwapchainExtent();
+    VkExtent2D uiExtent = { extent.width, extent.height };
     
     m_colorController = std::make_unique<ColorController>();
     ColorControllerConfig colorControllerConfig;
@@ -142,12 +149,18 @@ bool ColorUIManager::InitializeColorController(IRenderer* renderer, VulkanRender
     colorControllerConfig.screenHeight = (stretchMode == StretchMode::Fit || stretchMode == StretchMode::Disabled) ? 
                                         (float)uiExtent.height : screenHeight;
     
+    // 通过 IRenderDevice 接口获取设备信息（遵循接口隔离原则）
+    IRenderDevice* renderDevice = renderer->GetRenderDevice();
+    if (!renderDevice) {
+        return false;
+    }
+    
     if (m_colorController->Initialize(
-            renderer->GetDevice(),
-            renderer->GetPhysicalDevice(),
-            renderer->GetCommandPool(),
-            renderer->GetGraphicsQueue(),
-            renderer->GetRenderPass(),
+            static_cast<VkDevice>(renderDevice->GetDevice()),
+            static_cast<VkPhysicalDevice>(renderDevice->GetPhysicalDevice()),
+            static_cast<VkCommandPool>(renderDevice->GetCommandPool()),
+            static_cast<VkQueue>(renderDevice->GetGraphicsQueue()),
+            static_cast<VkRenderPass>(renderDevice->GetRenderPass()),
             uiExtent,
             colorControllerConfig,
             nullptr)) {  // TextRenderer will be set later if needed
@@ -173,9 +186,10 @@ bool ColorUIManager::InitializeColorController(IRenderer* renderer, VulkanRender
     return false;
 }
 
-bool ColorUIManager::InitializeBoxColorControllers(IRenderer* renderer, VulkanRenderContext& renderContext,
+bool ColorUIManager::InitializeBoxColorControllers(IRenderer* renderer, IRenderContext& renderContext,
                                                    StretchMode stretchMode, float screenWidth, float screenHeight) {
-    VkExtent2D uiExtent = renderContext.GetSwapchainExtent();
+    Extent2D extent = renderContext.GetSwapchainExtent();
+    VkExtent2D uiExtent = { extent.width, extent.height };
     
     // 计算方块按钮矩阵的位置（与InitializeBoxColorButtons中的计算保持一致）
     float boxBtnMatrixCenterX = 0.85f;
@@ -215,12 +229,18 @@ bool ColorUIManager::InitializeBoxColorControllers(IRenderer* renderer, VulkanRe
         boxControllerConfig.screenHeight = (stretchMode == StretchMode::Fit || stretchMode == StretchMode::Disabled) ? 
                                            (float)uiExtent.height : screenHeight;
         
+        // 通过 IRenderDevice 接口获取设备信息（遵循接口隔离原则）
+        IRenderDevice* renderDevice = renderer->GetRenderDevice();
+        if (!renderDevice) {
+            continue;
+        }
+        
         if (m_boxColorControllers[i]->Initialize(
-                renderer->GetDevice(),
-                renderer->GetPhysicalDevice(),
-                renderer->GetCommandPool(),
-                renderer->GetGraphicsQueue(),
-                renderer->GetRenderPass(),
+                static_cast<VkDevice>(renderDevice->GetDevice()),
+                static_cast<VkPhysicalDevice>(renderDevice->GetPhysicalDevice()),
+                static_cast<VkCommandPool>(renderDevice->GetCommandPool()),
+                static_cast<VkQueue>(renderDevice->GetGraphicsQueue()),
+                static_cast<VkRenderPass>(renderDevice->GetRenderPass()),
                 uiExtent,
                 boxControllerConfig,
                 nullptr)) {  // TextRenderer will be set later if needed

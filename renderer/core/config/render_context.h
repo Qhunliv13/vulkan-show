@@ -1,70 +1,47 @@
 #pragma once
 
-#include <vulkan/vulkan.h>
 #include <cstdint>
+#include "core/types/render_types.h"
+
+// 前向声明（避免包含 vulkan.h）
+// 注意：如果文件已经包含了 vulkan.h，这些前向声明会被忽略
+struct VkDevice_T;
+struct VkPhysicalDevice_T;
+struct VkCommandPool_T;
+struct VkQueue_T;
+struct VkRenderPass_T;
+struct VkExtent2D;
+
+typedef VkDevice_T* VkDevice;
+typedef VkPhysicalDevice_T* VkPhysicalDevice;
+typedef VkCommandPool_T* VkCommandPool;
+typedef VkQueue_T* VkQueue;
+typedef VkRenderPass_T* VkRenderPass;
 
 // 渲染上下文接口 - 抽象层，用于解耦UI组件与底层渲染API
+// 不依赖具体渲染后端类型
 class IRenderContext {
 public:
     virtual ~IRenderContext() = default;
     
-    // 获取Vulkan设备对象
-    virtual VkDevice GetDevice() const = 0;
-    virtual VkPhysicalDevice GetPhysicalDevice() const = 0;
-    virtual VkCommandPool GetCommandPool() const = 0;
-    virtual VkQueue GetGraphicsQueue() const = 0;
-    virtual VkRenderPass GetRenderPass() const = 0;
-    virtual VkExtent2D GetSwapchainExtent() const = 0;
+    // 获取设备对象（使用抽象句柄）
+    virtual DeviceHandle GetDevice() const = 0;
+    virtual PhysicalDeviceHandle GetPhysicalDevice() const = 0;
+    virtual CommandPoolHandle GetCommandPool() const = 0;
+    virtual QueueHandle GetGraphicsQueue() const = 0;
+    virtual RenderPassHandle GetRenderPass() const = 0;
+    virtual Extent2D GetSwapchainExtent() const = 0;
     
     // 查找内存类型（用于缓冲区分配）
-    virtual uint32_t FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) const = 0;
+    virtual uint32_t FindMemoryType(uint32_t typeFilter, MemoryPropertyFlag properties) const = 0;
 };
 
-// Vulkan渲染上下文实现
-class VulkanRenderContext : public IRenderContext {
-public:
-    VulkanRenderContext(VkDevice device, 
-                       VkPhysicalDevice physicalDevice,
-                       VkCommandPool commandPool,
-                       VkQueue graphicsQueue,
-                       VkRenderPass renderPass,
-                       VkExtent2D swapchainExtent)
-        : m_device(device)
-        , m_physicalDevice(physicalDevice)
-        , m_commandPool(commandPool)
-        , m_graphicsQueue(graphicsQueue)
-        , m_renderPass(renderPass)
-        , m_swapchainExtent(swapchainExtent) {}
-    
-    virtual ~VulkanRenderContext() = default;
-    
-    VkDevice GetDevice() const override { return m_device; }
-    VkPhysicalDevice GetPhysicalDevice() const override { return m_physicalDevice; }
-    VkCommandPool GetCommandPool() const override { return m_commandPool; }
-    VkQueue GetGraphicsQueue() const override { return m_graphicsQueue; }
-    VkRenderPass GetRenderPass() const override { return m_renderPass; }
-    VkExtent2D GetSwapchainExtent() const override { return m_swapchainExtent; }
-    
-    uint32_t FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) const override {
-        VkPhysicalDeviceMemoryProperties memProperties;
-        vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &memProperties);
-        
-        for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
-            if ((typeFilter & (1 << i)) && 
-                (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
-                return i;
-            }
-        }
-        
-        return 0;
-    }
-    
-private:
-    VkDevice m_device;
-    VkPhysicalDevice m_physicalDevice;
-    VkCommandPool m_commandPool;
-    VkQueue m_graphicsQueue;
-    VkRenderPass m_renderPass;
-    VkExtent2D m_swapchainExtent;
-};
+// 工厂函数：创建 Vulkan 渲染上下文（在 .cpp 中实现）
+// 注意：此函数在 .cpp 文件中实现，避免头文件包含 vulkan.h
+IRenderContext* CreateVulkanRenderContext(VkDevice device, 
+                                          VkPhysicalDevice physicalDevice,
+                                          VkCommandPool commandPool,
+                                          VkQueue graphicsQueue,
+                                          VkRenderPass renderPass,
+                                          VkExtent2D swapchainExtent);
 

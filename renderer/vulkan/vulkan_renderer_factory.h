@@ -9,7 +9,7 @@ public:
     ~VulkanRendererFactory();
     
     // IRendererFactory 接口实现
-    IRenderer* CreateRenderer() override;
-    void DestroyRenderer(IRenderer* renderer) override;
+    // 所有权：[TRANSFER] 调用方获得所有权，通过 std::unique_ptr 自动管理生命周期
+    std::unique_ptr<IRenderer> CreateRenderer() override;
 };
 

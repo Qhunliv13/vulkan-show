@@ -3,7 +3,6 @@
 #include <memory>
 #include <vector>
 #include "core/config/constants.h"
-#include "core/config/render_context.h"
 #include "core/interfaces/iwindow_resize_handler.h"
 #include "ui/color_controller/color_controller.h"
 
@@ -11,7 +10,8 @@
 class ITextRenderer;
 class IRenderer;
 class LoadingAnimation;
-class Window;
+class IWindow;
+class IRenderContext;
 
 // 颜色UI管理器 - 负责管理所有颜色相关的UI组件
 class ColorUIManager : public IWindowResizeHandler {
@@ -21,9 +21,9 @@ public:
     
     // 初始化颜色UI组件
     bool Initialize(IRenderer* renderer,
-                   const VulkanRenderContext& renderContext,
+                   const IRenderContext& renderContext,
                    ITextRenderer* textRenderer,
-                   Window* window,
+                   IWindow* window,
                    StretchMode stretchMode,
                    float screenWidth,
                    float screenHeight,
@@ -48,9 +48,9 @@ public:
     }
     
 private:
-    bool InitializeColorController(IRenderer* renderer, VulkanRenderContext& renderContext,
+    bool InitializeColorController(IRenderer* renderer, IRenderContext& renderContext,
                                    StretchMode stretchMode, float screenWidth, float screenHeight);
-    bool InitializeBoxColorControllers(IRenderer* renderer, VulkanRenderContext& renderContext,
+    bool InitializeBoxColorControllers(IRenderer* renderer, IRenderContext& renderContext,
                                       StretchMode stretchMode, float screenWidth, float screenHeight);
     
     void UpdateColorControllerPositions(float screenWidth, float screenHeight, StretchMode stretchMode, IRenderer* renderer);
@@ -67,6 +67,6 @@ private:
     float m_buttonColorA = 1.0f;
     
     LoadingAnimation* m_loadingAnim = nullptr;
-    Window* m_window = nullptr;
+    IWindow* m_window = nullptr;
 };
 

@@ -1,6 +1,7 @@
 #include "text/text_renderer.h"
 #include "shader/shader_loader.h"
 #include "window/window.h"
+#include <vulkan/vulkan.h>
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -14,14 +15,15 @@ TextRenderer::~TextRenderer() {
     Cleanup();
 }
 
-bool TextRenderer::Initialize(VkDevice device, VkPhysicalDevice physicalDevice,
-                              VkCommandPool commandPool, VkQueue graphicsQueue,
-                              VkRenderPass renderPass) {
-    m_device = device;
-    m_physicalDevice = physicalDevice;
-    m_commandPool = commandPool;
-    m_graphicsQueue = graphicsQueue;
-    m_renderPass = renderPass;
+bool TextRenderer::Initialize(DeviceHandle device, PhysicalDeviceHandle physicalDevice,
+                              CommandPoolHandle commandPool, QueueHandle graphicsQueue,
+                              RenderPassHandle renderPass) {
+    // 将抽象句柄转换为 Vulkan 类型
+    m_device = static_cast<VkDevice>(device);
+    m_physicalDevice = static_cast<VkPhysicalDevice>(physicalDevice);
+    m_commandPool = static_cast<VkCommandPool>(commandPool);
+    m_graphicsQueue = static_cast<VkQueue>(graphicsQueue);
+    m_renderPass = static_cast<VkRenderPass>(renderPass);
     
     // 默认加载系统字体
     if (!LoadFont("Arial", 16)) {
@@ -40,7 +42,8 @@ bool TextRenderer::Initialize(VkDevice device, VkPhysicalDevice physicalDevice,
         return false;
     }
     
-    if (!CreatePipeline(renderPass)) {
+    // 使用已转换的 m_renderPass（已在上面转换）
+    if (!CreatePipeline(m_renderPass)) {
         return false;
     }
     
@@ -964,12 +967,14 @@ void TextRenderer::AddTextCenteredToBatch(const std::string& text, float centerX
     m_textBlocks.push_back(blockInfo);
 }
 
-void TextRenderer::EndTextBatch(VkCommandBuffer commandBuffer, float screenWidth, float screenHeight,
+void TextRenderer::EndTextBatch(CommandBufferHandle commandBuffer, float screenWidth, float screenHeight,
                                 float viewportX, float viewportY,
                                 float scaleX, float scaleY) {
     if (m_batchVertices.empty()) return;
     
-    FlushBatch(commandBuffer, screenWidth, screenHeight, viewportX, viewportY, scaleX, scaleY);
+    // 将抽象句柄转换为 Vulkan 类型
+    VkCommandBuffer vkCommandBuffer = static_cast<VkCommandBuffer>(commandBuffer);
+    FlushBatch(vkCommandBuffer, screenWidth, screenHeight, viewportX, viewportY, scaleX, scaleY);
 }
 
 void TextRenderer::AppendVerticesToBuffer(const std::string& text, float x, float y, 
@@ -1205,12 +1210,15 @@ void TextRenderer::UpdateVertexBuffer(const std::string& text, float x, float y,
     }
 }
 
-void TextRenderer::RenderText(VkCommandBuffer commandBuffer, const std::string& text, 
+void TextRenderer::RenderText(CommandBufferHandle commandBuffer, const std::string& text, 
                              float x, float y, float screenWidth, float screenHeight,
                              float r, float g, float b, float a) {
     if (!m_initialized || text.empty()) {
         return;
     }
+    
+    // 将抽象句柄转换为 Vulkan 类型
+    VkCommandBuffer vkCommandBuffer = static_cast<VkCommandBuffer>(commandBuffer);
     
     // 翻转文本绘制的Y坐标（仅翻转文字，不影响其他）
     // 窗口坐标Y向下，但文字需要翻转Y轴以正确显示
@@ -1241,40 +1249,43 @@ void TextRenderer::RenderText(VkCommandBuffer commandBuffer, const std::string& 
     UpdateVertexBuffer(text, x, flippedY, r, g, b, a);
     
     // 绑定管线
-    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
+    vkCmdBindPipeline(vkCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
     
     // 设置viewport和scissor（必须在绑定管线之后设置，因为它们是动态状态）
-    vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
-    vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+    vkCmdSetViewport(vkCommandBuffer, 0, 1, &viewport);
+    vkCmdSetScissor(vkCommandBuffer, 0, 1, &scissor);
     
     // 绑定描述符集
-    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, 
+    vkCmdBindDescriptorSets(vkCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, 
                            m_pipelineLayout, 0, 1, &m_descriptorSet, 0, nullptr);
     
     // 设置 push constants（屏幕大小）
     float screenSize[2] = {screenWidth, screenHeight};
-    vkCmdPushConstants(commandBuffer, m_pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 
+    vkCmdPushConstants(vkCommandBuffer, m_pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 
                        0, sizeof(float) * 2, screenSize);
     
     // 绑定顶点缓冲区
     VkBuffer vertexBuffers[] = {m_vertexBuffer};
     VkDeviceSize offsets[] = {0};
-    vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+    vkCmdBindVertexBuffers(vkCommandBuffer, 0, 1, vertexBuffers, offsets);
     
     // 计算顶点数量（每个字符 6 个顶点）
     int wlen = MultiByteToWideChar(CP_UTF8, 0, text.c_str(), -1, nullptr, 0);
     if (wlen > 0) {
         int vertexCount = (wlen - 1) * 6; // -1 因为末尾有 null terminator
-        vkCmdDraw(commandBuffer, vertexCount, 1, 0, 0);
+        vkCmdDraw(vkCommandBuffer, vertexCount, 1, 0, 0);
     }
 }
 
-void TextRenderer::RenderTextCentered(VkCommandBuffer commandBuffer, const std::string& text,
+void TextRenderer::RenderTextCentered(CommandBufferHandle commandBuffer, const std::string& text,
                                       float centerX, float centerY, float screenWidth, float screenHeight,
                                       float r, float g, float b, float a) {
     if (!m_initialized || text.empty()) {
         return;
     }
+    
+    // 将抽象句柄转换为 Vulkan 类型
+    VkCommandBuffer vkCommandBuffer = static_cast<VkCommandBuffer>(commandBuffer);
     
     // 如果处于批量模式，使用批量渲染API
     if (m_inBatchMode) {

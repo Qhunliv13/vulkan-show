@@ -2,10 +2,11 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 
-#include <windows.h>
-#include "renderer/core/managers/application.h"
-#include "renderer/core/interfaces/irenderer_factory.h"
-#include "renderer/vulkan/vulkan_renderer_factory.h"
+#include <windows.h>  // 系统头文件
+
+#include "renderer/core/interfaces/irenderer_factory.h"  // 项目头文件（接口）
+#include "renderer/core/managers/application.h"  // 项目头文件（管理器）
+#include "renderer/vulkan/vulkan_renderer_factory.h"  // 项目头文件（实现）
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
     // 创建渲染器工厂（实现依赖倒置）
@@ -20,7 +21,3 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     
     return app.Run();
 }
-
-// 注意：所有UI组件（如colorButtons、boxColorButtons、colorController等）
-// 的初始化逻辑已迁移到Application类中
-// 当前Application类已实现核心功能：基本按钮、滑块、主循环、消息处理等

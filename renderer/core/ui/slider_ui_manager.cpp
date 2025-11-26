@@ -2,7 +2,9 @@
 #include "ui/slider/slider.h"
 #include "ui/color_controller/color_controller.h"
 #include "core/interfaces/irenderer.h"
+#include "core/config/render_context.h"
 #include "window/window.h"
+#include <vulkan/vulkan.h>
 #include <stdio.h>
 #include <windows.h>
 
@@ -13,17 +15,20 @@ SliderUIManager::~SliderUIManager() {
     Cleanup();
 }
 
-bool SliderUIManager::Initialize(const VulkanRenderContext& renderContext, Window* window, StretchMode stretchMode) {
+bool SliderUIManager::Initialize(const IRenderContext& renderContext, IWindow* window, StretchMode stretchMode) {
     m_window = window;
     // 创建非const副本以传递给需要修改的方法
-    VulkanRenderContext nonConstContext(
-        renderContext.GetDevice(),
-        renderContext.GetPhysicalDevice(),
-        renderContext.GetCommandPool(),
-        renderContext.GetGraphicsQueue(),
-        renderContext.GetRenderPass(),
-        renderContext.GetSwapchainExtent()
-    );
+    Extent2D extent = renderContext.GetSwapchainExtent();
+    VkExtent2D vkExtent = { extent.width, extent.height };
+    std::unique_ptr<IRenderContext> nonConstContextPtr(CreateVulkanRenderContext(
+        static_cast<VkDevice>(renderContext.GetDevice()),
+        static_cast<VkPhysicalDevice>(renderContext.GetPhysicalDevice()),
+        static_cast<VkCommandPool>(renderContext.GetCommandPool()),
+        static_cast<VkQueue>(renderContext.GetGraphicsQueue()),
+        static_cast<VkRenderPass>(renderContext.GetRenderPass()),
+        vkExtent
+    ));
+    IRenderContext& nonConstContext = *nonConstContextPtr;
     return InitializeOrangeSlider(nonConstContext, stretchMode);
 }
 
@@ -83,7 +88,7 @@ void SliderUIManager::GetAllSliders(std::vector<Slider*>& sliders,
     }
 }
 
-bool SliderUIManager::InitializeOrangeSlider(VulkanRenderContext& renderContext, StretchMode stretchMode) {
+bool SliderUIManager::InitializeOrangeSlider(IRenderContext& renderContext, StretchMode stretchMode) {
     m_orangeSlider = std::make_unique<Slider>();
     SliderConfig sliderConfig(20.0f, 20.0f, 300.0f, 6.0f, 0.0f, 100.0f, 50.0f);
     sliderConfig.trackColorR = 0.3f;

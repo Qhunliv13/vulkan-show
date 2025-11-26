@@ -1,29 +1,49 @@
-#include "vulkan/vulkan_renderer.h"
-#include "ui/slider/slider.h"
+#include "vulkan/vulkan_renderer.h"  // 1. 对应头文件
+
+#include <windows.h>                // 2. 系统头文件
+#include <stdio.h>
+#include <cstring>
+#include <cmath>
+#include <algorithm>
+#include <vector>
+#include <set>
+#include <memory>
+
+#include <vulkan/vulkan.h>           // 3. 第三方库头文件
+
+#include "core/config/constants.h"   // 4. 项目头文件（按依赖层级从内到外）
+#include "core/config/stretch_params.h"
+#include "core/types/render_types.h"  // 抽象类型定义
+#include "core/utils/render_command_buffer.h"  // 在 .cpp 中包含实现
 #include "shader/shader_loader.h"
-#include "window/window.h"
-#include "core/config/constants.h"
+#include "texture/texture.h"
+#include "image/image_loader.h"
 #include "loading/loading_animation.h"
 #include "text/text_renderer.h"
 #include "ui/button/button.h"
-#include "texture/texture.h"
-#include "image/image_loader.h"
-#include <set>
-#include <vector>
-#include <algorithm>
-#include <cmath>
-#include <cstring>
-#include <stdio.h>
-#include <windows.h>
-#include <memory>
+#include "ui/slider/slider.h"
+#include "window/window.h"
 
 using namespace renderer::shader;
 
-VulkanRenderer::VulkanRenderer() {
+// pimpl 实现细节
+struct VulkanRenderer::Impl {
+    std::unique_ptr<RenderCommandBuffer> commandBuffer;
+    
+    Impl() : commandBuffer(std::make_unique<RenderCommandBuffer>()) {}
+};
+
+VulkanRenderer::VulkanRenderer() : m_pImpl(std::make_unique<Impl>()) {
+    m_commandBuffer = m_pImpl->commandBuffer.get();
 }
 
 VulkanRenderer::~VulkanRenderer() {
     Cleanup();
+    // m_pImpl 的析构函数会自动清理 commandBuffer
+}
+
+IRenderCommandBuffer* VulkanRenderer::GetCommandBuffer() {
+    return m_commandBuffer;
 }
 
 bool VulkanRenderer::Initialize(HWND hwnd, HINSTANCE hInstance) {
@@ -243,7 +263,7 @@ bool VulkanRenderer::CreateLogicalDevice() {
     // 检查光线追踪支持
     m_rayTracingSupported = CheckRayTracingSupport();
     if (m_rayTracingSupported) {
-        // 添加光线追踪相关扩展
+        // 启用光线追踪相关扩展以支持光线追踪管线
         deviceExtensions.push_back(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME);
         deviceExtensions.push_back(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
         deviceExtensions.push_back(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
@@ -846,7 +866,7 @@ void VulkanRenderer::RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
     renderPassInfo.renderArea.offset = {0, 0};
     renderPassInfo.renderArea.extent = m_swapchainExtent;
     
-    // 根据状态设置背景色：loading_cubes使用淡棕色，其他使用黑色
+    // loading_cubes场景使用淡棕色背景以模拟环境光，其他场景使用黑色背景提高对比度
     VkClearValue clearColor;
     if (useLoadingCubes) {
         // 淡棕色：RGB(210, 180, 140) / 255.0
@@ -1079,7 +1099,7 @@ void VulkanRenderer::RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
         // 根据不同的stretch mode调整文本位置
         if (useLoadingCubes) {
             // loading_cubes模式：使用全屏坐标系
-            textRenderer->RenderText(commandBuffer, fpsText, textX, textY, 
+            textRenderer->RenderText(static_cast<CommandBufferHandle>(commandBuffer), fpsText, textX, textY, 
                                     (float)m_swapchainExtent.width, (float)m_swapchainExtent.height,
                                     1.0f, 1.0f, 0.0f, 1.0f);  // 黄色文本
         } else {
@@ -1089,7 +1109,7 @@ void VulkanRenderer::RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
                 // Disabled模式：视口居中，需要加上偏移
                 float offsetX = ((float)m_swapchainExtent.width - baseWidth) * 0.5f;
                 float offsetY = ((float)m_swapchainExtent.height - baseHeight) * 0.5f;
-                textRenderer->RenderText(commandBuffer, fpsText, textX + offsetX, textY + offsetY,
+                textRenderer->RenderText(static_cast<CommandBufferHandle>(commandBuffer), fpsText, textX + offsetX, textY + offsetY,
                                         (float)m_swapchainExtent.width, (float)m_swapchainExtent.height,
                                         1.0f, 1.0f, 0.0f, 1.0f);  // 黄色文本
                 break;
@@ -1098,7 +1118,7 @@ void VulkanRenderer::RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
                 // Scaled模式：视口居中，需要加上偏移
                 float offsetX = ((float)m_swapchainExtent.width - baseWidth) * 0.5f;
                 float offsetY = ((float)m_swapchainExtent.height - baseHeight) * 0.5f;
-                textRenderer->RenderText(commandBuffer, fpsText, textX + offsetX, textY + offsetY,
+                textRenderer->RenderText(static_cast<CommandBufferHandle>(commandBuffer), fpsText, textX + offsetX, textY + offsetY,
                                         (float)m_swapchainExtent.width, (float)m_swapchainExtent.height,
                                         1.0f, 1.0f, 0.0f, 1.0f);  // 黄色文本
                 break;
@@ -1108,17 +1128,17 @@ void VulkanRenderer::RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
                 const float currentAspect = (float)m_swapchainExtent.width / (float)m_swapchainExtent.height;
                 float offsetX = 0.0f, offsetY = 0.0f;
                 if (currentAspect > targetAspect) {
-                    // 窗口更宽 - 添加左右黑边
+                    // 窗口宽高比大于目标宽高比时，在左右添加黑边以保持宽高比
                     float viewportHeight = (float)m_swapchainExtent.height;
                     float viewportWidth = viewportHeight * targetAspect;
                     offsetX = ((float)m_swapchainExtent.width - viewportWidth) * 0.5f;
                 } else {
-                    // 窗口更高 - 添加上下黑边
+                    // 窗口宽高比小于目标宽高比时，在上下添加黑边以保持宽高比
                     float viewportWidth = (float)m_swapchainExtent.width;
                     float viewportHeight = viewportWidth / targetAspect;
                     offsetY = ((float)m_swapchainExtent.height - viewportHeight) * 0.5f;
                 }
-                textRenderer->RenderText(commandBuffer, fpsText, textX + offsetX, textY + offsetY,
+                textRenderer->RenderText(static_cast<CommandBufferHandle>(commandBuffer), fpsText, textX + offsetX, textY + offsetY,
                                         (float)m_swapchainExtent.width, (float)m_swapchainExtent.height,
                                         1.0f, 1.0f, 0.0f, 1.0f);  // 黄色文本
                 break;
@@ -1147,7 +1167,7 @@ bool VulkanRenderer::DrawFrame(float time, bool useLoadingCubes, ITextRenderer* 
     
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
         RecreateSwapchain();
-        // 更新swapchain extent
+        // 重新获取窗口客户端区域尺寸，确保swapchain extent与窗口大小一致
         RECT clientRect;
         GetClientRect(m_hwnd, &clientRect);
         m_swapchainExtent.width = clientRect.right - clientRect.left;
@@ -1220,7 +1240,7 @@ bool VulkanRenderer::DrawFrameWithLoading(const DrawFrameWithLoadingParams& para
     
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
         RecreateSwapchain();
-        // 更新swapchain extent
+        // 重新获取窗口客户端区域尺寸，确保swapchain extent与窗口大小一致
         RECT clientRect;
         GetClientRect(m_hwnd, &clientRect);
         m_swapchainExtent.width = clientRect.right - clientRect.left;
@@ -1275,7 +1295,7 @@ bool VulkanRenderer::DrawFrameWithLoading(const DrawFrameWithLoadingParams& para
     
     switch (m_stretchMode) {
         case StretchMode::Scaled: {
-            // Canvas Items 模式：和example一致，UI使用实际窗口大小，通过UpdateForWindowResize更新
+            // Scaled模式：使用实际窗口大小作为视口，UI组件通过UpdateForWindowResize同步调整尺寸
             viewport.x = 0.0f;
             viewport.y = 0.0f;
             viewport.width = (float)m_swapchainExtent.width;
@@ -1292,7 +1312,7 @@ bool VulkanRenderer::DrawFrameWithLoading(const DrawFrameWithLoadingParams& para
             // Fit模式：在窗口内建立保持背景纹理比例的最大NDC坐标系
             // NDC坐标系保持比例重建，不整个窗口重建
     if (currentAspect > targetAspect) {
-                // 窗口更宽 - 添加左右黑边（pillarbox）
+                // 窗口宽高比大于目标宽高比时，在左右添加黑边（pillarbox）以保持宽高比
         float viewportHeight = (float)m_swapchainExtent.height;
         float viewportWidth = viewportHeight * targetAspect;
         float offsetX = ((float)m_swapchainExtent.width - viewportWidth) * 0.5f;
@@ -1526,7 +1546,7 @@ bool VulkanRenderer::DrawFrameWithLoading(const DrawFrameWithLoadingParams& para
             float uiToViewportScaleX = buttonViewport.width / (float)uiExtent.width;
             float uiToViewportScaleY = buttonViewport.height / (float)uiExtent.height;
             
-            params.textRenderer->EndTextBatch(m_commandBuffers[imageIndex], 
+            params.textRenderer->EndTextBatch(static_cast<CommandBufferHandle>(m_commandBuffers[imageIndex]), 
                                       textScreenWidth, 
                                       textScreenHeight,
                                       0.0f, 0.0f,  // viewport偏移为0（使用全屏）
@@ -1600,7 +1620,7 @@ bool VulkanRenderer::DrawFrameWithLoading(const DrawFrameWithLoadingParams& para
             
             // 一次性渲染所有累积的文本（包括按钮文本和FPS文本）
             // Scaled模式：使用整个窗口大小，viewport无偏移
-            params.textRenderer->EndTextBatch(m_commandBuffers[imageIndex], 
+            params.textRenderer->EndTextBatch(static_cast<CommandBufferHandle>(m_commandBuffers[imageIndex]), 
                                       (float)m_swapchainExtent.width, 
                                       (float)m_swapchainExtent.height,
                                       0.0f, 0.0f);
@@ -1828,19 +1848,15 @@ bool VulkanRenderer::HasBackgroundTexture() const {
     return s_backgroundButton->HasTexture();
 }
 
-VkExtent2D VulkanRenderer::GetUIBaseSize() const {
-    VkExtent2D baseSize = {};
+Extent2D VulkanRenderer::GetUIBaseSize() const {
     // UI基准使用背景纹理的原始尺寸（唯一的耦合点）
     if (m_backgroundTextureWidth > 0 && m_backgroundTextureHeight > 0) {
         // 使用背景纹理的原始尺寸作为UI基准
-        baseSize.width = m_backgroundTextureWidth;
-        baseSize.height = m_backgroundTextureHeight;
+        return Extent2D(m_backgroundTextureWidth, m_backgroundTextureHeight);
     } else {
         // 如果没有背景，使用默认的800x800
-        baseSize.width = WINDOW_WIDTH;
-        baseSize.height = WINDOW_HEIGHT;
+        return Extent2D(WINDOW_WIDTH, WINDOW_HEIGHT);
     }
-    return baseSize;
 }
 
 void VulkanRenderer::SetMouseInput(float deltaX, float deltaY, bool buttonDown) {

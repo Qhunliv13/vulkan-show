@@ -3,14 +3,14 @@
 #include <memory>
 #include <vector>
 #include "core/config/constants.h"
-#include "core/config/render_context.h"
 #include "core/interfaces/iwindow_resize_handler.h"
 #include "ui/slider/slider.h"
 #include "ui/color_controller/color_controller.h"
 
 // 前向声明
 class IRenderer;
-class Window;
+class IWindow;
+class IRenderContext;
 
 // 滑块UI管理器 - 负责管理所有滑块组件
 class SliderUIManager : public IWindowResizeHandler {
@@ -19,7 +19,7 @@ public:
     ~SliderUIManager();
     
     // 初始化滑块组件
-    bool Initialize(const VulkanRenderContext& renderContext, Window* window, StretchMode stretchMode);
+    bool Initialize(const IRenderContext& renderContext, IWindow* window, StretchMode stretchMode);
     
     // 清理资源
     void Cleanup();
@@ -36,10 +36,10 @@ public:
                       const std::vector<std::unique_ptr<ColorController>>* boxColorControllers = nullptr) const;
     
 private:
-    bool InitializeOrangeSlider(VulkanRenderContext& renderContext, StretchMode stretchMode);
+    bool InitializeOrangeSlider(IRenderContext& renderContext, StretchMode stretchMode);
     
     std::unique_ptr<Slider> m_orangeSlider;
     bool m_sliderInitialized = false;
-    Window* m_window = nullptr;
+    IWindow* m_window = nullptr;
 };
 

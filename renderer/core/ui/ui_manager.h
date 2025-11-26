@@ -5,9 +5,8 @@
 #include "core/config/constants.h"
 #include "core/config/render_context.h"
 #include "core/interfaces/irenderer.h"
-#include "core/interfaces/iwindow_resize_handler.h"
-#include "core/interfaces/iuirender_provider.h"
 #include "core/interfaces/iuimanager.h"
+#include "core/interfaces/iwindow.h"
 
 // 前向声明
 class ITextRenderer;
@@ -19,10 +18,10 @@ class LoadingAnimation;
 class ButtonUIManager;
 class ColorUIManager;
 class SliderUIManager;
-class Window;
 
-// UI管理器 - 负责所有UI组件的生命周期管理（实现多个接口以支持不同使用场景）
-class UIManager : public IWindowResizeHandler, public IUIRenderProvider, public IUIManager {
+// UI管理器 - 负责所有UI组件的生命周期管理（只实现核心 IUIManager 接口）
+// 注意：其他接口（IWindowResizeHandler、IUIRenderProvider）通过适配器类实现，保持接口职责单一
+class UIManager : public IUIManager {
 public:
     UIManager();
     ~UIManager();
@@ -30,25 +29,22 @@ public:
     // 初始化所有UI组件（使用接口而不是具体类）
     bool Initialize(IRenderer* renderer, 
                     ITextRenderer* textRenderer,
-                    Window* window,
+                    IWindow* window,
                     StretchMode stretchMode);
     
     // 清理所有UI组件
     void Cleanup();
     
-    // IWindowResizeHandler 接口实现
-    void HandleWindowResize(StretchMode stretchMode, IRenderer* renderer) override;
+    // UI组件获取方法（供适配器使用）
+    LoadingAnimation* GetLoadingAnimation() const { return m_loadingAnim; }
+    Button* GetEnterButton() const;
+    Button* GetColorButton() const;
+    Button* GetLeftButton() const;
+    Slider* GetOrangeSlider() const;
+    void GetAllButtons(std::vector<Button*>& buttons) const;
+    void GetAllSliders(std::vector<Slider*>& sliders) const;
     
-    // IUIRenderProvider 接口实现
-    LoadingAnimation* GetLoadingAnimation() const override { return m_loadingAnim; }
-    Button* GetEnterButton() const override;
-    Button* GetColorButton() const override;
-    Button* GetLeftButton() const override;
-    Slider* GetOrangeSlider() const override;
-    void GetAllButtons(std::vector<Button*>& buttons) const override;
-    void GetAllSliders(std::vector<Slider*>& sliders) const override;
-    
-    // 其他UI组件获取方法（非接口方法）
+    // 其他UI组件获取方法
     Button* GetColorAdjustButton() const;
     ColorController* GetColorController() const;
     
@@ -71,15 +67,18 @@ public:
     bool HandleClick(float x, float y) override;
     void HandleMouseMove(float x, float y) override;
     void HandleMouseUp() override;
-    // HandleWindowResize 已在 IWindowResizeHandler 中实现
+    void HandleWindowResize(StretchMode stretchMode, IRenderer* renderer) override;
     
     // 设置UI组件的回调函数（使用事件总线解耦）
     // 通过事件总线发布事件，而不是直接调用具体类的方法
     void SetupCallbacks(class IEventBus* eventBus);
+    
+    // 订阅事件总线的事件（统一通信模式）
+    void SubscribeToEvents(class IEventBus* eventBus);
 
 private:
     // 初始化加载动画
-    bool InitializeLoadingAnimation(IRenderer* renderer, const VulkanRenderContext& renderContext, 
+    bool InitializeLoadingAnimation(IRenderer* renderer, const IRenderContext& renderContext, 
                                     StretchMode stretchMode, float screenWidth, float screenHeight);
     
     // UI组件
@@ -96,6 +95,12 @@ private:
     
     IRenderer* m_renderer = nullptr;  // 使用接口而不是具体类
     ITextRenderer* m_textRenderer = nullptr;
-    Window* m_window = nullptr;
+    IWindow* m_window = nullptr;
+    
+    // 事件订阅ID（用于清理）
+    size_t m_uiClickSubscriptionId = 0;
+    size_t m_mouseMoveUISubscriptionId = 0;
+    size_t m_mouseUpSubscriptionId = 0;
+    size_t m_windowResizeSubscriptionId = 0;
 };
 

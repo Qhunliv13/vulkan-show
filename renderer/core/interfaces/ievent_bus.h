@@ -3,6 +3,10 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include "core/config/constants.h"
+
+// 前向声明
+class IRenderer;
 
 // 事件类型枚举
 enum class EventType {
@@ -10,9 +14,13 @@ enum class EventType {
     ButtonClicked,          // 按钮点击
     ColorChanged,           // 颜色变化
     WindowResized,          // 窗口大小变化
-    MouseClicked,           // 鼠标点击
-    MouseMoved,             // 鼠标移动
+    MouseClicked,           // 鼠标点击（窗口坐标）
+    MouseMoved,             // 鼠标移动（用于相机控制）
+    MouseMovedUI,           // 鼠标移动（UI坐标，用于UI交互）
+    MouseUp,                // 鼠标释放
+    WindowResizeRequest,    // 窗口大小变化请求
     KeyPressed,             // 按键按下
+    UIClick,                // UI点击事件（已转换的UI坐标）
     Custom                  // 自定义事件
 };
 
@@ -56,6 +64,32 @@ struct KeyPressedEvent : public Event {
     bool isPressed;
     KeyPressedEvent(int code, bool pressed) 
         : Event(EventType::KeyPressed), keyCode(code), isPressed(pressed) {}
+};
+
+struct UIClickEvent : public Event {
+    float uiX;
+    float uiY;
+    StretchMode stretchMode;
+    UIClickEvent(float x, float y, StretchMode mode) 
+        : Event(EventType::UIClick), uiX(x), uiY(y), stretchMode(mode) {}
+};
+
+struct MouseMovedUIEvent : public Event {
+    float uiX;
+    float uiY;
+    MouseMovedUIEvent(float x, float y) 
+        : Event(EventType::MouseMovedUI), uiX(x), uiY(y) {}
+};
+
+struct MouseUpEvent : public Event {
+    MouseUpEvent() : Event(EventType::MouseUp) {}
+};
+
+struct WindowResizeRequestEvent : public Event {
+    StretchMode stretchMode;
+    IRenderer* renderer;
+    WindowResizeRequestEvent(StretchMode mode, IRenderer* r) 
+        : Event(EventType::WindowResizeRequest), stretchMode(mode), renderer(r) {}
 };
 
 // 事件总线接口 - 用于依赖注入，替代单例

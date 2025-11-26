@@ -6,11 +6,9 @@
 #include <unordered_map>
 
 // 配置管理器 - 统一管理应用配置（实现IConfigProvider接口，支持依赖注入）
+// 禁止使用单例，必须通过依赖注入使用
 class ConfigManager : public IConfigProvider {
 public:
-    // 保留单例方法以支持向后兼容，但推荐使用依赖注入
-    static ConfigManager& GetInstance();
-    
     // 公共构造函数（支持依赖注入）
     ConfigManager() = default;
     ~ConfigManager() = default;

@@ -1,10 +1,12 @@
 #pragma once
 
-#include <windows.h>
-#include <string>
-#include <memory>
-#include <functional>
+#include <windows.h>    // 2. 系统头文件
+#include <string>       // 2. 系统头文件
+#include <memory>       // 2. 系统头文件
+#include <functional>   // 2. 系统头文件
 
+// HTML UI管理器 - 使用WebView2或备用浏览器控件显示HTML内容
+// 支持加载HTML文件和字符串，自动加载对应的CSS文件，提供JavaScript回调接口
 class HtmlUI {
 public:
     HtmlUI();

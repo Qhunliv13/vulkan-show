@@ -10,7 +10,7 @@
 // 前向声明
 class ITextRenderer;
 class IRenderer;
-class Window;
+class IWindow;
 
 // 按钮UI管理器 - 负责管理所有按钮组件
 class ButtonUIManager : public IWindowResizeHandler {
@@ -19,9 +19,9 @@ public:
     ~ButtonUIManager();
     
     // 初始化按钮组件
-    bool Initialize(const VulkanRenderContext& renderContext, 
+    bool Initialize(const IRenderContext& renderContext, 
                    ITextRenderer* textRenderer,
-                   Window* window,
+                   IWindow* window,
                    StretchMode stretchMode,
                    float screenWidth, 
                    float screenHeight);
@@ -52,14 +52,14 @@ public:
     }
     
 private:
-    bool InitializeEnterButton(VulkanRenderContext& renderContext, StretchMode stretchMode);
-    bool InitializeColorButton(VulkanRenderContext& renderContext, StretchMode stretchMode);
-    bool InitializeLeftButton(VulkanRenderContext& renderContext, StretchMode stretchMode);
-    bool InitializeColorButtons(VulkanRenderContext& renderContext, StretchMode stretchMode, 
+    bool InitializeEnterButton(IRenderContext& renderContext, StretchMode stretchMode);
+    bool InitializeColorButton(IRenderContext& renderContext, StretchMode stretchMode);
+    bool InitializeLeftButton(IRenderContext& renderContext, StretchMode stretchMode);
+    bool InitializeColorButtons(IRenderContext& renderContext, StretchMode stretchMode, 
                                float screenWidth, float screenHeight);
-    bool InitializeBoxColorButtons(VulkanRenderContext& renderContext, StretchMode stretchMode,
+    bool InitializeBoxColorButtons(IRenderContext& renderContext, StretchMode stretchMode,
                                   float screenWidth, float screenHeight);
-    bool InitializeColorAdjustButton(VulkanRenderContext& renderContext, StretchMode stretchMode);
+    bool InitializeColorAdjustButton(IRenderContext& renderContext, StretchMode stretchMode);
     
     void UpdateButtonPositions(float screenWidth, float screenHeight, StretchMode stretchMode, IRenderer* renderer);
     
@@ -81,6 +81,6 @@ private:
     float m_buttonColorA = 1.0f;
     
     ITextRenderer* m_textRenderer = nullptr;
-    Window* m_window = nullptr;
+    IWindow* m_window = nullptr;
 };
 

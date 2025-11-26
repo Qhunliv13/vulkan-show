@@ -1,5 +1,6 @@
 #include "ui/text/text.h"
 #include "text/text_renderer.h"
+#include "core/types/render_types.h"
 #include "window/window.h"
 #include <algorithm>
 #include <cmath>
@@ -104,13 +105,13 @@ void Text::Render(VkCommandBuffer commandBuffer, VkExtent2D extent) {
     
     if (m_useCenterPosition) {
         // 使用中心坐标渲染
-        m_textRenderer->RenderTextCentered(commandBuffer, m_text,
+        m_textRenderer->RenderTextCentered(static_cast<CommandBufferHandle>(commandBuffer), m_text,
                                           m_x, m_y,
                                           screenWidth, screenHeight,
                                           m_colorR, m_colorG, m_colorB, m_colorA);
     } else {
         // 使用左上角坐标渲染
-        m_textRenderer->RenderText(commandBuffer, m_text,
+        m_textRenderer->RenderText(static_cast<CommandBufferHandle>(commandBuffer), m_text,
                                   m_x, m_y,
                                   screenWidth, screenHeight,
                                   m_colorR, m_colorG, m_colorB, m_colorA);

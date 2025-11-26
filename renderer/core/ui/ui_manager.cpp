@@ -1,6 +1,7 @@
 #include "core/ui/ui_manager.h"
 #include "core/interfaces/iconfig_provider.h"
 #include "core/interfaces/ievent_bus.h"
+#include "core/interfaces/irender_device.h"  // 需要完整定义
 #include "core/ui/button_ui_manager.h"
 #include "core/ui/color_ui_manager.h"
 #include "core/ui/slider_ui_manager.h"
@@ -11,8 +12,10 @@
 #include "ui/color_controller/color_controller.h"
 #include "window/window.h"
 #include "core/managers/scene_manager.h"
+#include "core/config/render_context.h"
 #include <stdio.h>
 #include <windows.h>
+#include <vulkan/vulkan.h>
 
 UIManager::UIManager() {
 }
@@ -23,7 +26,7 @@ UIManager::~UIManager() {
 
 bool UIManager::Initialize(IRenderer* renderer, 
                            ITextRenderer* textRenderer,
-                           Window* window,
+                           IWindow* window,
                            StretchMode stretchMode) {
     m_renderer = renderer;
     m_textRenderer = textRenderer;
@@ -40,41 +43,53 @@ bool UIManager::Initialize(IRenderer* renderer,
     float screenHeight = (float)(clientRect.bottom - clientRect.top);
     
     // 计算UI基准尺寸
-    VkExtent2D uiExtent = {};
+    Extent2D uiExtent = {};
     if (stretchMode == StretchMode::Fit || stretchMode == StretchMode::Disabled) {
         uiExtent = m_renderer->GetUIBaseSize();
     } else {
-        uiExtent = m_renderer->GetSwapchainExtent();
+        IRenderDevice* renderDevice = m_renderer->GetRenderDevice();
+        if (renderDevice) {
+            uiExtent = renderDevice->GetSwapchainExtent();
+        } else {
+            uiExtent = m_renderer->GetSwapchainExtent();  // 使用便捷方法作为后备
+        }
     }
     
-    // 创建渲染上下文
-    VulkanRenderContext renderContext(
-        m_renderer->GetDevice(),
-        m_renderer->GetPhysicalDevice(),
-        m_renderer->GetCommandPool(),
-        m_renderer->GetGraphicsQueue(),
-        m_renderer->GetRenderPass(),
-        uiExtent
-    );
+    // 创建渲染上下文（使用工厂函数，避免头文件包含 vulkan.h）
+    // 通过 IRenderDevice 接口获取设备信息（遵循接口隔离原则）
+    IRenderDevice* renderDevice = m_renderer->GetRenderDevice();
+    if (!renderDevice) {
+        return false;
+    }
+    
+    VkExtent2D vkExtent = { uiExtent.width, uiExtent.height };
+    std::unique_ptr<IRenderContext> renderContext(CreateVulkanRenderContext(
+        static_cast<VkDevice>(renderDevice->GetDevice()),
+        static_cast<VkPhysicalDevice>(renderDevice->GetPhysicalDevice()),
+        static_cast<VkCommandPool>(renderDevice->GetCommandPool()),
+        static_cast<VkQueue>(renderDevice->GetGraphicsQueue()),
+        static_cast<VkRenderPass>(renderDevice->GetRenderPass()),
+        vkExtent
+    ));
     
     // 初始化加载动画
-    if (!InitializeLoadingAnimation(m_renderer, renderContext, stretchMode, screenWidth, screenHeight)) {
+    if (!InitializeLoadingAnimation(m_renderer, *renderContext, stretchMode, screenWidth, screenHeight)) {
         return false;
     }
     
     // 创建并初始化子管理器
     m_buttonManager = std::make_unique<ButtonUIManager>();
-    if (!m_buttonManager->Initialize(renderContext, textRenderer, m_window, stretchMode, screenWidth, screenHeight)) {
+    if (!m_buttonManager->Initialize(*renderContext, textRenderer, m_window, stretchMode, screenWidth, screenHeight)) {
         return false;
     }
     
     m_sliderManager = std::make_unique<SliderUIManager>();
-    if (!m_sliderManager->Initialize(renderContext, m_window, stretchMode)) {
+    if (!m_sliderManager->Initialize(*renderContext, m_window, stretchMode)) {
         return false;
     }
     
     m_colorManager = std::make_unique<ColorUIManager>();
-    if (!m_colorManager->Initialize(m_renderer, renderContext, textRenderer, m_window, stretchMode, screenWidth, screenHeight, m_loadingAnim)) {
+    if (!m_colorManager->Initialize(m_renderer, *renderContext, textRenderer, m_window, stretchMode, screenWidth, screenHeight, m_loadingAnim)) {
         return false;
     }
     
@@ -168,18 +183,21 @@ void UIManager::GetAllSliders(std::vector<Slider*>& sliders) const {
     }
 }
 
-bool UIManager::InitializeLoadingAnimation(IRenderer* renderer, const VulkanRenderContext& renderContext, 
+// 注意：所有 getter 方法在 ui_manager_getters.cpp 中实现，避免 ui_manager.cpp 文件过大
+
+bool UIManager::InitializeLoadingAnimation(IRenderer* renderer, const IRenderContext& renderContext, 
                                           StretchMode stretchMode, float screenWidth, float screenHeight) {
-    VkExtent2D uiExtent = renderContext.GetSwapchainExtent();
+    Extent2D uiExtent = renderContext.GetSwapchainExtent();
     
     m_loadingAnim = new LoadingAnimation();
+    VkExtent2D vkUiExtent = { uiExtent.width, uiExtent.height };
     if (m_loadingAnim->Initialize(
-            renderer->GetDevice(),
-            renderer->GetPhysicalDevice(),
-            renderer->GetCommandPool(),
-            renderer->GetGraphicsQueue(),
-            renderer->GetRenderPass(),
-            uiExtent)) {
+            static_cast<VkDevice>(renderer->GetDevice()),
+            static_cast<VkPhysicalDevice>(renderer->GetPhysicalDevice()),
+            static_cast<VkCommandPool>(renderer->GetCommandPool()),
+            static_cast<VkQueue>(renderer->GetGraphicsQueue()),
+            static_cast<VkRenderPass>(renderer->GetRenderPass()),
+            vkUiExtent)) {
         float baseWidth = (stretchMode == StretchMode::Fit || stretchMode == StretchMode::Disabled) ? 
                           (float)uiExtent.width : screenWidth;
         float baseHeight = (stretchMode == StretchMode::Fit || stretchMode == StretchMode::Disabled) ? 
@@ -412,6 +430,41 @@ void UIManager::HandleMouseUp() {
             }
         }
     }
+}
+
+void UIManager::SubscribeToEvents(IEventBus* eventBus) {
+    if (!eventBus) {
+        return;
+    }
+    
+    // 订阅UI点击事件
+    eventBus->Subscribe(EventType::UIClick, [this](const Event& e) {
+        const UIClickEvent& clickEvent = static_cast<const UIClickEvent&>(e);
+        HandleClick(clickEvent.uiX, clickEvent.uiY);
+        // 如果拉伸模式不是Fit，需要更新UI组件位置
+        if (clickEvent.stretchMode != StretchMode::Fit && m_renderer) {
+            HandleWindowResize(clickEvent.stretchMode, m_renderer);
+        }
+    });
+    
+    // 订阅UI鼠标移动事件
+    eventBus->Subscribe(EventType::MouseMovedUI, [this](const Event& e) {
+        const MouseMovedUIEvent& moveEvent = static_cast<const MouseMovedUIEvent&>(e);
+        HandleMouseMove(moveEvent.uiX, moveEvent.uiY);
+    });
+    
+    // 订阅鼠标释放事件
+    eventBus->Subscribe(EventType::MouseUp, [this](const Event& e) {
+        HandleMouseUp();
+    });
+    
+    // 订阅窗口大小变化事件
+    eventBus->Subscribe(EventType::WindowResizeRequest, [this](const Event& e) {
+        const WindowResizeRequestEvent& resizeEvent = static_cast<const WindowResizeRequestEvent&>(e);
+        if (resizeEvent.renderer) {
+            HandleWindowResize(resizeEvent.stretchMode, resizeEvent.renderer);
+        }
+    });
 }
 
 void UIManager::SetupCallbacks(IEventBus* eventBus) {

@@ -3,11 +3,6 @@
 #include <cctype>
 #include <cstring>
 
-ConfigManager& ConfigManager::GetInstance() {
-    static ConfigManager instance;
-    return instance;
-}
-
 void ConfigManager::Initialize(const char* lpCmdLine) {
     ParseCommandLine(lpCmdLine);
 }

@@ -1,5 +1,6 @@
 #include "core/managers/scene_manager.h"
 #include "core/interfaces/iconfig_provider.h"
+#include "core/interfaces/ipipeline_manager.h"  // 需要完整定义
 #include "window/window.h"
 #include <stdio.h>
 
@@ -25,7 +26,15 @@ bool SceneManager::SwitchToShader(IRenderer* renderer, IConfigProvider* configPr
         std::string vertPath = configProvider->GetShaderVertexPath();
         std::string fragPath = configProvider->GetShaderFragmentPath();
         
-        if (!renderer->CreateGraphicsPipeline(vertPath.c_str(), fragPath.c_str())) {
+        // 通过 IPipelineManager 接口创建图形管线（遵循接口隔离原则）
+        IPipelineManager* pipelineManager = renderer->GetPipelineManager();
+        if (!pipelineManager) {
+            Window::ShowError("Renderer does not provide IPipelineManager interface!");
+            m_appState = AppState::Loading;
+            return false;
+        }
+        
+        if (!pipelineManager->CreateGraphicsPipeline(vertPath.c_str(), fragPath.c_str())) {
             Window::ShowError("Failed to create shader pipeline!");
             m_appState = AppState::Loading;
             return false;
@@ -48,8 +57,16 @@ bool SceneManager::SwitchToLoadingCubes(IRenderer* renderer, IConfigProvider* co
         std::string vertPath = configProvider->GetLoadingCubesVertexPath();
         std::string fragPath = configProvider->GetLoadingCubesFragmentPath();
         
+        // 通过 IPipelineManager 接口创建加载立方体管线（遵循接口隔离原则）
+        IPipelineManager* pipelineManager = renderer->GetPipelineManager();
+        if (!pipelineManager) {
+            Window::ShowError("Renderer does not provide IPipelineManager interface!");
+            m_appState = AppState::Loading;
+            return false;
+        }
+        
         // 先尝试 .spv 路径
-        if (!renderer->CreateLoadingCubesPipeline(vertPath.c_str(), fragPath.c_str())) {
+        if (!pipelineManager->CreateLoadingCubesPipeline(vertPath.c_str(), fragPath.c_str())) {
             // 如果失败，尝试不带 .spv 扩展名的路径（用于调试）
             std::string vertPathNoSpv = vertPath;
             std::string fragPathNoSpv = fragPath;
@@ -60,7 +77,7 @@ bool SceneManager::SwitchToLoadingCubes(IRenderer* renderer, IConfigProvider* co
                 fragPathNoSpv = fragPathNoSpv.substr(0, fragPathNoSpv.size() - 4);
             }
             
-            if (!renderer->CreateLoadingCubesPipeline(vertPathNoSpv.c_str(), fragPathNoSpv.c_str())) {
+            if (!pipelineManager->CreateLoadingCubesPipeline(vertPathNoSpv.c_str(), fragPathNoSpv.c_str())) {
                 printf("[ERROR] Failed to create loading cubes pipeline!\n");
                 Window::ShowError("Failed to create loading cubes pipeline!");
                 m_appState = AppState::Loading;

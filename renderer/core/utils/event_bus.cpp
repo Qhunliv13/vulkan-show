@@ -1,10 +1,6 @@
-#include "core/utils/event_bus.h"
-#include <algorithm>
+#include "core/utils/event_bus.h"  // 1. 对应头文件
 
-EventBus& EventBus::GetInstance() {
-    static EventBus instance;
-    return instance;
-}
+#include <algorithm>  // 2. 系统头文件
 
 void EventBus::Subscribe(EventType type, EventHandler handler) {
     std::lock_guard<std::mutex> lock(m_mutex);

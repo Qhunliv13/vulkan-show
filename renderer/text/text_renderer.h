@@ -4,11 +4,51 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
-#include <vulkan/vulkan.h>
 #include <vector>
 #include <string>
 #include <unordered_map>
 #include "core/interfaces/itext_renderer.h"
+#include "core/types/render_types.h"
+
+// Vulkan 类型前向声明（避免包含 vulkan.h，但允许使用 Vulkan 类型）
+// 注意：这些前向声明仅用于头文件，实际定义在 .cpp 中包含 vulkan.h
+struct VkDevice_T;
+struct VkPhysicalDevice_T;
+struct VkCommandPool_T;
+struct VkQueue_T;
+struct VkRenderPass_T;
+struct VkImage_T;
+struct VkDeviceMemory_T;
+struct VkImageView_T;
+struct VkSampler_T;
+struct VkBuffer_T;
+struct VkPipeline_T;
+struct VkPipelineLayout_T;
+struct VkDescriptorSetLayout_T;
+struct VkDescriptorPool_T;
+struct VkDescriptorSet_T;
+struct VkCommandBuffer_T;
+
+typedef VkDevice_T* VkDevice;
+typedef VkPhysicalDevice_T* VkPhysicalDevice;
+typedef VkCommandPool_T* VkCommandPool;
+typedef VkQueue_T* VkQueue;
+typedef VkRenderPass_T* VkRenderPass;
+typedef VkImage_T* VkImage;
+typedef VkDeviceMemory_T* VkDeviceMemory;
+typedef VkImageView_T* VkImageView;
+typedef VkSampler_T* VkSampler;
+typedef VkBuffer_T* VkBuffer;
+typedef VkPipeline_T* VkPipeline;
+typedef VkPipelineLayout_T* VkPipelineLayout;
+typedef VkDescriptorSetLayout_T* VkDescriptorSetLayout;
+typedef VkDescriptorPool_T* VkDescriptorPool;
+typedef VkDescriptorSet_T* VkDescriptorSet;
+typedef VkCommandBuffer_T* VkCommandBuffer;
+
+typedef uint32_t VkMemoryPropertyFlags;
+typedef uint64_t VkDeviceSize;
+#define VK_NULL_HANDLE nullptr
 
 // 文字渲染器 - 参考 Godot 的实现
 // 使用 Windows GDI 生成字体纹理图集，然后在 Vulkan 中渲染
@@ -33,14 +73,14 @@ public:
     ~TextRenderer();
     
     // ITextRenderer 接口实现
-    bool Initialize(VkDevice device, VkPhysicalDevice physicalDevice, 
-                    VkCommandPool commandPool, VkQueue graphicsQueue,
-                    VkRenderPass renderPass) override;
+    bool Initialize(DeviceHandle device, PhysicalDeviceHandle physicalDevice, 
+                    CommandPoolHandle commandPool, QueueHandle graphicsQueue,
+                    RenderPassHandle renderPass) override;
     
     void Cleanup() override;
     bool LoadFont(const std::string& fontName, int fontSize) override;
     void BeginTextBatch() override;
-    void EndTextBatch(VkCommandBuffer commandBuffer, float screenWidth, float screenHeight,
+    void EndTextBatch(CommandBufferHandle commandBuffer, float screenWidth, float screenHeight,
                      float viewportX = 0.0f, float viewportY = 0.0f,
                      float scaleX = 1.0f, float scaleY = 1.0f) override;
     void AddTextToBatch(const std::string& text, float x, float y,
@@ -50,11 +90,11 @@ public:
                                 float screenWidth, float screenHeight,
                                 float r = 1.0f, float g = 1.0f,
                                 float b = 1.0f, float a = 1.0f) override;
-    void RenderText(VkCommandBuffer commandBuffer, const std::string& text, 
+    void RenderText(CommandBufferHandle commandBuffer, const std::string& text, 
                     float x, float y, float screenWidth, float screenHeight,
                     float r = 1.0f, float g = 1.0f, 
                     float b = 1.0f, float a = 1.0f) override;
-    void RenderTextCentered(VkCommandBuffer commandBuffer, const std::string& text,
+    void RenderTextCentered(CommandBufferHandle commandBuffer, const std::string& text,
                             float centerX, float centerY, float screenWidth, float screenHeight,
                             float r = 1.0f, float g = 1.0f,
                             float b = 1.0f, float a = 1.0f) override;

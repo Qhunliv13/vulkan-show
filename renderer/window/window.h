@@ -2,41 +2,43 @@
 
 #include <windows.h>
 #include <string>
+#include "core/interfaces/iwindow.h"
 
 // 前向声明
 class IEventBus;
 
 // Window类 - 使用实例成员而非静态成员，支持依赖注入和多窗口
 // 通过事件总线处理输入事件，而不是使用回调函数
-class Window {
+// 实现 IWindow 接口以支持窗口实现的替换
+class Window : public IWindow {
 public:
     Window();
     ~Window();
     
-    // 创建窗口
-    bool Create(HINSTANCE hInstance, int width, int height, const char* title, const char* className, bool fullscreen = true, const char* iconPath = nullptr);
-    void Destroy();
+    // IWindow 接口实现
+    bool Create(HINSTANCE hInstance, int width, int height, const char* title, const char* className, bool fullscreen = true, const char* iconPath = nullptr) override;
+    void Destroy() override;
     
-    // 设置事件总线（用于发布输入事件）
+    HWND GetHandle() const override { return m_hwnd; }
+    HINSTANCE GetInstance() const override { return m_hInstance; }
+    int GetWidth() const override { return m_width; }
+    int GetHeight() const override { return m_height; }
+    bool IsRunning() const override { return m_running; }
+    void SetRunning(bool running) override { m_running = running; }
+    bool IsFullscreen() const override { return m_fullscreen; }
+    bool IsMinimized() const override;  // 检查窗口是否最小化
+    
+    void ToggleFullscreen() override;
+    void ProcessMessages() override;
+    bool SetIcon(const std::string& iconPath) override;  // 设置窗口图标
+    
+    bool IsKeyPressed(int keyCode) const override;  // 检查按键是否按下
+    
+    // IWindow 接口的静态方法实现
+    static void ShowError(const std::string& message);
+    
+    // 设置事件总线（用于发布输入事件）- Window 特有方法
     void SetEventBus(IEventBus* eventBus) { m_eventBus = eventBus; }
-    
-    // 获取窗口属性
-    HWND GetHandle() const { return m_hwnd; }
-    HINSTANCE GetInstance() const { return m_hInstance; }
-    int GetWidth() const { return m_width; }
-    int GetHeight() const { return m_height; }
-    bool IsRunning() const { return m_running; }
-    void SetRunning(bool running) { m_running = running; }
-    bool IsFullscreen() const { return m_fullscreen; }
-    bool IsMinimized() const;  // 检查窗口是否最小化
-    
-    void ToggleFullscreen();
-    static void ShowError(const std::string& message);  // 保持静态，因为不依赖实例
-    void ProcessMessages();
-    bool SetIcon(const std::string& iconPath);  // 设置窗口图标
-    
-    // 键盘输入
-    bool IsKeyPressed(int keyCode) const;  // 检查按键是否按下
     
 private:
     static LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);

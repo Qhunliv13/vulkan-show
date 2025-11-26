@@ -1,13 +1,15 @@
-#include "shader/shader_loader.h"
-#include "window/window.h"
-#include <fstream>
-#include <cstring>
+#include "shader/shader_loader.h"  // 1. 对应头文件
+
+#include <fstream>     // 2. 系统头文件
+#include <cstring>     // 2. 系统头文件
+#include <string>      // 2. 系统头文件
 
 // Shaderc库包含（如果可用）
 #ifdef USE_SHADERC
-#include <shaderc/shaderc.hpp>
+#include <shaderc/shaderc.hpp>  // 3. 第三方库头文件
 #endif
-#include <string>
+
+#include "window/window.h"  // 4. 项目头文件
 
 namespace renderer {
 namespace shader {

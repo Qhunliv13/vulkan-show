@@ -1,14 +1,10 @@
-#include "core/utils/logger.h"
+#include "core/utils/logger.h"  // 1. 对应头文件
+
+#include <windows.h>            // 2. 系统头文件
 #include <iostream>
 #include <sstream>
 #include <iomanip>
 #include <ctime>
-#include <windows.h>
-
-Logger& Logger::GetInstance() {
-    static Logger instance;
-    return instance;
-}
 
 bool Logger::Initialize(const std::string& logFile) {
     std::lock_guard<std::mutex> lock(m_mutex);

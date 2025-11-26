@@ -3,14 +3,19 @@
 #define VK_USE_PLATFORM_WIN32_KHR
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
-#include <windows.h>
-#include <vulkan/vulkan.h>
-#include <vector>
-#include <string>
-#include <memory>
-#include "core/config/constants.h"
-#include "core/config/stretch_params.h"
-#include "core/interfaces/irenderer.h"
+#include <windows.h>                  // 2. 系统头文件
+#include <vulkan/vulkan.h>            // 3. 第三方库头文件
+#include <vector>                     // 3. 第三方库头文件
+#include <string>                     // 3. 第三方库头文件
+#include <memory>                     // 3. 第三方库头文件
+#include "core/config/constants.h"    // 4. 项目头文件（配置）
+#include "core/config/stretch_params.h"  // 4. 项目头文件（配置）
+#include "core/interfaces/irenderer.h"   // 4. 项目头文件（接口）
+#include "core/interfaces/ipipeline_manager.h"  // 4. 项目头文件（接口）
+#include "core/interfaces/icamera_controller.h"  // 4. 项目头文件（接口）
+#include "core/interfaces/irender_device.h"  // 4. 项目头文件（接口）
+// 注意：不再直接包含 render_command_buffer.h，使用前向声明和接口指针
+// 在 .cpp 文件中包含完整定义
 
 // 前向声明
 class LoadingAnimation;
@@ -18,8 +23,10 @@ class Button;
 class ITextRenderer;
 class TextRenderer;  // 用于内部实现
 class Slider;
+class IRenderCommandBuffer;  // 使用接口，避免直接依赖实现
 
-class VulkanRenderer : public IRenderer {
+// VulkanRenderer 实现多个接口，但通过组合模式暴露给 IRenderer
+class VulkanRenderer : public IRenderer, public IPipelineManager, public ICameraController, public IRenderDevice {
 public:
     VulkanRenderer();
     ~VulkanRenderer();
@@ -36,26 +43,43 @@ public:
     void SetStretchMode(StretchMode mode) override { m_stretchMode = mode; }
     void SetBackgroundStretchMode(BackgroundStretchMode mode) override { m_backgroundStretchMode = mode; }
     
-    VkExtent2D GetUIBaseSize() const override;
-    VkExtent2D GetSwapchainExtent() const override { return m_swapchainExtent; }
-    
-    VkDevice GetDevice() const override { return m_device; }
-    VkPhysicalDevice GetPhysicalDevice() const override { return m_physicalDevice; }
-    VkCommandPool GetCommandPool() const override { return m_commandPool; }
-    VkQueue GetGraphicsQueue() const override { return m_graphicsQueue; }
-    VkRenderPass GetRenderPass() const override { return m_renderPass; }
+    Extent2D GetUIBaseSize() const override;
     
     const StretchParams& GetStretchParams() const override { return m_stretchParams; }
     
     bool LoadBackgroundTexture(const std::string& filepath) override;
     
+    // IRenderer 接口实现 - 获取子功能接口（组合模式）
+    IPipelineManager* GetPipelineManager() override { return this; }
+    ICameraController* GetCameraController() override { return this; }
+    IRenderDevice* GetRenderDevice() override { return this; }
+    
+    IRenderCommandBuffer* GetCommandBuffer() override;
+    
+    // IRenderDevice 接口实现
+    Extent2D GetSwapchainExtent() const override { 
+        return Extent2D(m_swapchainExtent.width, m_swapchainExtent.height); 
+    }
+    DeviceHandle GetDevice() const override { return static_cast<DeviceHandle>(m_device); }
+    PhysicalDeviceHandle GetPhysicalDevice() const override { return static_cast<PhysicalDeviceHandle>(m_physicalDevice); }
+    CommandPoolHandle GetCommandPool() const override { return static_cast<CommandPoolHandle>(m_commandPool); }
+    QueueHandle GetGraphicsQueue() const override { return static_cast<QueueHandle>(m_graphicsQueue); }
+    RenderPassHandle GetRenderPass() const override { return static_cast<RenderPassHandle>(m_renderPass); }
+    ImageFormat GetSwapchainFormat() const override { 
+        // 将 VkFormat 转换为 ImageFormat（简化映射）
+        return static_cast<ImageFormat>(m_swapchainImageFormat); 
+    }
+    uint32_t GetSwapchainImageCount() const override { return m_swapchainImageCount; }
+    
+    // ICameraController 接口实现
     void SetMouseInput(float deltaX, float deltaY, bool buttonDown) override;
     void SetKeyInput(bool w, bool a, bool s, bool d) override;
     void UpdateCamera(float deltaTime) override;
+    void ResetCamera() override;
     
+    // IPipelineManager 接口实现
     bool CreateGraphicsPipeline(const std::string& vertShaderPath, const std::string& fragShaderPath) override;
     bool CreateLoadingCubesPipeline(const std::string& vertShaderPath, const std::string& fragShaderPath) override;
-    
     bool IsRayTracingSupported() const override { return m_rayTracingSupported; }
     bool CreateRayTracingPipeline() override;
     
@@ -63,10 +87,6 @@ public:
     void RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex, float time, bool useLoadingCubes = false, ITextRenderer* textRenderer = nullptr, float fps = 0.0f);
     void CleanupBackgroundTexture();
     bool HasBackgroundTexture() const;
-    void ResetCamera();  // 重置相机状态
-    
-    VkFormat GetSwapchainFormat() const { return m_swapchainImageFormat; }
-    uint32_t GetSwapchainImageCount() const { return m_swapchainImageCount; }
     
 private:
     // 绘制背景纹理（保持宽高比居中填充窗口）
@@ -157,5 +177,13 @@ private:
     
     // 检查光线追踪扩展支持
     bool CheckRayTracingSupport();
+    
+    // 渲染命令缓冲区（使用接口指针，避免头文件直接依赖实现）
+    // 在 .cpp 文件中使用 std::unique_ptr<RenderCommandBuffer> 管理实际对象
+    IRenderCommandBuffer* m_commandBuffer = nullptr;
+    
+    // 内部实现细节（在 .cpp 中定义，避免头文件暴露）
+    struct Impl;
+    std::unique_ptr<Impl> m_pImpl;  // pimpl 模式，用于存储需要完整类型的对象
 };
 

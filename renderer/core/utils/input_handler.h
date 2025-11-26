@@ -6,7 +6,6 @@
 #include "core/interfaces/irenderer.h"
 #include "core/interfaces/iinput_provider.h"
 #include "core/interfaces/iinput_handler.h"
-#include <vulkan/vulkan.h>
 
 // 前向声明
 class Window;

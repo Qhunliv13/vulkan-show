@@ -1,19 +1,22 @@
-#include "core/managers/application.h"
+#include "core/managers/application.h"  // 1. 对应头文件
+
+#include <windows.h>                     // 2. 系统头文件
+#include <memory>
+
+#include "core/interfaces/irenderer_factory.h"  // 3. 项目头文件（接口）
+#include "core/interfaces/iconfig_provider.h"
 #include "core/managers/app_initializer.h"
+#include "core/managers/app_initialization_config.h"
 #include "core/managers/window_manager.h"
 #include "core/managers/event_manager.h"
 #include "core/managers/render_scheduler.h"
 #include "core/managers/config_manager.h"
-#include "core/interfaces/irenderer_factory.h"
 #include "core/utils/fps_monitor.h"
-#include "core/interfaces/iconfig_provider.h"
 #include "core/utils/logger.h"
 #include "core/utils/event_bus.h"
 #include "core/factories/window_factory.h"
 #include "core/factories/text_renderer_factory.h"
 #include "window/window.h"
-#include <windows.h>
-#include <memory>
 
 Application::Application() {
 }
@@ -31,22 +34,35 @@ bool Application::Initialize(IRendererFactory* rendererFactory, HINSTANCE hInsta
     m_fpsMonitor = std::make_unique<FPSMonitor>();
     m_fpsMonitor->Initialize();
     
-    // 创建所有依赖（统一使用依赖注入，不再使用单例）
-    // 注意：这些对象在 Application 生命周期内保持有效
-    static ConfigManager configManager;  // 使用静态变量，确保生命周期足够长
-    static Logger logger;  // 使用静态变量，确保生命周期足够长
-    static EventBus eventBus;  // 使用静态变量，确保生命周期足够长
-    static WindowFactory windowFactory;  // 使用静态变量，确保生命周期足够长
-    static TextRendererFactory textRendererFactory;  // 使用静态变量，确保生命周期足够长
+    // 创建所有依赖对象（使用成员变量管理生命周期，符合依赖注入原则）
+    m_configManager = std::make_unique<ConfigManager>();
+    m_logger = std::make_unique<Logger>();
+    m_eventBus = std::make_unique<EventBus>();
+    m_windowFactory = std::make_unique<WindowFactory>();
+    m_textRendererFactory = std::make_unique<TextRendererFactory>();
     
     // 使用初始化器管理所有组件的初始化
     m_initializer = std::make_unique<AppInitializer>();
     
-    if (!m_initializer->Initialize(rendererFactory, hInstance, lpCmdLine,
-                                   &configManager, &logger, &eventBus,
-                                   &windowFactory, &textRendererFactory)) {
+    // 创建初始化配置对象，封装所有参数
+    AppInitializationConfig config;
+    config.rendererFactory = rendererFactory;
+    config.hInstance = hInstance;
+    config.lpCmdLine = lpCmdLine;
+    config.configProvider = m_configManager.get();
+    config.logger = m_logger.get();
+    config.eventBus = m_eventBus.get();
+    config.windowFactory = m_windowFactory.get();
+    config.textRendererFactory = m_textRendererFactory.get();
+    
+    if (!m_initializer->Initialize(config)) {
         m_initializer.reset();
         m_fpsMonitor.reset();
+        m_configManager.reset();
+        m_logger.reset();
+        m_eventBus.reset();
+        m_windowFactory.reset();
+        m_textRendererFactory.reset();
         return false;
     }
     
@@ -68,6 +84,13 @@ void Application::Cleanup() {
     // 清理FPS监控器
     m_fpsMonitor.reset();
     
+    // 清理依赖对象（按逆序清理）
+    m_textRendererFactory.reset();
+    m_windowFactory.reset();
+    m_eventBus.reset();
+    m_logger.reset();
+    m_configManager.reset();
+    
     m_initialized = false;
 }
 
@@ -85,7 +108,7 @@ int Application::Run() {
         return 1;
     }
     
-    // 主循环
+    // 主循环（固定时间步 + 可变渲染插值）
     while (windowManager->IsRunning()) {
         // 使用事件管理器统一处理所有消息
         if (eventManager && !eventManager->ProcessMessages(configProvider->GetStretchMode())) {
@@ -99,7 +122,7 @@ int Application::Run() {
                 continue;  // 窗口最小化，跳过渲染
             }
             
-            // 更新FPS监控器
+            // 更新FPS监控器（获取可变帧时间）
             m_fpsMonitor->Update();
             float deltaTime = m_fpsMonitor->GetDeltaTime();
             float time = m_fpsMonitor->GetTotalTime();
@@ -111,7 +134,21 @@ int Application::Run() {
                 m_startTimeSet = true;
             }
             
-            // 渲染帧
+            // 固定时间步更新逻辑
+            m_accumulator += deltaTime;
+            
+            // 执行固定时间步更新（可能多次）
+            while (m_accumulator >= FIXED_DELTA_TIME) {
+                // 这里可以调用逻辑更新方法（如物理更新、游戏逻辑等）
+                // UpdateLogic(FIXED_DELTA_TIME);
+                
+                m_accumulator -= FIXED_DELTA_TIME;
+            }
+            
+            // 计算插值因子（用于渲染插值）
+            m_alpha = m_accumulator / FIXED_DELTA_TIME;
+            
+            // 可变时间步渲染（带插值因子）
             RenderFrame(time, deltaTime, fps);
             
             // 控制帧率

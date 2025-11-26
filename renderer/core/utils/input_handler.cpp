@@ -1,5 +1,7 @@
 #include "core/utils/input_handler.h"
+#include "core/types/render_types.h"
 #include "window/window.h"
+#include <vulkan/vulkan.h>  // 仅在实现文件中包含，避免头文件依赖
 #include <algorithm>
 #include <cmath>
 
@@ -45,7 +47,7 @@ void InputHandler::ConvertWindowToUICoords(int windowX, int windowY, float& uiX,
         }
     } else if (m_stretchMode == StretchMode::Fit) {
         // 获取UI基准尺寸（背景纹理大小，如果没有背景则使用800x800）
-        VkExtent2D uiBaseSize = m_renderer->GetUIBaseSize();
+        Extent2D uiBaseSize = m_renderer->GetUIBaseSize();
         float uiBaseWidth = (float)uiBaseSize.width;
         float uiBaseHeight = (float)uiBaseSize.height;
         

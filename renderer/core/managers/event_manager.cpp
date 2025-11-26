@@ -1,12 +1,14 @@
-#include "core/managers/event_manager.h"
+#include "core/managers/event_manager.h"  // 1. 对应头文件
+
+#include <windows.h>                     // 2. 系统头文件
+
+#include "core/interfaces/ievent_bus.h"  // 3. 项目头文件（接口）
 #include "core/interfaces/iscene_provider.h"
+#include "core/interfaces/iconfig_provider.h"
+#include "core/managers/scene_manager.h"
 #include "core/utils/logger.h"
 #include "core/utils/event_bus.h"
-#include "core/interfaces/ievent_bus.h"
-#include "core/managers/scene_manager.h"
-#include "core/interfaces/iconfig_provider.h"
 #include "window/window.h"
-#include <windows.h>
 
 EventManager::EventManager() {
 }
@@ -15,67 +17,57 @@ EventManager::~EventManager() {
 }
 
 void EventManager::Initialize(IInputHandler* inputHandler, 
-                              IUIManager* uiManager, 
                               IRenderer* renderer,
-                              Window* window,
+                              IWindow* window,
                               ISceneProvider* sceneProvider,
                               IEventBus* eventBus) {
     m_inputHandler = inputHandler;
-    m_uiManager = uiManager;
     m_renderer = renderer;
     m_window = window;
     m_sceneProvider = sceneProvider;
     m_eventBus = eventBus;
 }
 
-void EventManager::HandleMouseClick(int x, int y, StretchMode stretchMode) {
-    if (!m_inputHandler || !m_uiManager) {
+void EventManager::PublishUIClickEvent(int windowX, int windowY, StretchMode stretchMode) {
+    if (!m_inputHandler || !m_eventBus) {
         return;
     }
     
     // 转换坐标
     float uiX, uiY;
-    m_inputHandler->ConvertWindowToUICoords(x, y, uiX, uiY);
+    m_inputHandler->ConvertWindowToUICoords(windowX, windowY, uiX, uiY);
     
     if (uiX < 0.0f || uiY < 0.0f) {
         return;
     }
     
-    // 更新UI组件位置（确保位置正确）
-    if (stretchMode != StretchMode::Fit) {
-        m_uiManager->HandleWindowResize(stretchMode, m_renderer);
-    }
-    
-    // 使用 UIManager 的统一接口处理点击
-    m_uiManager->HandleClick(uiX, uiY);
+    // 发布UI点击事件（由订阅者处理，如UIManager）
+    UIClickEvent event(uiX, uiY, stretchMode);
+    m_eventBus->Publish(event);
 }
 
-void EventManager::HandleMouseMove(int x, int y) {
-    if (!m_inputHandler || !m_uiManager) {
+void EventManager::PublishMouseMoveUIEvent(int windowX, int windowY) {
+    if (!m_inputHandler || !m_eventBus) {
         return;
     }
     
     // 转换坐标
     float uiX, uiY;
-    m_inputHandler->ConvertWindowToUICoords(x, y, uiX, uiY);
+    m_inputHandler->ConvertWindowToUICoords(windowX, windowY, uiX, uiY);
     
-    // 使用 UIManager 的统一接口处理鼠标移动
-    m_uiManager->HandleMouseMove(uiX, uiY);
+    // 发布UI鼠标移动事件（由订阅者处理，如UIManager）
+    MouseMovedUIEvent event(uiX, uiY);
+    m_eventBus->Publish(event);
 }
 
-void EventManager::HandleMouseUp() {
-    if (!m_uiManager) {
+void EventManager::PublishMouseUpEvent() {
+    if (!m_eventBus) {
         return;
     }
     
-    // 使用 UIManager 的统一接口处理鼠标释放
-    m_uiManager->HandleMouseUp();
-}
-
-void EventManager::HandleWindowResize(StretchMode stretchMode, IRenderer* renderer) {
-    if (m_uiManager) {
-        m_uiManager->HandleWindowResize(stretchMode, renderer);
-    }
+    // 发布鼠标释放事件（由订阅者处理，如UIManager）
+    MouseUpEvent event;
+    m_eventBus->Publish(event);
 }
 
 bool EventManager::ProcessMessage(const MSG& msg, StretchMode stretchMode) {
@@ -121,8 +113,10 @@ bool EventManager::ProcessMessages(StretchMode stretchMode) {
 bool EventManager::HandleWindowMessage(const MSG& msg, StretchMode stretchMode) {
     switch (msg.message) {
         case WM_SIZE: {
-            if (m_renderer) {
-                HandleWindowResize(stretchMode, m_renderer);
+            // 发布窗口大小变化事件（由订阅者处理，如UIManager）
+            if (m_eventBus) {
+                WindowResizeRequestEvent event(stretchMode, m_renderer);
+                m_eventBus->Publish(event);
             }
             if (m_window) {
                 InvalidateRect(m_window->GetHandle(), nullptr, FALSE);
@@ -145,18 +139,18 @@ bool EventManager::HandleMouseMessage(const MSG& msg, StretchMode stretchMode) {
             POINT pt;
             pt.x = LOWORD(msg.lParam);
             pt.y = HIWORD(msg.lParam);
-            HandleMouseClick(pt.x, pt.y, stretchMode);
+            PublishUIClickEvent(pt.x, pt.y, stretchMode);
             return true;
         }
         case WM_MOUSEMOVE: {
             POINT pt;
             pt.x = LOWORD(msg.lParam);
             pt.y = HIWORD(msg.lParam);
-            HandleMouseMove(pt.x, pt.y);
+            PublishMouseMoveUIEvent(pt.x, pt.y);
             return true;
         }
         case WM_LBUTTONUP: {
-            HandleMouseUp();
+            PublishMouseUpEvent();
             return true;
         }
         default:

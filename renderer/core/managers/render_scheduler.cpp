@@ -1,5 +1,6 @@
 #include "core/managers/render_scheduler.h"
 #include "core/interfaces/irenderer.h"
+#include "core/interfaces/icamera_controller.h"  // 需要完整定义
 #include "core/interfaces/iscene_provider.h"
 #include "core/interfaces/iuirender_provider.h"
 #include "core/interfaces/iinput_provider.h"
@@ -62,10 +63,15 @@ void RenderScheduler::RenderLoadingCubes(float time, float deltaTime, float& fps
         // 通过输入提供者获取键盘输入（解耦Window依赖）
         bool wPressed, aPressed, sPressed, dPressed;
         m_inputProvider->GetWASDKeys(wPressed, aPressed, sPressed, dPressed);
-        m_renderer->SetKeyInput(wPressed, aPressed, sPressed, dPressed);
         
-        // 更新相机状态
-        m_renderer->UpdateCamera(deltaTime);
+        // 通过 ICameraController 接口设置键盘输入（遵循接口隔离原则）
+        ICameraController* cameraController = m_renderer->GetCameraController();
+        if (cameraController) {
+            cameraController->SetKeyInput(wPressed, aPressed, sPressed, dPressed);
+            
+            // 更新相机状态
+            cameraController->UpdateCamera(deltaTime);
+        }
         
         // 渲染loading_cubes shader
         m_renderer->DrawFrame(time, true, m_textRenderer, fps);

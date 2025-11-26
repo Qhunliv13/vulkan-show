@@ -1,9 +1,10 @@
-#include "core/managers/window_manager.h"
-#include "core/interfaces/iconfig_provider.h"
+#include "core/managers/window_manager.h"  // 1. 对应头文件
+
+#include "core/interfaces/iconfig_provider.h"  // 2. 项目头文件（接口）
 #include "core/interfaces/iwindow_factory.h"
 #include "core/interfaces/ievent_bus.h"
+#include "core/interfaces/ilogger.h"
 #include "window/window.h"
-#include "core/utils/logger.h"
 
 WindowManager::WindowManager() {
 }
@@ -13,29 +14,31 @@ WindowManager::~WindowManager() {
 }
 
 bool WindowManager::Initialize(HINSTANCE hInstance, IConfigProvider* configProvider, 
-                              IWindowFactory* windowFactory, IEventBus* eventBus) {
+                              IWindowFactory* windowFactory, IEventBus* eventBus, ILogger* logger) {
     if (m_initialized) {
         return true;
     }
     
     // 必须提供所有依赖（强制依赖注入）
     if (!configProvider) {
-        LOG_ERROR("WindowManager::Initialize: configProvider cannot be nullptr");
+        if (logger) logger->Error("WindowManager::Initialize: configProvider cannot be nullptr");
         return false;
     }
     if (!windowFactory) {
-        LOG_ERROR("WindowManager::Initialize: windowFactory cannot be nullptr");
+        if (logger) logger->Error("WindowManager::Initialize: windowFactory cannot be nullptr");
         return false;
     }
     if (!eventBus) {
-        LOG_ERROR("WindowManager::Initialize: eventBus cannot be nullptr");
+        if (logger) logger->Error("WindowManager::Initialize: eventBus cannot be nullptr");
         return false;
     }
+    
+    m_logger = logger;  // 保存日志器引用
     
     // 使用工厂创建窗口
     m_window = windowFactory->CreateWindowInstance();
     if (!m_window) {
-        LOG_ERROR("Failed to create window from factory");
+        if (m_logger) m_logger->Error("Failed to create window from factory");
         return false;
     }
     
@@ -49,14 +52,14 @@ bool WindowManager::Initialize(HINSTANCE hInstance, IConfigProvider* configProvi
                          nullptr, 
                          false, 
                          configProvider->GetWindowIconPath().c_str())) {
-        LOG_ERROR("Failed to create window");
+        if (m_logger) m_logger->Error("Failed to create window");
         return false;
     }
     
     m_window->SetIcon(configProvider->GetWindowIconPath());
     
     m_initialized = true;
-    LOG_INFO("WindowManager initialized successfully");
+    if (m_logger) m_logger->Info("WindowManager initialized successfully");
     return true;
 }
 
@@ -87,6 +90,6 @@ void WindowManager::Cleanup() {
     }
     
     m_initialized = false;
-    LOG_INFO("WindowManager cleaned up");
+    if (m_logger) m_logger->Info("WindowManager cleaned up");
 }
 

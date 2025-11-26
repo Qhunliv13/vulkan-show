@@ -1,13 +1,16 @@
-#include "window/window.h"
+#include "window/window.h"  // 1. 对应头文件
+
 // 注意：window.h已经包含了windows.h，所以LoadImage宏可能已经被定义
 // 在包含image_loader.h之前取消宏定义
 #ifdef LoadImage
 #undef LoadImage  // 取消Windows API的LoadImage宏定义，避免与ImageLoader::LoadImage冲突
 #endif
-#include "image/image_loader.h"
-#include "core/interfaces/ievent_bus.h"
-#include <gdiplus.h>
+
+#include <gdiplus.h>  // 2. 系统头文件
 #pragma comment(lib, "gdiplus.lib")
+
+#include "core/interfaces/ievent_bus.h"  // 3. 项目头文件（接口）
+#include "image/image_loader.h"
 
 // 辅助函数：编码32位整数（小端序）
 static void encode_uint32(uint32_t value, uint8_t* buffer) {
@@ -113,16 +116,14 @@ LRESULT CALLBACK Window::WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM 
             PostQuitMessage(0);
             return 0;
         case WM_SIZE:
-            // 检查窗口是否最小化
+            // 最小化时保持原有尺寸，避免使用0x0等无效尺寸导致渲染错误
             if (wParam == SIZE_MINIMIZED) {
-                // 窗口最小化时，不更新尺寸，保持之前的尺寸
-                // 这样可以避免使用无效的尺寸进行渲染
                 return 0;
             }
-            // 只有在窗口正常大小或最大化时才更新尺寸
+            // 窗口正常大小或最大化时更新尺寸
             window->m_width = LOWORD(lParam);
             window->m_height = HIWORD(lParam);
-            // 确保尺寸有效（至少为1，避免除零错误）
+            // 确保尺寸至少为1，防止除零错误和无效渲染
             if (window->m_width < 1) window->m_width = 1;
             if (window->m_height < 1) window->m_height = 1;
             return 0;
@@ -137,11 +138,13 @@ LRESULT CALLBACK Window::WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM 
             window->m_leftButtonDown = true;
             window->m_lastMouseX = LOWORD(lParam);
             window->m_lastMouseY = HIWORD(lParam);
-            SetCapture(hwnd);  // 捕获鼠标，即使移出窗口也能接收消息
+            // 捕获鼠标以在移出窗口后仍能接收移动消息，确保拖拽操作连贯
+            SetCapture(hwnd);
             return 0;
         case WM_LBUTTONUP:
             window->m_leftButtonDown = false;
-            ReleaseCapture();  // 释放鼠标捕获
+            // 释放鼠标捕获，恢复正常鼠标消息处理
+            ReleaseCapture();
             return 0;
         case WM_MOUSEMOVE:
             if (window->m_leftButtonDown && window->m_eventBus) {
@@ -348,8 +351,8 @@ bool Window::Create(HINSTANCE hInstance, int width, int height, const char* titl
         InvalidateRect(m_hwnd, NULL, TRUE);
         UpdateWindow(m_hwnd);
         
-        // 强制刷新任务栏（通过最小化和恢复窗口）
-        // 注意：这可能会闪烁，但可以确保任务栏图标更新
+        // 通过最小化和恢复窗口强制刷新任务栏图标，解决某些系统下图标不更新的问题
+        // 此方法可能引起短暂闪烁，但可确保图标状态正确
         BOOL isVisible = IsWindowVisible(m_hwnd);
         if (isVisible) {
             ShowWindow(m_hwnd, SW_MINIMIZE);
@@ -379,8 +382,7 @@ void Window::Destroy() {
 }
 
 void Window::ToggleFullscreen() {
-    // 全屏切换功能（如果需要的话）
-    // 这里可以添加切换逻辑
+    // 全屏切换功能：当前未实现，保留接口供未来扩展
 }
 
 void Window::ShowError(const std::string& message) {

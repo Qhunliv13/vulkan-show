@@ -9,12 +9,9 @@
 #include "core/interfaces/ievent_bus.h"
 
 // 事件总线 - 实现 IEventBus 接口，支持依赖注入
-// 保留单例方法以支持向后兼容，但推荐使用依赖注入
+// 禁止使用单例，必须通过依赖注入使用
 class EventBus : public IEventBus {
 public:
-    // 获取单例实例（向后兼容）
-    static EventBus& GetInstance();
-    
     // 公共构造函数（支持依赖注入）
     EventBus() = default;
     ~EventBus() = default;
