@@ -1,14 +1,18 @@
-#include "ui/slider/slider.h"
-#include "ui/button/button.h"
-#include "shader/shader_loader.h"
-#include "core/types/render_types.h"
-#include "window/window.h"
-#include "core/config/render_context.h"
-#include "core/config/stretch_params.h"
-#include <vulkan/vulkan.h>
-#include <algorithm>
-#include <cmath>
-#include <fstream>
+#include "ui/slider/slider.h"  // 1. 对应头文件
+
+#include <algorithm>           // 2. 系统头文件
+#include <cmath>               // 2. 系统头文件
+#include <fstream>             // 2. 系统头文件
+
+#include <vulkan/vulkan.h>     // 3. 第三方库头文件
+
+#include "core/config/render_context.h"                    // 4. 项目头文件
+#include "core/config/stretch_params.h"                    // 4. 项目头文件
+#include "core/config/vulkan_render_context_factory.h"     // 4. 项目头文件
+#include "core/types/render_types.h"                       // 4. 项目头文件
+#include "shader/shader_loader.h"                          // 4. 项目头文件
+#include "ui/button/button.h"                              // 4. 项目头文件
+#include "window/window.h"                                 // 4. 项目头文件
 
 using namespace renderer::shader;
 

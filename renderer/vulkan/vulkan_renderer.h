@@ -14,18 +14,17 @@
 #include "core/interfaces/ipipeline_manager.h"  // 4. 项目头文件（接口）
 #include "core/interfaces/icamera_controller.h"  // 4. 项目头文件（接口）
 #include "core/interfaces/irender_device.h"  // 4. 项目头文件（接口）
-// 注意：不再直接包含 render_command_buffer.h，使用前向声明和接口指针
-// 在 .cpp 文件中包含完整定义
 
 // 前向声明
 class LoadingAnimation;
 class Button;
 class ITextRenderer;
-class TextRenderer;  // 用于内部实现
+class TextRenderer;
 class Slider;
-class IRenderCommandBuffer;  // 使用接口，避免直接依赖实现
+class IRenderCommandBuffer;
 
-// VulkanRenderer 实现多个接口，但通过组合模式暴露给 IRenderer
+// Vulkan渲染器实现 - 实现IRenderer接口，通过组合模式提供IPipelineManager、ICameraController、IRenderDevice子功能
+// 使用pimpl模式隐藏实现细节，减少头文件依赖
 class VulkanRenderer : public IRenderer, public IPipelineManager, public ICameraController, public IRenderDevice {
 public:
     VulkanRenderer();
@@ -182,8 +181,8 @@ private:
     // 在 .cpp 文件中使用 std::unique_ptr<RenderCommandBuffer> 管理实际对象
     IRenderCommandBuffer* m_commandBuffer = nullptr;
     
-    // 内部实现细节（在 .cpp 中定义，避免头文件暴露）
+    // 内部实现细节（pimpl模式，避免头文件暴露完整类型定义）
     struct Impl;
-    std::unique_ptr<Impl> m_pImpl;  // pimpl 模式，用于存储需要完整类型的对象
+    std::unique_ptr<Impl> m_pImpl;
 };
 

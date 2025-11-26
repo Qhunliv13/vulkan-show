@@ -1,10 +1,13 @@
 #pragma once
 
-#include <vulkan/vulkan.h>
-#include <vector>
-#include <string>
+#include <vector>  // 2. 系统头文件
+#include <string>  // 2. 系统头文件
+
+#include <vulkan/vulkan.h>  // 3. 第三方库头文件
 
 // 加载动画类 - 将CSS动画转换为Vulkan渲染
+// 职责：实现加载动画效果，将CSS动画转换为Vulkan渲染管线
+// 设计：使用9个方块（3x3网格）实现动画效果，每个方块独立移动和着色
 class LoadingAnimation {
 public:
     LoadingAnimation();

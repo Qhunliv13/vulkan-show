@@ -1,7 +1,8 @@
-#include "core/managers/config_manager.h"
-#include <algorithm>
-#include <cctype>
-#include <cstring>
+#include "core/managers/config_manager.h"  // 1. 对应头文件
+
+#include <algorithm>  // 2. 系统头文件
+#include <cctype>  // 2. 系统头文件
+#include <cstring>  // 2. 系统头文件
 
 void ConfigManager::Initialize(const char* lpCmdLine) {
     ParseCommandLine(lpCmdLine);

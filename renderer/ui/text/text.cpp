@@ -1,9 +1,11 @@
-#include "ui/text/text.h"
-#include "text/text_renderer.h"
-#include "core/types/render_types.h"
-#include "window/window.h"
-#include <algorithm>
-#include <cmath>
+#include "ui/text/text.h"  // 1. 对应头文件
+
+#include <algorithm>       // 2. 系统头文件
+#include <cmath>           // 2. 系统头文件
+
+#include "core/types/render_types.h"  // 4. 项目头文件
+#include "text/text_renderer.h"       // 4. 项目头文件
+#include "window/window.h"            // 4. 项目头文件
 
 Text::Text() {
 }

@@ -1,10 +1,10 @@
 #pragma once
 
-#include <windows.h>
-#include <memory>
-#include "initialization_result.h"
-#include "app_initialization_config.h"
-#include "initialization_phase.h"
+#include <windows.h>  // 2. 系统头文件
+#include <memory>  // 2. 系统头文件
+#include "initialization_result.h"  // 4. 项目头文件（初始化结果）
+#include "app_initialization_config.h"  // 4. 项目头文件（初始化配置）
+#include "initialization_phase.h"  // 4. 项目头文件（初始化阶段）
 
 // 前向声明
 class IRendererFactory;
@@ -24,35 +24,45 @@ class IEventBus;
 class IWindowFactory;
 class ITextRendererFactory;
 
-// 应用初始化器 - 管理初始化顺序和依赖关系
-// 
-// 初始化顺序：Config → Console → Logger → Window → Renderer → Input → Managers → UI → Event → Scheduler
-// 依赖注入：通过 AppInitializationConfig 配置对象传递所有依赖
-// 
-// 初始化流程图：
-// ```
-// 1. InitializeConfig()        [无依赖]
-//    ↓
-// 2. InitializeConsole()       [依赖: Config]
-//    ↓
-// 3. InitializeLogger()        [依赖: Config]
-//    ↓
-// 4. InitializeWindow()        [依赖: Logger]
-//    ↓
-// 5. InitializeRenderer()      [依赖: Window, Logger]
-//    ↓
-// 6. InitializeInputHandler()  [依赖: Logger, EventBus]
-//    ↓
-// 7. InitializeManagers()      [依赖: Renderer, Window]
-//    ↓
-// 8. InitializeUI()             [依赖: Renderer, Window, Logger]
-//    ↓
-// 9. InitializeEventSystem()   [依赖: InputHandler, UIManager, Renderer]
-//    ↓
-// 10. InitializeRenderScheduler() [依赖: Renderer, EventManager]
-// ```
-// 
-// 失败时按逆序回滚已初始化的步骤
+/**
+ * 应用初始化器 - 管理初始化顺序和依赖关系
+ * 
+ * 职责：管理所有组件的初始化顺序和依赖关系，确保初始化正确完成
+ * 设计：通过 AppInitializationConfig 配置对象传递所有依赖，实现依赖注入
+ * 
+ * 初始化顺序：Config → Console → Logger → Window → Renderer → Input → Managers → UI → Event → Scheduler
+ * 
+ * 初始化流程图：
+ * ```
+ * 1. InitializeConfig()        [无依赖]
+ *    ↓
+ * 2. InitializeConsole()       [依赖: Config]
+ *    ↓
+ * 3. InitializeLogger()        [依赖: Config]
+ *    ↓
+ * 4. InitializeWindow()        [依赖: Logger]
+ *    ↓
+ * 5. InitializeRenderer()      [依赖: Window, Logger]
+ *    ↓
+ * 6. InitializeInputHandler()  [依赖: Logger, EventBus]
+ *    ↓
+ * 7. InitializeManagers()      [依赖: Renderer, Window]
+ *    ↓
+ * 8. InitializeUI()             [依赖: Renderer, Window, Logger]
+ *    ↓
+ * 9. InitializeEventSystem()   [依赖: InputHandler, UIManager, Renderer]
+ *    ↓
+ * 10. InitializeRenderScheduler() [依赖: Renderer, EventManager]
+ * ```
+ * 
+ * 错误处理：失败时按逆序回滚已初始化的步骤，确保资源正确释放
+ * 
+ * 使用方式：
+ * 1. 创建 AppInitializationConfig 配置对象，设置所有依赖
+ * 2. 调用 Initialize() 初始化所有组件
+ * 3. 使用 Get 方法获取组件指针
+ * 4. 调用 Cleanup() 清理所有资源
+ */
 class AppInitializer {
 public:
     AppInitializer();

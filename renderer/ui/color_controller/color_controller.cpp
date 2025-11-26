@@ -1,10 +1,12 @@
-#include "ui/color_controller/color_controller.h"
-#include "ui/button/button.h"
-#include "ui/slider/slider.h"
-#include "text/text_renderer.h"
-#include <algorithm>
-#include <cmath>
-#include <memory>
+#include "ui/color_controller/color_controller.h"  // 1. 对应头文件
+
+#include <algorithm>       // 2. 系统头文件
+#include <cmath>           // 2. 系统头文件
+#include <memory>          // 2. 系统头文件
+
+#include "text/text_renderer.h"       // 4. 项目头文件
+#include "ui/button/button.h"         // 4. 项目头文件
+#include "ui/slider/slider.h"         // 4. 项目头文件
 
 ColorController::ColorController() 
     : m_colorDisplayButtonInitialized(false)

@@ -1,10 +1,13 @@
-#include "text/text_renderer.h"
-#include "shader/shader_loader.h"
-#include "window/window.h"
-#include <vulkan/vulkan.h>
-#include <algorithm>
-#include <cmath>
-#include <cstring>
+#include "text/text_renderer.h"  // 1. 对应头文件
+
+#include <algorithm>    // 2. 系统头文件
+#include <cmath>        // 2. 系统头文件
+#include <cstring>      // 2. 系统头文件
+
+#include <vulkan/vulkan.h>  // 3. 第三方库头文件
+
+#include "shader/shader_loader.h"  // 4. 项目头文件
+#include "window/window.h"         // 4. 项目头文件
 
 using namespace renderer::shader;
 
@@ -197,36 +200,19 @@ bool TextRenderer::CreateFontAtlas() {
     }
     
     // 预渲染中文字符（常用汉字）
-    // 预加载 "加载中..." 和 "点击进入" 中的所有字符
+    // 预加载常用界面文本中的字符，减少运行时字形创建开销
     const uint32_t commonChinese[] = {
         0x52A0,  // 加
         0x8F7D,  // 载
-        0x4E2D,  // 中（确保在列表中）
+        0x4E2D,  // 中
         0x70B9,  // 点
         0x51FB,  // 击
         0x8FDB,  // 进
         0x5165,  // 入
-        0x6587, 0x6D4B, 0x8BD5, 0x5B57, 0x7B26  // 原有字符
+        0x6587, 0x6D4B, 0x8BD5, 0x5B57, 0x7B26  // 文测试字符
     };
     for (uint32_t c : commonChinese) {
-        const Glyph& glyph = GetGlyph(c);
-        // 调试输出：检查字符是否成功加载
-        if (glyph.width == 0.0f && glyph.height == 0.0f) {
-            printf("[WARNING] Failed to load glyph for character 0x%04X\n", c);
-        } else {
-            // 成功加载的字符也输出一次（仅第一次）
-            static bool firstLoad = true;
-            if (firstLoad) {
-                printf("[DEBUG] Successfully loaded glyph for character 0x%04X: width=%.2f, height=%.2f\n", 
-                       c, glyph.width, glyph.height);
-            }
-        }
-    }
-    // 标记第一次加载完成
-    static bool firstAtlasLoad = true;
-    if (firstAtlasLoad) {
-        firstAtlasLoad = false;
-        printf("[DEBUG] Font atlas creation completed. Total glyphs: %zu\n", m_glyphs.size());
+        GetGlyph(c);
     }
     
     return true;
@@ -262,14 +248,6 @@ const TextRenderer::Glyph& TextRenderer::GetGlyph(uint32_t charCode) {
     
     int charWidth = size.cx;
     int charHeight = size.cy;
-    
-    // 调试输出：检查字符尺寸获取
-    static int debugSizeCount = 0;
-    if (debugSizeCount < 20) { // 只输出前20个字符
-        printf("[DEBUG] GetGlyph for 0x%04X: GetTextExtentPoint32W returned size=(%d, %d), fontSize=%d\n",
-               charCode, charWidth, charHeight, m_fontSize);
-        debugSizeCount++;
-    }
     
     // 检查是否有足够空间
     const int padding = 2;
@@ -998,24 +976,8 @@ void TextRenderer::AppendVerticesToBuffer(const std::string& text, float x, floa
         wchar_t wchar = wtext[i];
         const Glyph& glyph = GetGlyph((uint32_t)wchar);
         
-        // 调试输出：检查"加载中..."字符串中的字符
-        static int debugCharCount = 0;
-        if (text.find("加载中") != std::string::npos) {
-            float charWidth = glyph.width * m_atlasWidth;
-            float charHeight = glyph.height * m_atlasHeight;
-            printf("[DEBUG] Rendering char[%d] 0x%04X: normSize=(%.4f, %.4f), pixelSize=(%.2f, %.2f), advanceX=%.2f, offsetX=%.2f, offsetY=%.2f\n",
-                   i, (uint32_t)wchar, glyph.width, glyph.height, charWidth, charHeight, glyph.advanceX, glyph.offsetX, glyph.offsetY);
-        }
-        debugCharCount++;
-        
         if (glyph.width == 0.0f || glyph.height == 0.0f) {
-            // 跳过无效字符
-            static int skipCount = 0;
-            if (skipCount % 60 == 0) {
-                printf("[WARNING] Skipping invalid glyph for character 0x%04X (width=%.2f, height=%.2f)\n", 
-                       (uint32_t)wchar, glyph.width, glyph.height);
-            }
-            skipCount++;
+            // 跳过无效字符，使用advanceX保持字符间距
             currentX += glyph.advanceX;
             continue;
         }
@@ -1029,19 +991,6 @@ void TextRenderer::AppendVerticesToBuffer(const std::string& text, float x, floa
         float charY = currentY - glyph.offsetY;
         float charWidth = glyph.width * m_atlasWidth;
         float charHeight = glyph.height * m_atlasHeight;
-        
-        // 调试输出：检查"加载中..."字符串中前三个字符的位置
-        static int debugCharPosCount = 0;
-        if (text.find("加载中") != std::string::npos && i < 3 && debugCharPosCount % 60 == 0) {
-            // 计算字符在窗口坐标系中的实际位置（考虑shader的Y轴翻转）
-            // charY是翻转后的坐标，shader会再次翻转，所以窗口坐标 = screenHeight - charY
-            // 但这里我们不知道screenHeight，所以只输出翻转后的坐标
-            printf("[DEBUG] Char[%d] 0x%04X position: charX=%.2f, charY=%.2f (flipped), currentY=%.2f, offsetY=%.2f, charSize=(%.2f, %.2f)\n",
-                   i, (uint32_t)wchar, charX, charY, currentY, glyph.offsetY, charWidth, charHeight);
-            printf("[DEBUG]   -> Char bounds: X[%.2f - %.2f], Y[%.2f - %.2f] (flipped coords)\n",
-                   charX, charX + charWidth, charY, charY + charHeight);
-        }
-        debugCharPosCount++;
         
         // 纹理坐标：位图是负高度（从上到下），但复制到图集时也是从上到下
         // 所以纹理坐标不需要翻转，glyph.y 是顶部，glyph.y + glyph.height 是底部
@@ -1299,39 +1248,10 @@ void TextRenderer::RenderTextCentered(CommandBufferHandle commandBuffer, const s
     
     // 计算文字左上角坐标（窗口坐标，Y向下）
     // 水平居中：centerX - textWidth / 2.0f
-    // 垂直居中：由于RenderText中会翻转Y坐标（flippedY = screenHeight - y）
-    // 而且字符Y坐标是 charY = flippedY - glyph.offsetY
-    // 字符中心：charY + charHeight/2 = flippedY - glyph.offsetY + charHeight/2
-    // 如果我们想要文字中心在centerY（窗口坐标），需要：
-    // 文字中心（窗口坐标）= centerY
-    // 翻转后：screenHeight - centerY
-    // 字符中心应该是：screenHeight - centerY - avgOffsetY + avgCharHeight/2
-    // 所以：flippedY - avgOffsetY + avgCharHeight/2 = screenHeight - centerY
-    // 因此：flippedY = screenHeight - centerY + avgOffsetY - avgCharHeight/2
-    // 所以：y = centerY - avgOffsetY + avgCharHeight/2
-    // 因为 textCenterOffset = -avgOffsetY + avgCharHeight/2
-    // 所以：y = centerY - textCenterOffset = centerY - (-avgOffsetY + avgCharHeight/2) = centerY + avgOffsetY - avgCharHeight/2
-    // 但是，由于文字向下偏，说明Y坐标太大了，我们需要减小Y坐标
-    // 实际上，textCenterOffset是负数（-4.00），所以 centerY - textCenterOffset = centerY - (-4) = centerY + 4
-    // 这会使文字向下移动，所以我们应该使用 centerY + textCenterOffset（因为textCenterOffset是负数）
+    // 垂直居中：考虑字符基线偏移和字符高度，使用textCenterOffset调整Y坐标
     float textCenterOffset = GetTextCenterOffset(text);
     float textX = centerX - textWidth / 2.0f;
-    // textCenterOffset = -avgOffsetY + avgCharHeight/2，通常是负数
-    // 如果我们想要文字中心在centerY，需要：y = centerY + textCenterOffset（因为textCenterOffset是负数，所以实际上是减小Y）
     float textY = centerY + textCenterOffset;
-    
-    // Debug输出
-    static int debugCount = 0;
-    if (debugCount % 60 == 0) {
-        printf("[DEBUG] RenderTextCentered:\n");
-        printf("  Center: (%.2f, %.2f)\n", centerX, centerY);
-        printf("  Text size: (%.2f, %.2f)\n", textWidth, textHeight);
-        printf("  Text center offset: %.2f\n", textCenterOffset);
-        printf("  Calculated textY: %.2f\n", textY);
-        printf("  Screen size: (%.0f, %.0f)\n", screenWidth, screenHeight);
-        printf("\n");
-    }
-    debugCount++;
     
     // 调用RenderText渲染（使用左上角坐标）
     RenderText(commandBuffer, text, textX, textY, screenWidth, screenHeight, r, g, b, a);

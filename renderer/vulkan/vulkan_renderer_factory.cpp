@@ -2,7 +2,7 @@
 
 #include <memory>  // 2. 系统头文件
 
-#include "vulkan/vulkan_renderer.h"  // 3. 项目头文件
+#include "vulkan/vulkan_renderer.h"  // 4. 项目头文件（实现）
 
 VulkanRendererFactory::VulkanRendererFactory() {
 }

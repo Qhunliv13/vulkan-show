@@ -1,11 +1,15 @@
-#include "loading/loading_animation.h"
-#include "shader/shader_loader.h"
-#include "window/window.h"
+#include "loading/loading_animation.h"  // 1. 对应头文件
+
+#include <windows.h>  // 2. 系统头文件
+#include <stdio.h>
 #include <algorithm>
 #include <cmath>
 #include <fstream>
-#include <stdio.h>
-#include <windows.h>
+
+#include <vulkan/vulkan.h>  // 3. 第三方库头文件
+
+#include "shader/shader_loader.h"  // 4. 项目头文件
+#include "window/window.h"
 
 using namespace renderer::shader;
 

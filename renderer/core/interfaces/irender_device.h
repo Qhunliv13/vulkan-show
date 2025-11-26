@@ -1,9 +1,18 @@
 #pragma once
 
-#include "core/types/render_types.h"
+#include "core/types/render_types.h"  // 4. 项目头文件（类型）
 
-// 渲染设备接口 - 提供渲染所需的底层设备资源，不暴露具体渲染后端类型
-// 使用抽象类型，支持多种渲染后端（Vulkan、OpenGL、DirectX 等）
+/**
+ * 渲染设备接口 - 提供渲染所需的底层设备资源，不暴露具体渲染后端类型
+ * 
+ * 职责：提供平台无关的设备资源访问接口，隐藏具体渲染后端实现
+ * 设计：使用抽象句柄类型，支持多种渲染后端（Vulkan、OpenGL、DirectX等）
+ * 
+ * 使用方式：
+ * 1. 通过 IRenderer::GetRenderDevice() 获取接口指针
+ * 2. 使用接口指针访问设备资源，无需了解具体实现
+ * 3. 注意：应优先使用 IRenderCommand 抽象层，而不是直接访问这些对象
+ */
 class IRenderDevice {
 public:
     virtual ~IRenderDevice() = default;

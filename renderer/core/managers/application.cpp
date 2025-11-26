@@ -1,22 +1,22 @@
 #include "core/managers/application.h"  // 1. 对应头文件
 
-#include <windows.h>                     // 2. 系统头文件
-#include <memory>
+#include <windows.h>  // 2. 系统头文件
+#include <memory>  // 2. 系统头文件
 
-#include "core/interfaces/irenderer_factory.h"  // 3. 项目头文件（接口）
-#include "core/interfaces/iconfig_provider.h"
-#include "core/managers/app_initializer.h"
-#include "core/managers/app_initialization_config.h"
-#include "core/managers/window_manager.h"
-#include "core/managers/event_manager.h"
-#include "core/managers/render_scheduler.h"
-#include "core/managers/config_manager.h"
-#include "core/utils/fps_monitor.h"
-#include "core/utils/logger.h"
-#include "core/utils/event_bus.h"
-#include "core/factories/window_factory.h"
-#include "core/factories/text_renderer_factory.h"
-#include "window/window.h"
+#include "core/interfaces/irenderer_factory.h"  // 4. 项目头文件（接口）
+#include "core/interfaces/iconfig_provider.h"  // 4. 项目头文件（接口）
+#include "core/managers/app_initializer.h"  // 4. 项目头文件（管理器）
+#include "core/managers/app_initialization_config.h"  // 4. 项目头文件（配置）
+#include "core/managers/window_manager.h"  // 4. 项目头文件（管理器）
+#include "core/managers/event_manager.h"  // 4. 项目头文件（管理器）
+#include "core/managers/render_scheduler.h"  // 4. 项目头文件（管理器）
+#include "core/managers/config_manager.h"  // 4. 项目头文件（管理器）
+#include "core/utils/fps_monitor.h"  // 4. 项目头文件（工具）
+#include "core/utils/logger.h"  // 4. 项目头文件（工具）
+#include "core/utils/event_bus.h"  // 4. 项目头文件（工具）
+#include "core/factories/window_factory.h"  // 4. 项目头文件（工厂）
+#include "core/factories/text_renderer_factory.h"  // 4. 项目头文件（工厂）
+#include "window/window.h"  // 4. 项目头文件（窗口）
 
 Application::Application() {
 }

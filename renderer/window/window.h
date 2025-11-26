@@ -1,8 +1,9 @@
 #pragma once
 
-#include <windows.h>
-#include <string>
-#include "core/interfaces/iwindow.h"
+#include <windows.h>  // 2. 系统头文件
+#include <string>     // 2. 系统头文件
+
+#include "core/interfaces/iwindow.h"  // 4. 项目头文件（接口）
 
 // 前向声明
 class IEventBus;

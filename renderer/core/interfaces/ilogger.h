@@ -1,8 +1,12 @@
 #pragma once
 
-#include <string>
+#include <string>  // 2. 系统头文件
 
-// 日志级别
+/**
+ * 日志级别枚举
+ * 
+ * 定义日志输出的不同级别，用于过滤和控制日志输出
+ */
 enum class LogLevel {
     Debug,
     Info,
@@ -11,7 +15,17 @@ enum class LogLevel {
     Fatal
 };
 
-// 日志接口 - 用于依赖注入，替代单例
+/**
+ * 日志接口 - 用于依赖注入，替代单例
+ * 
+ * 职责：提供统一的日志输出接口，支持多种日志级别和输出目标
+ * 设计：通过接口抽象，支持多种日志实现（文件日志、控制台日志等）
+ * 
+ * 使用方式：
+ * 1. 通过依赖注入获取接口指针
+ * 2. 使用 Log() 或便捷方法（Debug、Info、Warning等）输出日志
+ * 3. 通过 SetMinLevel() 控制日志级别
+ */
 class ILogger {
 public:
     virtual ~ILogger() = default;

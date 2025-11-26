@@ -1,6 +1,6 @@
 #include "core/utils/event_bus.h"  // 1. 对应头文件
 
-#include <algorithm>  // 2. 系统头文件
+#include <algorithm>       // 2. 系统头文件
 
 void EventBus::Subscribe(EventType type, EventHandler handler) {
     std::lock_guard<std::mutex> lock(m_mutex);

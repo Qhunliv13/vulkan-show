@@ -1,6 +1,6 @@
 #include "core/managers/window_manager.h"  // 1. 对应头文件
 
-#include "core/interfaces/iconfig_provider.h"  // 2. 项目头文件（接口）
+#include "core/interfaces/iconfig_provider.h"  // 4. 项目头文件（接口）
 #include "core/interfaces/iwindow_factory.h"
 #include "core/interfaces/ievent_bus.h"
 #include "core/interfaces/ilogger.h"

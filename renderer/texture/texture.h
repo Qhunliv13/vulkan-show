@@ -1,19 +1,23 @@
 #pragma once
 
-#include <vulkan/vulkan.h>
-#include <string>
-#include <cstdint>
+#include <string>            // 2. 系统头文件
+#include <cstdint>           // 2. 系统头文件
+
+#include <vulkan/vulkan.h>  // 3. 第三方库头文件
+
 // 注意：如果之前包含了windows.h，LoadImage宏可能已经被定义
 // 在包含image_loader.h之前取消宏定义
 #ifdef LoadImage
 #undef LoadImage  // 取消Windows API的LoadImage宏定义，避免与ImageLoader::LoadImage冲突
 #endif
-#include "image/image_loader.h"
+
+#include "image/image_loader.h"  // 4. 项目头文件
 
 namespace renderer {
 namespace texture {
 
-// 纹理类，管理VkImage、VkImageView和VkSampler
+// 纹理类 - 管理VkImage、VkImageView和VkSampler
+// 负责从文件或图像数据创建Vulkan纹理资源，自动处理图像布局转换和内存管理
 class Texture {
 public:
     Texture();

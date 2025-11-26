@@ -1,15 +1,14 @@
+#include "texture/texture.h"  // 1. 对应头文件
+
 // 注意：必须在包含任何可能定义LoadImage宏的头文件之前取消宏定义
 #ifdef LoadImage
 #undef LoadImage
 #endif
-#include "texture/texture.h"
-// 再次取消宏定义，因为window.h会重新定义它
-#ifdef LoadImage
-#undef LoadImage
-#endif
-#include "window/window.h"
-#include <cstring>
-#include <algorithm>
+
+#include <cstring>     // 2. 系统头文件
+#include <algorithm>    // 2. 系统头文件
+
+#include "window/window.h"  // 4. 项目头文件
 
 using namespace renderer::texture;
 using namespace renderer::image;
@@ -18,8 +17,8 @@ Texture::Texture() {
 }
 
 Texture::~Texture() {
-    // 注意：析构函数中不清理，需要显式调用Cleanup
-    // 因为VkDevice可能已经被销毁
+    // 析构函数中不清理资源，需要显式调用Cleanup
+    // 原因：VkDevice可能已经被销毁，在析构函数中清理可能导致未定义行为
 }
 
 bool Texture::LoadFromFile(VkDevice device, VkPhysicalDevice physicalDevice,

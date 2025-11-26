@@ -1,9 +1,9 @@
 #pragma once
 
-#include <functional>
-#include <memory>
-#include <string>
-#include "core/config/constants.h"
+#include <functional>  // 2. 系统头文件
+#include <memory>  // 2. 系统头文件
+#include <string>  // 2. 系统头文件
+#include "core/config/constants.h"  // 4. 项目头文件（配置）
 
 // 前向声明
 class IRenderer;
@@ -92,7 +92,17 @@ struct WindowResizeRequestEvent : public Event {
         : Event(EventType::WindowResizeRequest), stretchMode(mode), renderer(r) {}
 };
 
-// 事件总线接口 - 用于依赖注入，替代单例
+/**
+ * 事件总线接口 - 用于依赖注入，替代单例
+ * 
+ * 职责：提供发布-订阅模式的事件通信机制，解耦组件间通信
+ * 设计：通过接口抽象，支持多种事件总线实现
+ * 
+ * 使用方式：
+ * 1. 通过依赖注入获取接口指针
+ * 2. 使用 Subscribe() 订阅事件，使用 Publish() 发布事件
+ * 3. 注意：必须在组件 Cleanup() 时取消所有订阅
+ */
 class IEventBus {
 public:
     virtual ~IEventBus() = default;

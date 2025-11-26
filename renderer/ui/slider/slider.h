@@ -1,9 +1,10 @@
 #pragma once
 
-#include <vulkan/vulkan.h>
-#include <functional>
-#include <memory>
-#include <string>
+#include <functional>    // 2. 系统头文件
+#include <memory>        // 2. 系统头文件
+#include <string>        // 2. 系统头文件
+
+#include <vulkan/vulkan.h>  // 3. 第三方库头文件
 
 // 前向声明
 class Button;

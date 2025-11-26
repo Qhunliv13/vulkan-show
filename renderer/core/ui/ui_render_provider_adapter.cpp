@@ -1,5 +1,6 @@
-#include "core/ui/ui_render_provider_adapter.h"
-#include "core/ui/ui_manager.h"
+#include "core/ui/ui_render_provider_adapter.h"  // 1. 对应头文件
+
+#include "core/ui/ui_manager.h"  // 4. 项目头文件（UI管理器）
 
 UIRenderProviderAdapter::UIRenderProviderAdapter(UIManager* uiManager)
     : m_uiManager(uiManager) {

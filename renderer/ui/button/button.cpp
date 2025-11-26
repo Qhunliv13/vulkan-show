@@ -1,22 +1,26 @@
-#include "ui/button/button.h"
-#include "text/text_renderer.h"
-#include "shader/shader_loader.h"
-#include "core/types/render_types.h"
-#include "window/window.h"
-#include "core/config/render_context.h"
-#include <vulkan/vulkan.h>  // 需要 Vulkan 类型定义
+#include "ui/button/button.h"  // 1. 对应头文件
+
+#include <algorithm>           // 2. 系统头文件
+#include <cmath>               // 2. 系统头文件
+#include <fstream>             // 2. 系统头文件
+#include <stdio.h>             // 2. 系统头文件
+
+#include <vulkan/vulkan.h>     // 3. 第三方库头文件
+
 // 注意：window.h已经包含了windows.h，所以LoadImage宏可能已经被定义
-// 在包含image_loader.h之前取消宏定义
+// 在包含image_loader.h之前取消宏定义，避免与ImageLoader::LoadImage冲突
 #ifdef LoadImage
-#undef LoadImage  // 取消Windows API的LoadImage宏定义，避免与ImageLoader::LoadImage冲突
+#undef LoadImage
 #endif
-#include "image/image_loader.h"
-#include "texture/texture.h"
-#include "core/config/stretch_params.h"
-#include <algorithm>
-#include <cmath>
-#include <fstream>
-#include <stdio.h>
+#include "core/config/render_context.h"                    // 4. 项目头文件
+#include "core/config/stretch_params.h"                    // 4. 项目头文件
+#include "core/config/vulkan_render_context_factory.h"     // 4. 项目头文件
+#include "core/types/render_types.h"                       // 4. 项目头文件
+#include "image/image_loader.h"                            // 4. 项目头文件
+#include "shader/shader_loader.h"                          // 4. 项目头文件
+#include "text/text_renderer.h"                            // 4. 项目头文件
+#include "texture/texture.h"                               // 4. 项目头文件
+#include "window/window.h"                                 // 4. 项目头文件
 
 using namespace renderer::shader;
 

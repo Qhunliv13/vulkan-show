@@ -1,10 +1,15 @@
 #include "core/interfaces/irenderer.h"  // 1. 对应头文件
 
-#include "core/interfaces/ipipeline_manager.h"  // 2. 项目头文件
-#include "core/interfaces/icamera_controller.h"
-#include "core/interfaces/irender_device.h"
+#include "core/interfaces/ipipeline_manager.h"  // 4. 项目头文件（接口）
+#include "core/interfaces/icamera_controller.h"  // 4. 项目头文件（接口）
+#include "core/interfaces/irender_device.h"  // 4. 项目头文件（接口）
 
-// 便捷方法的默认实现（通过组合访问子接口）
+/**
+ * 便捷方法的默认实现（通过组合访问子接口）
+ * 
+ * 这些方法使用组合模式，通过 GetRenderDevice() 等方法访问子接口
+ * 提供向后兼容的便捷访问方式，避免直接访问子接口
+ */
 Extent2D IRenderer::GetSwapchainExtent() const {
     IRenderDevice* device = const_cast<IRenderer*>(this)->GetRenderDevice();
     return device ? device->GetSwapchainExtent() : Extent2D{0, 0};

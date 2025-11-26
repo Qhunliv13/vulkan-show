@@ -1,8 +1,10 @@
-#include "core/managers/scene_manager.h"
-#include "core/interfaces/iconfig_provider.h"
-#include "core/interfaces/ipipeline_manager.h"  // 需要完整定义
-#include "window/window.h"
-#include <stdio.h>
+#include "core/managers/scene_manager.h"  // 1. 对应头文件
+
+#include <stdio.h>  // 2. 系统头文件
+
+#include "core/interfaces/iconfig_provider.h"  // 4. 项目头文件（接口）
+#include "core/interfaces/ipipeline_manager.h"  // 4. 项目头文件（接口）
+#include "window/window.h"  // 4. 项目头文件（窗口）
 
 SceneManager::SceneManager() {
 }

@@ -1,21 +1,25 @@
-#include "core/ui/ui_manager.h"
-#include "core/interfaces/iconfig_provider.h"
-#include "core/interfaces/ievent_bus.h"
-#include "core/interfaces/irender_device.h"  // 需要完整定义
-#include "core/ui/button_ui_manager.h"
-#include "core/ui/color_ui_manager.h"
-#include "core/ui/slider_ui_manager.h"
-#include "loading/loading_animation.h"
-#include "text/text_renderer.h"
-#include "ui/button/button.h"
-#include "ui/slider/slider.h"
-#include "ui/color_controller/color_controller.h"
-#include "window/window.h"
-#include "core/managers/scene_manager.h"
-#include "core/config/render_context.h"
-#include <stdio.h>
-#include <windows.h>
-#include <vulkan/vulkan.h>
+#include "core/ui/ui_manager.h"  // 1. 对应头文件
+
+#include <windows.h>  // 2. 系统头文件
+#include <stdio.h>  // 2. 系统头文件
+
+#include <vulkan/vulkan.h>  // 3. 第三方库头文件
+
+#include "core/interfaces/iconfig_provider.h"  // 4. 项目头文件（接口）
+#include "core/interfaces/ievent_bus.h"  // 4. 项目头文件（接口）
+#include "core/interfaces/irender_device.h"  // 4. 项目头文件（接口）
+#include "core/config/render_context.h"  // 4. 项目头文件（配置）
+#include "core/config/vulkan_render_context_factory.h"  // 4. 项目头文件（配置）
+#include "core/managers/scene_manager.h"  // 4. 项目头文件（管理器）
+#include "core/ui/button_ui_manager.h"  // 4. 项目头文件（UI管理器）
+#include "core/ui/color_ui_manager.h"  // 4. 项目头文件（UI管理器）
+#include "core/ui/slider_ui_manager.h"  // 4. 项目头文件（UI管理器）
+#include "loading/loading_animation.h"  // 4. 项目头文件（加载动画）
+#include "text/text_renderer.h"  // 4. 项目头文件（文字渲染器）
+#include "ui/button/button.h"  // 4. 项目头文件（UI组件）
+#include "ui/slider/slider.h"  // 4. 项目头文件（UI组件）
+#include "ui/color_controller/color_controller.h"  // 4. 项目头文件（UI组件）
+#include "window/window.h"  // 4. 项目头文件（窗口）
 
 UIManager::UIManager() {
 }

@@ -1,8 +1,8 @@
 #include "core/managers/event_manager.h"  // 1. 对应头文件
 
-#include <windows.h>                     // 2. 系统头文件
+#include <windows.h>  // 2. 系统头文件
 
-#include "core/interfaces/ievent_bus.h"  // 3. 项目头文件（接口）
+#include "core/interfaces/ievent_bus.h"  // 4. 项目头文件（接口）
 #include "core/interfaces/iscene_provider.h"
 #include "core/interfaces/iconfig_provider.h"
 #include "core/managers/scene_manager.h"

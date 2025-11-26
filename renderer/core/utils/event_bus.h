@@ -1,12 +1,13 @@
 #pragma once
 
-#include <functional>
-#include <unordered_map>
-#include <vector>
-#include <mutex>
-#include <string>
-#include <memory>
-#include "core/interfaces/ievent_bus.h"
+#include <functional>      // 2. 系统头文件
+#include <memory>          // 2. 系统头文件
+#include <mutex>           // 2. 系统头文件
+#include <string>          // 2. 系统头文件
+#include <unordered_map>   // 2. 系统头文件
+#include <vector>          // 2. 系统头文件
+
+#include "core/interfaces/ievent_bus.h"  // 4. 项目头文件
 
 // 事件总线 - 实现 IEventBus 接口，支持依赖注入
 // 禁止使用单例，必须通过依赖注入使用

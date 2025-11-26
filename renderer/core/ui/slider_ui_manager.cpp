@@ -1,12 +1,16 @@
-#include "core/ui/slider_ui_manager.h"
-#include "ui/slider/slider.h"
-#include "ui/color_controller/color_controller.h"
-#include "core/interfaces/irenderer.h"
-#include "core/config/render_context.h"
-#include "window/window.h"
-#include <vulkan/vulkan.h>
-#include <stdio.h>
-#include <windows.h>
+#include "core/ui/slider_ui_manager.h"  // 1. 对应头文件
+
+#include <windows.h>  // 2. 系统头文件
+#include <stdio.h>  // 2. 系统头文件
+
+#include <vulkan/vulkan.h>  // 3. 第三方库头文件
+
+#include "core/interfaces/irenderer.h"  // 4. 项目头文件（接口）
+#include "core/config/render_context.h"  // 4. 项目头文件（配置）
+#include "core/config/vulkan_render_context_factory.h"  // 4. 项目头文件（配置）
+#include "ui/slider/slider.h"  // 4. 项目头文件（UI组件）
+#include "ui/color_controller/color_controller.h"  // 4. 项目头文件（UI组件）
+#include "window/window.h"  // 4. 项目头文件（窗口）
 
 SliderUIManager::SliderUIManager() {
 }

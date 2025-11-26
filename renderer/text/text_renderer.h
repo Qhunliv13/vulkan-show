@@ -3,12 +3,13 @@
 #define VK_USE_PLATFORM_WIN32_KHR
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
-#include <windows.h>
-#include <vector>
-#include <string>
-#include <unordered_map>
-#include "core/interfaces/itext_renderer.h"
-#include "core/types/render_types.h"
+#include <windows.h>         // 2. 系统头文件
+#include <vector>            // 2. 系统头文件
+#include <string>            // 2. 系统头文件
+#include <unordered_map>     // 2. 系统头文件
+
+#include "core/interfaces/itext_renderer.h"  // 4. 项目头文件（接口）
+#include "core/types/render_types.h"         // 4. 项目头文件（类型）
 
 // Vulkan 类型前向声明（避免包含 vulkan.h，但允许使用 Vulkan 类型）
 // 注意：这些前向声明仅用于头文件，实际定义在 .cpp 中包含 vulkan.h
@@ -50,8 +51,8 @@ typedef uint32_t VkMemoryPropertyFlags;
 typedef uint64_t VkDeviceSize;
 #define VK_NULL_HANDLE nullptr
 
-// 文字渲染器 - 参考 Godot 的实现
-// 使用 Windows GDI 生成字体纹理图集，然后在 Vulkan 中渲染
+// 文字渲染器 - 使用Windows GDI生成字体纹理图集，在Vulkan中渲染文本
+// 支持批量渲染和居中文本，自动处理UTF-8编码和字符字形缓存
 class TextRenderer : public ITextRenderer {
 public:
     struct Glyph {

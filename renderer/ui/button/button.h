@@ -1,13 +1,14 @@
 #pragma once
 
-#include <vulkan/vulkan.h>
-#include <functional>
-#include <string>
-#include <memory>
+#include <functional>    // 2. 系统头文件
+#include <memory>        // 2. 系统头文件
+#include <string>        // 2. 系统头文件
+
+#include <vulkan/vulkan.h>  // 3. 第三方库头文件
 
 // 前向声明
-class TextRenderer;
 class IRenderContext;
+class TextRenderer;
 namespace renderer { namespace texture { class Texture; } }
 
 // Scaled 模式的拉伸参数（前向声明，实际定义在 core/stretch_params.h，已废弃）

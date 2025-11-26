@@ -1,26 +1,26 @@
-#include "image/image_loader.h"
-#include "window/window.h"
+#include "image/image_loader.h"  // 1. 对应头文件
+
+#include <windows.h>  // 2. 系统头文件
 #include <fstream>
 #include <vector>
-#include <windows.h>
-#ifdef LoadImage
-#undef LoadImage  // 取消Windows API的LoadImage宏定义
-#endif
-#include <gdiplus.h>
-#pragma comment(lib, "gdiplus.lib")
-
-// WebP支持（使用stb_image单头文件库）
-// 注意：需要下载stb_image.h到项目的renderer/thirdparty/目录
 #include <algorithm>
 #include <cctype>
 
-// 如果启用了stb_image支持，包含头文件
+#ifdef LoadImage
+#undef LoadImage  // 取消Windows API的LoadImage宏定义
+#endif
+#include <gdiplus.h>  // 3. 第三方库头文件
+#pragma comment(lib, "gdiplus.lib")
+
+// WebP支持（使用stb_image单头文件库）
+// 需要下载stb_image.h到项目的renderer/thirdparty/目录并定义USE_STB_IMAGE宏
 #ifdef USE_STB_IMAGE
-    // stb_image.h应该放在renderer/thirdparty/目录下
     #define STB_IMAGE_IMPLEMENTATION
     #define STB_IMAGE_STATIC
-    #include "thirdparty/stb_image.h"
+    #include "thirdparty/stb_image.h"  // 3. 第三方库头文件
 #endif
+
+#include "window/window.h"  // 4. 项目头文件
 
 using namespace Gdiplus;
 using namespace renderer::image;

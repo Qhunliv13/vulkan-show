@@ -1,12 +1,14 @@
 #pragma once
 
-#include <vulkan/vulkan.h>
-#include <string>
-#include <vector>
+#include <vulkan/vulkan.h>  // 3. 第三方库头文件
+#include <string>            // 2. 系统头文件
+#include <vector>            // 2. 系统头文件
 
 namespace renderer {
 namespace shader {
 
+// Shader加载器 - 负责加载和编译GLSL着色器，支持SPIR-V格式和运行时编译
+// 提供统一的着色器资源管理接口，自动处理文件读取和格式验证
 class ShaderLoader {
 public:
     // 从文件读取SPIR-V字节码

@@ -1,12 +1,21 @@
 #pragma once
 
-#include "core/config/constants.h"
-#include "core/interfaces/iconfig_provider.h"
-#include <string>
-#include <unordered_map>
+#include <string>  // 2. 系统头文件
+#include <unordered_map>  // 2. 系统头文件
+#include "core/config/constants.h"  // 4. 项目头文件（配置）
+#include "core/interfaces/iconfig_provider.h"  // 4. 项目头文件（接口）
 
-// 配置管理器 - 统一管理应用配置（实现IConfigProvider接口，支持依赖注入）
-// 禁止使用单例，必须通过依赖注入使用
+/**
+ * 配置管理器 - 统一管理应用配置
+ * 
+ * 职责：实现 IConfigProvider 接口，管理应用配置参数和资源路径
+ * 设计：通过依赖注入使用，禁止使用单例模式
+ * 
+ * 使用方式：
+ * 1. 创建 ConfigManager 实例
+ * 2. 调用 Initialize() 从命令行参数初始化配置
+ * 3. 通过 IConfigProvider 接口访问配置参数
+ */
 class ConfigManager : public IConfigProvider {
 public:
     // 公共构造函数（支持依赖注入）

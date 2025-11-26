@@ -1,16 +1,16 @@
 #include "window/window.h"  // 1. 对应头文件
 
-// 注意：window.h已经包含了windows.h，所以LoadImage宏可能已经被定义
-// 在包含image_loader.h之前取消宏定义
-#ifdef LoadImage
-#undef LoadImage  // 取消Windows API的LoadImage宏定义，避免与ImageLoader::LoadImage冲突
-#endif
-
 #include <gdiplus.h>  // 2. 系统头文件
 #pragma comment(lib, "gdiplus.lib")
 
-#include "core/interfaces/ievent_bus.h"  // 3. 项目头文件（接口）
-#include "image/image_loader.h"
+// 注意：window.h已经包含了windows.h，所以LoadImage宏可能已经被定义
+// 在包含image_loader.h之前取消宏定义，避免与ImageLoader::LoadImage冲突
+#ifdef LoadImage
+#undef LoadImage
+#endif
+
+#include "core/interfaces/ievent_bus.h"  // 4. 项目头文件（接口）
+#include "image/image_loader.h"          // 4. 项目头文件
 
 // 辅助函数：编码32位整数（小端序）
 static void encode_uint32(uint32_t value, uint8_t* buffer) {
@@ -382,7 +382,7 @@ void Window::Destroy() {
 }
 
 void Window::ToggleFullscreen() {
-    // 全屏切换功能：当前未实现，保留接口供未来扩展
+    // 全屏切换功能：接口保留用于支持窗口模式和全屏模式之间的切换
 }
 
 void Window::ShowError(const std::string& message) {

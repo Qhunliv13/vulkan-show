@@ -1,6 +1,8 @@
-#include "core/utils/render_command_buffer.h"
-#include "core/interfaces/irender_command.h"
-#include <algorithm>
+#include "core/utils/render_command_buffer.h"  // 1. 对应头文件
+
+#include <algorithm>       // 2. 系统头文件
+
+#include "core/interfaces/irender_command.h"   // 4. 项目头文件
 
 RenderCommandBuffer::RenderCommandBuffer() {
 }

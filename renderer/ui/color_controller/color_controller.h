@@ -1,13 +1,15 @@
 #pragma once
 
-#include <vulkan/vulkan.h>
-#include <functional>
-#include <vector>
-#include "ui/slider/slider.h"
-#include "ui/button/button.h"
+#include <functional>    // 2. 系统头文件
+#include <vector>        // 2. 系统头文件
+
+#include <vulkan/vulkan.h>  // 3. 第三方库头文件
 
 // 前向声明
 class TextRenderer;
+
+#include "ui/button/button.h"   // 4. 项目头文件
+#include "ui/slider/slider.h"   // 4. 项目头文件
 
 // 颜色控制器配置结构体
 struct ColorControllerConfig {

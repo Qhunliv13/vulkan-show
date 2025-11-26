@@ -1,9 +1,12 @@
-#include "core/utils/input_handler.h"
-#include "core/types/render_types.h"
-#include "window/window.h"
-#include <vulkan/vulkan.h>  // 仅在实现文件中包含，避免头文件依赖
-#include <algorithm>
-#include <cmath>
+#include "core/utils/input_handler.h"  // 1. 对应头文件
+
+#include <algorithm>       // 2. 系统头文件
+#include <cmath>           // 2. 系统头文件
+
+#include <vulkan/vulkan.h>  // 3. 第三方库头文件（仅在实现文件中包含，避免头文件依赖）
+
+#include "core/types/render_types.h"   // 4. 项目头文件
+#include "window/window.h"             // 4. 项目头文件
 
 InputHandler::InputHandler() {
 }

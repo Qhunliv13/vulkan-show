@@ -1,15 +1,24 @@
 #pragma once
 
-#include <string>
-#include <cstdint>
+#include <string>  // 2. 系统头文件
+#include <cstdint>  // 2. 系统头文件
 
-// 前向声明（避免包含平台特定头文件）
+// 前向声明（避免包含平台特定头文件，减少编译依赖）
 struct HWND__;
 typedef HWND__* HWND;
 struct HINSTANCE__;
 typedef HINSTANCE__* HINSTANCE;
 
-// 窗口接口 - 抽象窗口操作，解耦组件与具体窗口实现
+/**
+ * 窗口接口 - 抽象窗口操作，解耦组件与具体窗口实现
+ * 
+ * 职责：提供平台无关的窗口操作接口，隐藏平台特定实现细节
+ * 设计：通过接口抽象，支持多种窗口实现（Windows、Linux、macOS等）
+ * 
+ * 使用方式：
+ * 1. 通过工厂接口创建实现（如 WindowFactory）
+ * 2. 使用接口指针操作，无需了解具体实现
+ */
 class IWindow {
 public:
     virtual ~IWindow() = default;

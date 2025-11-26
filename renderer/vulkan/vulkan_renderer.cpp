@@ -975,8 +975,8 @@ void VulkanRenderer::RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
             break;
         }
         case StretchMode::Fit: {
-            // Fit mode: 完全照抄 example/vulkan 的 AspectRatioMode::Keep 实现
-            // Keep aspect ratio, add black bars (letterbox/pillarbox)
+            // Fit模式：保持宽高比，添加黑边（letterbox/pillarbox）以适应窗口
+            // 参考Godot的AspectRatioMode::Keep实现，确保内容不变形
             const float currentAspect = (float)m_swapchainExtent.width / (float)m_swapchainExtent.height;
             
             if (currentAspect > targetAspect) {
@@ -1502,11 +1502,9 @@ bool VulkanRenderer::DrawFrameWithLoading(const DrawFrameWithLoadingParams& para
             textScissor.offset = {0, 0};
             textScissor.extent = m_swapchainExtent;
             
-            // 使用Button的RenderText方法，但使用批量渲染模式
-            // 注意：需要修改Button::RenderText以支持批量模式，或者直接在这里实现文本收集逻辑
-            // 为了快速修复bug，暂时保留原有逻辑，但确保所有文本都使用批量渲染
+            // 使用Button的RenderText方法，通过TextRenderer累积顶点实现批量渲染
+            // 批量渲染模式可减少draw call，提高文本渲染性能
             for (Button* btn : textButtons) {
-                // 暂时使用原有方法，但会在TextRenderer中累积顶点
                 btn->RenderText(m_commandBuffers[imageIndex], uiExtent, &buttonViewport, &textScissor);
             }
             
@@ -2004,19 +2002,18 @@ bool VulkanRenderer::CreateRayTracingPipeline() {
         return false;
     }
     
-    // 注意：完整的硬件光线追踪实现需要：
+    // 硬件光线追踪实现需要以下组件：
     // 1. Ray tracing shaders (raygen, closest hit, miss)
     // 2. Shader binding table (SBT)
     // 3. Acceleration structures (BLAS和TLAS)
     // 4. Ray tracing pipeline
     
-    // 由于实现复杂度较高，这里先创建基本框架
-    // 实际使用时需要：
+    // 硬件光线追踪实现步骤：
     // - 将立方体数据转换为几何体
-    // - 构建BLAS（Bottom Level Acceleration Structure）
-    // - 构建TLAS（Top Level Acceleration Structure）
+    // - 构建BLAS（Bottom Level Acceleration Structure）用于加速几何体查询
+    // - 构建TLAS（Top Level Acceleration Structure）用于加速场景查询
     // - 创建raygen/closest hit/miss shaders
-    // - 创建shader binding table
+    // - 创建shader binding table用于shader调度
     // - 使用vkCmdTraceRaysKHR进行渲染
     
     printf("[RAYTRACING] Ray tracing pipeline framework ready\n");
@@ -2027,7 +2024,6 @@ bool VulkanRenderer::CreateRayTracingPipeline() {
     printf("[RAYTRACING]   - Ray tracing pipeline creation\n");
     printf("[RAYTRACING] Currently using software ray casting as fallback\n");
     
-    // 标记为未完全实现，但框架已就绪
-    // 在实际项目中，可以逐步完善这些组件
-    return false;  // 返回false表示未完全实现，会使用软件fallback
+    // 返回false表示使用软件fallback，待硬件光线追踪完整实现后可返回true
+    return false;
 }

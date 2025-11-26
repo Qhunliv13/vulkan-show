@@ -1,6 +1,15 @@
 #pragma once
 
-// 输入提供者接口 - 用于解耦输入处理与渲染调度
+/**
+ * 输入提供者接口 - 用于解耦输入处理与渲染调度
+ * 
+ * 职责：提供键盘输入访问接口，支持渲染调度器获取输入状态
+ * 设计：通过接口抽象，解耦渲染调度与输入处理实现
+ * 
+ * 使用方式：
+ * 1. 通过依赖注入获取接口指针
+ * 2. 使用 IsKeyPressed()、GetWASDKeys() 等方法获取输入状态
+ */
 class IInputProvider {
 public:
     virtual ~IInputProvider() = default;

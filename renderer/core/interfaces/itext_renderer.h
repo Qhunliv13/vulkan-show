@@ -1,9 +1,19 @@
 #pragma once
 
-#include <string>
-#include "core/types/render_types.h"
+#include <string>  // 2. 系统头文件
+#include "core/types/render_types.h"  // 4. 项目头文件（类型）
 
-// 文字渲染器接口 - 用于解耦文字渲染与UI管理，不依赖具体渲染后端
+/**
+ * 文字渲染器接口 - 用于解耦文字渲染与UI管理，不依赖具体渲染后端
+ * 
+ * 职责：提供平台无关的文字渲染接口，支持批量渲染和文本测量
+ * 设计：使用抽象设备句柄，支持多种渲染后端（Vulkan、OpenGL、DirectX等）
+ * 
+ * 使用方式：
+ * 1. 通过工厂接口创建实现（如 TextRendererFactory）
+ * 2. 使用接口指针操作，无需了解具体实现
+ * 3. 支持批量渲染模式，提高渲染效率
+ */
 class ITextRenderer {
 public:
     virtual ~ITextRenderer() = default;

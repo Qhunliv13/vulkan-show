@@ -1,9 +1,19 @@
 #pragma once
 
-#include "core/config/constants.h"
-#include <string>
+#include <string>  // 2. 系统头文件
+#include "core/config/constants.h"  // 4. 项目头文件（配置）
 
-// 配置提供者接口 - 用于依赖注入配置，替代单例
+/**
+ * 配置提供者接口 - 用于依赖注入配置，替代单例
+ * 
+ * 职责：提供统一的配置访问接口，管理应用配置参数
+ * 设计：通过接口抽象，支持多种配置实现（命令行配置、文件配置等）
+ * 
+ * 使用方式：
+ * 1. 通过依赖注入获取接口指针
+ * 2. 使用 Get/Set 方法访问和修改配置参数
+ * 3. 通过 Initialize() 从命令行参数初始化配置
+ */
 class IConfigProvider {
 public:
     virtual ~IConfigProvider() = default;
