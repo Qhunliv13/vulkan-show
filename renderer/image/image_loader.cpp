@@ -41,9 +41,15 @@ private:
     ULONG_PTR m_gdiplusToken;
 };
 
-static GdiplusInitializer g_gdiplusInit;
+// GDI+初始化器（静态成员，确保在使用前初始化）
+static GdiplusInitializer& GetGdiplusInit() {
+    static GdiplusInitializer g_gdiplusInit;
+    return g_gdiplusInit;
+}
 
 renderer::image::ImageData renderer::image::ImageLoader::LoadImage(const std::string& filepath) {
+    // 确保 GDI+ 已初始化（通过调用函数触发静态变量初始化）
+    GetGdiplusInit();
     // 检查文件扩展名
     size_t dotPos = filepath.find_last_of('.');
     if (dotPos != std::string::npos) {
@@ -63,6 +69,9 @@ renderer::image::ImageData renderer::image::ImageLoader::LoadImage(const std::st
 }
 
 renderer::image::ImageData renderer::image::ImageLoader::LoadPNG(const std::string& filepath) {
+    // 确保 GDI+ 已初始化
+    GetGdiplusInit();
+    
     ImageData result;
     
     // 使用GDI+加载PNG
@@ -104,6 +113,9 @@ renderer::image::ImageData renderer::image::ImageLoader::LoadPNG(const std::stri
 }
 
 renderer::image::ImageData renderer::image::ImageLoader::LoadImageFromMemory(const uint8_t* data, size_t size) {
+    // 确保 GDI+ 已初始化
+    GetGdiplusInit();
+    
     ImageData result;
     
     // 从内存创建流

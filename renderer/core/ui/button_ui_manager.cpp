@@ -42,17 +42,15 @@ bool ButtonUIManager::Initialize(const IRenderContext& renderContext,
     m_boxColorButtonsInitialized.resize(9, false);
     
     // 创建非const IRenderContext 副本（Button组件需要非const引用）
-    // 注意：Button 等组件当前直接依赖 Vulkan，通过接口获取设备信息后创建临时对象
-    // 未来可考虑重构为使用 IRenderContext 接口，避免直接依赖 Vulkan 实现
+    // 使用抽象类型创建渲染上下文（工厂函数内部进行 Vulkan 类型转换）
     Extent2D extent = renderContext.GetSwapchainExtent();
-    VkExtent2D vkExtent = { extent.width, extent.height };
     std::unique_ptr<IRenderContext> nonConstContextPtr(CreateVulkanRenderContext(
-        static_cast<VkDevice>(renderContext.GetDevice()),
-        static_cast<VkPhysicalDevice>(renderContext.GetPhysicalDevice()),
-        static_cast<VkCommandPool>(renderContext.GetCommandPool()),
-        static_cast<VkQueue>(renderContext.GetGraphicsQueue()),
-        static_cast<VkRenderPass>(renderContext.GetRenderPass()),
-        vkExtent
+        renderContext.GetDevice(),
+        renderContext.GetPhysicalDevice(),
+        renderContext.GetCommandPool(),
+        renderContext.GetGraphicsQueue(),
+        renderContext.GetRenderPass(),
+        extent
     ));
     IRenderContext& nonConstContext = *nonConstContextPtr;
     

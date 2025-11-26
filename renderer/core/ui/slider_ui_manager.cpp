@@ -23,14 +23,13 @@ bool SliderUIManager::Initialize(const IRenderContext& renderContext, IWindow* w
     m_window = window;
     // 创建非const IRenderContext 副本（Slider组件需要非const引用）
     Extent2D extent = renderContext.GetSwapchainExtent();
-    VkExtent2D vkExtent = { extent.width, extent.height };
     std::unique_ptr<IRenderContext> nonConstContextPtr(CreateVulkanRenderContext(
-        static_cast<VkDevice>(renderContext.GetDevice()),
-        static_cast<VkPhysicalDevice>(renderContext.GetPhysicalDevice()),
-        static_cast<VkCommandPool>(renderContext.GetCommandPool()),
-        static_cast<VkQueue>(renderContext.GetGraphicsQueue()),
-        static_cast<VkRenderPass>(renderContext.GetRenderPass()),
-        vkExtent
+        renderContext.GetDevice(),
+        renderContext.GetPhysicalDevice(),
+        renderContext.GetCommandPool(),
+        renderContext.GetGraphicsQueue(),
+        renderContext.GetRenderPass(),
+        extent
     ));
     IRenderContext& nonConstContext = *nonConstContextPtr;
     return InitializeOrangeSlider(nonConstContext, stretchMode);

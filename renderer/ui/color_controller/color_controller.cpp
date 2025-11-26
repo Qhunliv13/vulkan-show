@@ -253,7 +253,9 @@ void ColorController::Render(VkCommandBuffer commandBuffer, VkExtent2D extent) {
     
     // 渲染颜色显示按钮
     if (m_colorDisplayButtonInitialized && m_colorDisplayButton.IsVisible()) {
-        m_colorDisplayButton.Render(commandBuffer, extent);
+        // 将 Vulkan 类型转换为抽象类型
+        Extent2D abstractExtent = { extent.width, extent.height };
+        m_colorDisplayButton.Render(static_cast<CommandBufferHandle>(commandBuffer), abstractExtent);
     }
 }
 

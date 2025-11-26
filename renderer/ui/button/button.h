@@ -4,12 +4,26 @@
 #include <memory>        // 2. 系统头文件
 #include <string>        // 2. 系统头文件
 
-#include <vulkan/vulkan.h>  // 3. 第三方库头文件
+#include "core/types/render_types.h"  // 4. 项目头文件（抽象类型）
 
 // 前向声明
 class IRenderContext;
 class TextRenderer;
 namespace renderer { namespace texture { class Texture; } }
+
+// Vulkan 类型前向声明（仅用于已废弃的向后兼容接口）
+struct VkDevice_T;
+struct VkPhysicalDevice_T;
+struct VkCommandPool_T;
+struct VkQueue_T;
+struct VkRenderPass_T;
+struct VkExtent2D;
+
+typedef VkDevice_T* VkDevice;
+typedef VkPhysicalDevice_T* VkPhysicalDevice;
+typedef VkCommandPool_T* VkCommandPool;
+typedef VkQueue_T* VkQueue;
+typedef VkRenderPass_T* VkRenderPass;
 
 // Scaled 模式的拉伸参数（前向声明，实际定义在 core/stretch_params.h，已废弃）
 struct StretchParams;
@@ -275,14 +289,14 @@ public:
     bool IsPointInside(float px, float py) const;
     
     // 渲染按钮到命令缓冲区（使用传统方式或纯shader方式，取决于初始化时的选择）
-    void Render(VkCommandBuffer commandBuffer, VkExtent2D extent);
+    void Render(CommandBufferHandle commandBuffer, Extent2D extent);
     
     // 纯shader方式渲染按钮（在片段着色器中判断像素是否在按钮区域内）
-    void RenderPureShader(VkCommandBuffer commandBuffer, VkExtent2D extent);
+    void RenderPureShader(CommandBufferHandle commandBuffer, Extent2D extent);
     
     // 渲染按钮文本（单独调用，确保在所有其他元素之后渲染）
-    void RenderText(VkCommandBuffer commandBuffer, VkExtent2D extent, 
-                    const VkViewport* viewport = nullptr, const VkRect2D* scissor = nullptr);
+    void RenderText(CommandBufferHandle commandBuffer, Extent2D extent, 
+                    const void* viewport = nullptr, const void* scissor = nullptr);
     
     // 设置点击回调函数
     void SetOnClickCallback(std::function<void()> callback) {
@@ -340,13 +354,13 @@ private:
     void UpdateButtonBuffer();
     
     // 查找内存类型
-    uint32_t FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
+    uint32_t FindMemoryType(uint32_t typeFilter, MemoryPropertyFlag properties);
     
     // 创建图形管线（传统方式）
-    bool CreatePipeline(VkRenderPass renderPass);
+    bool CreatePipeline(RenderPassHandle renderPass);
     
     // 创建纯shader图形管线
-    bool CreatePureShaderPipeline(VkRenderPass renderPass);
+    bool CreatePureShaderPipeline(RenderPassHandle renderPass);
     
     // 创建描述符集布局（用于纹理绑定）
     bool CreateDescriptorSetLayout();
@@ -360,13 +374,14 @@ private:
     // 渲染上下文（新接口）
     IRenderContext* m_renderContext = nullptr;
     
-    // Vulkan对象（通过渲染上下文获取，保留用于向后兼容）
-    VkDevice m_device = VK_NULL_HANDLE;
-    VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
-    VkCommandPool m_commandPool = VK_NULL_HANDLE;
-    VkQueue m_graphicsQueue = VK_NULL_HANDLE;
-    VkRenderPass m_renderPass = VK_NULL_HANDLE;
-    VkExtent2D m_swapchainExtent = {};
+    // 渲染设备句柄（通过渲染上下文获取，使用抽象类型）
+    // 注意：在 .cpp 文件中转换为 Vulkan 类型使用
+    DeviceHandle m_device = nullptr;
+    PhysicalDeviceHandle m_physicalDevice = nullptr;
+    CommandPoolHandle m_commandPool = nullptr;
+    QueueHandle m_graphicsQueue = nullptr;
+    RenderPassHandle m_renderPass = nullptr;
+    Extent2D m_swapchainExtent = {};
     
     // 按钮属性
     float m_x = 0.0f;
@@ -393,8 +408,9 @@ private:
     std::string m_texturePath = "";
     bool m_useTexture = false;
     std::unique_ptr<renderer::texture::Texture> m_texture;  // Vulkan纹理对象
-    VkDescriptorSet m_descriptorSet = VK_NULL_HANDLE;  // 描述符集（用于绑定纹理）
-    VkDescriptorPool m_descriptorPool = VK_NULL_HANDLE;  // 描述符池
+    // 注意：以下成员变量在 .cpp 文件中使用 Vulkan 类型，头文件中使用不透明指针
+    void* m_descriptorSet = nullptr;  // 描述符集（用于绑定纹理）
+    void* m_descriptorPool = nullptr;  // 描述符池
     
     // 纹理图像数据（用于点击判定）
     struct TextureData {
@@ -439,18 +455,19 @@ private:
     int m_shapeType = 0;
     
     // 渲染资源（传统方式）
-    VkBuffer m_vertexBuffer = VK_NULL_HANDLE;
-    VkDeviceMemory m_vertexBufferMemory = VK_NULL_HANDLE;
-    VkPipeline m_graphicsPipeline = VK_NULL_HANDLE;
-    VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
-    VkDescriptorSetLayout m_descriptorSetLayout = VK_NULL_HANDLE;
+    // 注意：以下成员变量在 .cpp 文件中使用 Vulkan 类型，头文件中使用不透明指针
+    void* m_vertexBuffer = nullptr;
+    void* m_vertexBufferMemory = nullptr;
+    void* m_graphicsPipeline = nullptr;
+    void* m_pipelineLayout = nullptr;
+    void* m_descriptorSetLayout = nullptr;
     
     // 纯shader渲染资源
     bool m_usePureShader = false;
-    VkBuffer m_fullscreenQuadBuffer = VK_NULL_HANDLE;
-    VkDeviceMemory m_fullscreenQuadBufferMemory = VK_NULL_HANDLE;
-    VkPipeline m_pureShaderPipeline = VK_NULL_HANDLE;
-    VkPipelineLayout m_pureShaderPipelineLayout = VK_NULL_HANDLE;
+    void* m_fullscreenQuadBuffer = nullptr;
+    void* m_fullscreenQuadBufferMemory = nullptr;
+    void* m_pureShaderPipeline = nullptr;
+    void* m_pureShaderPipelineLayout = nullptr;
     
     // 点击回调
     std::function<void()> m_onClickCallback;

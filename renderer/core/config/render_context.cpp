@@ -82,13 +82,20 @@ private:
  * 工厂函数实现（在头文件中声明，在 .cpp 中实现）
  * 所有权：[TRANSFER] 调用方获得所有权，负责使用 delete 或 std::unique_ptr 管理内存
  */
-IRenderContext* CreateVulkanRenderContext(VkDevice device, 
-                                          VkPhysicalDevice physicalDevice,
-                                          VkCommandPool commandPool,
-                                          VkQueue graphicsQueue,
-                                          VkRenderPass renderPass,
-                                          VkExtent2D swapchainExtent) {
-    return new VulkanRenderContext(device, physicalDevice, commandPool, 
-                                   graphicsQueue, renderPass, swapchainExtent);
+IRenderContext* CreateVulkanRenderContext(DeviceHandle device, 
+                                          PhysicalDeviceHandle physicalDevice,
+                                          CommandPoolHandle commandPool,
+                                          QueueHandle graphicsQueue,
+                                          RenderPassHandle renderPass,
+                                          Extent2D swapchainExtent) {
+    // 将抽象类型转换为 Vulkan 类型（工厂函数内部进行转换，隐藏实现细节）
+    return new VulkanRenderContext(
+        static_cast<VkDevice>(device),
+        static_cast<VkPhysicalDevice>(physicalDevice),
+        static_cast<VkCommandPool>(commandPool),
+        static_cast<VkQueue>(graphicsQueue),
+        static_cast<VkRenderPass>(renderPass),
+        VkExtent2D{ swapchainExtent.width, swapchainExtent.height }
+    );
 }
 

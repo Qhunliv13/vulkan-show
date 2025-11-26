@@ -13,6 +13,7 @@
 
 #include "core/config/constants.h"   // 4. 项目头文件（按依赖层级从内到外）
 #include "core/config/stretch_params.h"
+#include "core/config/vulkan_render_context_factory.h"  // Vulkan 渲染上下文工厂
 #include "core/types/render_types.h"  // 抽象类型定义
 #include "core/utils/render_command_buffer.h"  // 在 .cpp 中包含实现
 #include "shader/shader_loader.h"
@@ -1455,8 +1456,10 @@ bool VulkanRenderer::DrawFrameWithLoading(const DrawFrameWithLoadingParams& para
         vkCmdSetScissor(m_commandBuffers[imageIndex], 0, 1, &buttonScissor);
         
         // 按层级顺序渲染所有按钮（先渲染按钮本身）
+        // 将 Vulkan 类型转换为抽象类型
+        Extent2D abstractUiExtent = { uiExtent.width, uiExtent.height };
         for (Button* btn : buttons) {
-            btn->Render(m_commandBuffers[imageIndex], uiExtent);
+            btn->Render(static_cast<CommandBufferHandle>(m_commandBuffers[imageIndex]), abstractUiExtent);
         }
         
         // 渲染滑块（如果有）
@@ -1501,8 +1504,9 @@ bool VulkanRenderer::DrawFrameWithLoading(const DrawFrameWithLoadingParams& para
             
             // 使用Button的RenderText方法，通过TextRenderer累积顶点实现批量渲染
             // 批量渲染模式可减少draw call，提高文本渲染性能
+            Extent2D abstractUiExtent = { uiExtent.width, uiExtent.height };
             for (Button* btn : textButtons) {
-                btn->RenderText(m_commandBuffers[imageIndex], uiExtent, &buttonViewport, &textScissor);
+                btn->RenderText(static_cast<CommandBufferHandle>(m_commandBuffers[imageIndex]), abstractUiExtent, &buttonViewport, &textScissor);
             }
             
             // 添加FPS文本到批次
@@ -1567,8 +1571,10 @@ bool VulkanRenderer::DrawFrameWithLoading(const DrawFrameWithLoadingParams& para
         vkCmdSetScissor(m_commandBuffers[imageIndex], 0, 1, &buttonScissor);
         
         // 按层级顺序渲染所有按钮（先渲染按钮本身，使用实际窗口大小）
+        // 将 Vulkan 类型转换为抽象类型
+        Extent2D abstractUiExtent = { uiExtent.width, uiExtent.height };
         for (Button* btn : buttons) {
-            btn->Render(m_commandBuffers[imageIndex], uiExtent);
+            btn->Render(static_cast<CommandBufferHandle>(m_commandBuffers[imageIndex]), abstractUiExtent);
         }
         
         // 渲染滑块（如果有）
@@ -1598,8 +1604,9 @@ bool VulkanRenderer::DrawFrameWithLoading(const DrawFrameWithLoadingParams& para
             params.textRenderer->BeginTextBatch();
             
             // 使用Button的RenderText方法，但会在TextRenderer中累积顶点
+            Extent2D abstractUiExtent = { uiExtent.width, uiExtent.height };
             for (Button* btn : textButtons) {
-                btn->RenderText(m_commandBuffers[imageIndex], uiExtent);
+                btn->RenderText(static_cast<CommandBufferHandle>(m_commandBuffers[imageIndex]), abstractUiExtent);
             }
             
             // 添加FPS文本到批次
@@ -1677,19 +1684,12 @@ bool VulkanRenderer::DrawFrameWithLoading(const DrawFrameWithLoadingParams& para
     return true;
 }
 
-// 背景纹理实现
-// 使用Button类来绘制全屏背景（简化实现）
-static std::unique_ptr<Button> s_backgroundButton = nullptr;
-
 bool VulkanRenderer::LoadBackgroundTexture(const std::string& filepath) {
-    printf("[BACKGROUND] Loading background texture: %s\n", filepath.c_str());
-    
     CleanupBackgroundTexture();
     
     // 先加载图像数据获取原始尺寸
     renderer::image::ImageData imageData = renderer::image::ImageLoader::LoadImage(filepath);
     if (imageData.width == 0 || imageData.height == 0) {
-        printf("[BACKGROUND] ERROR: Failed to load image data from %s\n", filepath.c_str());
         return false;
     }
     
@@ -1698,11 +1698,8 @@ bool VulkanRenderer::LoadBackgroundTexture(const std::string& filepath) {
     m_backgroundTextureHeight = imageData.height;
     float textureAspect = (float)m_backgroundTextureWidth / (float)m_backgroundTextureHeight;
     
-    printf("[BACKGROUND] Background texture dimensions: %dx%d, aspect=%.3f\n", 
-           m_backgroundTextureWidth, m_backgroundTextureHeight, textureAspect);
-    
     // 使用Button来绘制全屏背景（简化实现）
-    s_backgroundButton = std::make_unique<Button>();
+    m_backgroundButton = std::make_unique<Button>();
     
     // 获取窗口尺寸
     RECT clientRect;
@@ -1749,47 +1746,54 @@ bool VulkanRenderer::LoadBackgroundTexture(const std::string& filepath) {
     );
     bgConfig.zIndex = 0;  // zIndex = 0（最底层）
     
-    if (s_backgroundButton->Initialize(
-            m_device,
-            m_physicalDevice,
-            m_commandPool,
-            m_graphicsQueue,
-            m_renderPass,
-            bgExtent,  // 背景使用实际窗口大小，独立于UI坐标系
+    // 创建渲染上下文（使用抽象类型）
+    Extent2D abstractBgExtent = { bgExtent.width, bgExtent.height };
+    std::unique_ptr<IRenderContext> renderContext(CreateVulkanRenderContext(
+        static_cast<DeviceHandle>(m_device),
+        static_cast<PhysicalDeviceHandle>(m_physicalDevice),
+        static_cast<CommandPoolHandle>(m_commandPool),
+        static_cast<QueueHandle>(m_graphicsQueue),
+        static_cast<RenderPassHandle>(m_renderPass),
+        abstractBgExtent
+    ));
+    
+    if (!renderContext) {
+        m_backgroundButton.reset();
+        return false;
+    }
+    
+    if (m_backgroundButton->Initialize(
+            renderContext.get(),
             bgConfig,
             nullptr,
             false)) {  // 使用传统渲染方式，支持纹理
         // 背景始终响应窗口变化（不受UI拉伸模式影响）
         // 不设置SetFixedScreenSize，让背景按钮独立管理自己的行为
         
-        if (s_backgroundButton->HasTexture()) {
-            printf("[BACKGROUND] Background texture loaded successfully, size=%.0fx%.0f\n", bgWidth, bgHeight);
+        if (m_backgroundButton->HasTexture()) {
+            // 背景纹理加载成功
         } else {
-            printf("[BACKGROUND] WARNING: Background button initialized but has no texture!\n");
+            // 背景按钮已初始化但没有纹理
         }
         return true;
     } else {
-        printf("[BACKGROUND] ERROR: Failed to initialize background button\n");
-        s_backgroundButton.reset();
+        m_backgroundButton.reset();
         return false;
     }
 }
 
 void VulkanRenderer::CleanupBackgroundTexture() {
-    if (s_backgroundButton) {
-        s_backgroundButton.reset();
-        printf("[BACKGROUND] Background texture cleaned up\n");
+    if (m_backgroundButton) {
+        m_backgroundButton.reset();
     }
 }
 
 void VulkanRenderer::RenderBackgroundTexture(VkCommandBuffer commandBuffer, VkExtent2D extent) {
-    if (!s_backgroundButton) {
-        printf("[DEBUG] RenderBackgroundTexture: s_backgroundButton is null\n");
+    if (!m_backgroundButton) {
         return;
     }
     
-    if (!s_backgroundButton->HasTexture() || m_backgroundTextureWidth == 0 || m_backgroundTextureHeight == 0) {
-        printf("[DEBUG] RenderBackgroundTexture: Button has no texture or invalid dimensions\n");
+    if (!m_backgroundButton->HasTexture() || m_backgroundTextureWidth == 0 || m_backgroundTextureHeight == 0) {
         return;
     }
     
@@ -1825,22 +1829,21 @@ void VulkanRenderer::RenderBackgroundTexture(VkCommandBuffer commandBuffer, VkEx
         }
     }
     
-    // 背景使用独立的坐标系（始终使用实际窗口大小，完全独立于UI模式）
-    VkExtent2D bgExtent = extent;
-    
     // 更新背景按钮大小和位置（完全独立于UI模式，只根据背景模式计算）
-    s_backgroundButton->SetSize(bgWidth, bgHeight);
-    s_backgroundButton->UpdateForWindowResize(windowWidth, windowHeight);
+    m_backgroundButton->SetSize(bgWidth, bgHeight);
+    m_backgroundButton->UpdateForWindowResize(windowWidth, windowHeight);
     
     // 绘制背景（使用背景自己的坐标系，独立于UI坐标系）
-    s_backgroundButton->Render(commandBuffer, bgExtent);
+    // 将 Vulkan 类型转换为抽象类型
+    Extent2D abstractExtent = { extent.width, extent.height };
+    m_backgroundButton->Render(static_cast<CommandBufferHandle>(commandBuffer), abstractExtent);
 }
 
 bool VulkanRenderer::HasBackgroundTexture() const {
-    if (!s_backgroundButton) {
+    if (!m_backgroundButton) {
         return false;
     }
-    return s_backgroundButton->HasTexture();
+    return m_backgroundButton->HasTexture();
 }
 
 Extent2D VulkanRenderer::GetUIBaseSize() const {

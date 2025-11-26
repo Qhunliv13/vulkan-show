@@ -134,7 +134,12 @@ bool Slider::Initialize(VkDevice device, VkPhysicalDevice physicalDevice,
     // 创建临时渲染上下文（仅用于向后兼容）
     // 使用工厂函数创建 IRenderContext
     std::unique_ptr<IRenderContext> tempContext(CreateVulkanRenderContext(
-        device, physicalDevice, commandPool, graphicsQueue, renderPass, swapchainExtent));
+        static_cast<DeviceHandle>(device),
+        static_cast<PhysicalDeviceHandle>(physicalDevice),
+        static_cast<CommandPoolHandle>(commandPool),
+        static_cast<QueueHandle>(graphicsQueue),
+        static_cast<RenderPassHandle>(renderPass),
+        Extent2D{ swapchainExtent.width, swapchainExtent.height }));
     return Initialize(tempContext.get(), config, usePureShader);
 }
 
@@ -1203,6 +1208,8 @@ void Slider::Render(VkCommandBuffer commandBuffer, VkExtent2D extent) {
     
     // 渲染拖动点按钮（在所有模式下都需要）
     if (m_thumbButton) {
-        m_thumbButton->Render(commandBuffer, extent);
+        // 将 Vulkan 类型转换为抽象类型
+        Extent2D abstractExtent = { extent.width, extent.height };
+        m_thumbButton->Render(static_cast<CommandBufferHandle>(commandBuffer), abstractExtent);
     }
 }

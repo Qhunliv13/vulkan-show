@@ -148,7 +148,8 @@ private:
     // Scaled 模式的拉伸参数（已废弃，Scaled模式不使用此结构）
     StretchParams m_stretchParams;
     
-    // 背景纹理（使用Button类实现，不需要额外的成员变量）
+    // 背景纹理（使用Button类实现）
+    std::unique_ptr<Button> m_backgroundButton;
     
     // 相机状态（初始值，实际计算在GPU上完成）
     float m_cameraYaw = 0.0f;    // 水平旋转角度（弧度）

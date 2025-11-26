@@ -64,14 +64,14 @@ bool UIManager::Initialize(IRenderer* renderer,
         return false;
     }
     
-    VkExtent2D vkExtent = { uiExtent.width, uiExtent.height };
+    // 使用抽象类型创建渲染上下文（工厂函数内部进行 Vulkan 类型转换）
     std::unique_ptr<IRenderContext> renderContext(CreateVulkanRenderContext(
-        static_cast<VkDevice>(renderDevice->GetDevice()),
-        static_cast<VkPhysicalDevice>(renderDevice->GetPhysicalDevice()),
-        static_cast<VkCommandPool>(renderDevice->GetCommandPool()),
-        static_cast<VkQueue>(renderDevice->GetGraphicsQueue()),
-        static_cast<VkRenderPass>(renderDevice->GetRenderPass()),
-        vkExtent
+        renderDevice->GetDevice(),
+        renderDevice->GetPhysicalDevice(),
+        renderDevice->GetCommandPool(),
+        renderDevice->GetGraphicsQueue(),
+        renderDevice->GetRenderPass(),
+        uiExtent
     ));
     
     if (!InitializeLoadingAnimation(m_renderer, *renderContext, stretchMode, screenWidth, screenHeight)) {
