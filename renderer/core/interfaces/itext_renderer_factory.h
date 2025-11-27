@@ -1,5 +1,7 @@
 #pragma once
 
+#include <memory>  // 2. 系统头文件
+
 // 前向声明
 class ITextRenderer;
 
@@ -13,19 +15,18 @@ class ITextRenderer;
  * 1. 实现此接口创建具体的文字渲染器（如 TextRendererFactory）
  * 2. 通过依赖注入传入工厂实例
  * 3. 使用 CreateTextRenderer() 创建文字渲染器实例
- * 4. 注意：当前使用裸指针返回，未来考虑改用 std::unique_ptr 或句柄模式
+ * 4. 通过 std::unique_ptr 自动管理内存，无需手动销毁
  */
 class ITextRendererFactory {
 public:
     virtual ~ITextRendererFactory() = default;
     
-    // 创建文字渲染器实例
-    // 所有权：[TRANSFER] 调用方获得所有权，负责通过 DestroyTextRenderer() 销毁
-    // 建议：未来考虑改用 std::unique_ptr 或句柄模式，避免裸指针
-    [[ownership("transfer")]]
-    virtual ITextRenderer* CreateTextRenderer() = 0;
-    
-    // 销毁文字渲染器实例
-    virtual void DestroyTextRenderer(ITextRenderer* renderer) = 0;
+    /**
+     * 创建文字渲染器实例
+     * 
+     * 所有权：[TRANSFER] 调用方通过 std::unique_ptr 获得所有权，自动管理内存
+     * @return std::unique_ptr<ITextRenderer> 文字渲染器实例，调用方获得所有权
+     */
+    virtual std::unique_ptr<ITextRenderer> CreateTextRenderer() = 0;
 };
 

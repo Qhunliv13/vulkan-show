@@ -1,19 +1,19 @@
 #include "core/managers/render_scheduler.h"  // 1. 对应头文件
 
-#include <windows.h>  // 2. 系统头文件
 #include <stdio.h>  // 2. 系统头文件
+#include <windows.h>  // 2. 系统头文件
 
-#include "core/interfaces/irenderer.h"  // 4. 项目头文件（接口）
 #include "core/interfaces/icamera_controller.h"  // 4. 项目头文件（接口）
-#include "core/interfaces/iscene_provider.h"  // 4. 项目头文件（接口）
-#include "core/interfaces/iuirender_provider.h"  // 4. 项目头文件（接口）
 #include "core/interfaces/iinput_provider.h"  // 4. 项目头文件（接口）
+#include "core/interfaces/irenderer.h"  // 4. 项目头文件（接口）
+#include "core/interfaces/iscene_provider.h"  // 4. 项目头文件（接口）
 #include "core/interfaces/itext_renderer.h"  // 4. 项目头文件（接口）
+#include "core/interfaces/iuirender_provider.h"  // 4. 项目头文件（接口）
+#include "core/interfaces/iwindow.h"  // 4. 项目头文件（接口）
+#include "loading/loading_animation.h"  // 4. 项目头文件（加载动画）
 #include "text/text_renderer.h"  // 4. 项目头文件（文字渲染器）
-#include "window/window.h"  // 4. 项目头文件（窗口）
 #include "ui/button/button.h"  // 4. 项目头文件（UI组件）
 #include "ui/slider/slider.h"  // 4. 项目头文件（UI组件）
-#include "loading/loading_animation.h"  // 4. 项目头文件（加载动画）
 
 RenderScheduler::RenderScheduler() {
 }
@@ -26,7 +26,7 @@ void RenderScheduler::Initialize(IRenderer* renderer,
                                  IUIRenderProvider* uiRenderProvider,
                                  IInputProvider* inputProvider,
                                  ITextRenderer* textRenderer,
-                                 Window* window,
+                                 IWindow* window,
                                  StretchMode stretchMode) {
     m_renderer = renderer;
     m_sceneProvider = sceneProvider;

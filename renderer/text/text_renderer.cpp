@@ -1,11 +1,14 @@
 #include "text/text_renderer.h"  // 1. 对应头文件
 
-#include <algorithm>    // 2. 系统头文件
-#include <cmath>        // 2. 系统头文件
-#include <cstring>      // 2. 系统头文件
+#include <algorithm>  // 2. 系统头文件
+#include <cmath>      // 2. 系统头文件
+#include <cstring>    // 2. 系统头文件
 
 #include <vulkan/vulkan.h>  // 3. 第三方库头文件
 
+// 注意：直接包含shader/shader_loader.h和window/window.h是因为需要使用具体类的静态方法
+// 根据开发标准第15.1节，应优先使用接口或前向声明，但静态方法需要完整定义
+// 未来可考虑创建IShaderLoader接口和IErrorHandler接口以符合依赖注入原则
 #include "shader/shader_loader.h"  // 4. 项目头文件
 #include "window/window.h"         // 4. 项目头文件
 
@@ -19,12 +22,12 @@ TextRenderer::~TextRenderer() {
 bool TextRenderer::Initialize(DeviceHandle device, PhysicalDeviceHandle physicalDevice,
                               CommandPoolHandle commandPool, QueueHandle graphicsQueue,
                               RenderPassHandle renderPass) {
-    // 将抽象句柄转换为 Vulkan 类型
-    m_device = static_cast<VkDevice>(device);
-    m_physicalDevice = static_cast<VkPhysicalDevice>(physicalDevice);
-    m_commandPool = static_cast<VkCommandPool>(commandPool);
-    m_graphicsQueue = static_cast<VkQueue>(graphicsQueue);
-    m_renderPass = static_cast<VkRenderPass>(renderPass);
+    // 存储抽象句柄（使用不透明指针）
+    m_device = device;
+    m_physicalDevice = physicalDevice;
+    m_commandPool = commandPool;
+    m_graphicsQueue = graphicsQueue;
+    m_renderPass = renderPass;
     
     // 默认加载系统字体
     if (!LoadFont("Arial", 16)) {
@@ -43,7 +46,7 @@ bool TextRenderer::Initialize(DeviceHandle device, PhysicalDeviceHandle physical
         return false;
     }
     
-    // 使用已转换的 m_renderPass（已在上面转换）
+    // 使用 m_renderPass（不透明指针，在 CreatePipeline 中转换为 Vulkan 类型）
     if (!CreatePipeline(m_renderPass)) {
         return false;
     }
@@ -55,54 +58,57 @@ bool TextRenderer::Initialize(DeviceHandle device, PhysicalDeviceHandle physical
 void TextRenderer::Cleanup() {
     if (!m_initialized) return;
     
-    if (m_graphicsPipeline != VK_NULL_HANDLE) {
-        vkDestroyPipeline(m_device, m_graphicsPipeline, nullptr);
-        m_graphicsPipeline = VK_NULL_HANDLE;
+    // 将不透明指针转换为 Vulkan 类型
+    VkDevice vkDevice = static_cast<VkDevice>(m_device);
+    
+    if (m_graphicsPipeline != nullptr) {
+        vkDestroyPipeline(vkDevice, static_cast<VkPipeline>(m_graphicsPipeline), nullptr);
+        m_graphicsPipeline = nullptr;
     }
     
-    if (m_pipelineLayout != VK_NULL_HANDLE) {
-        vkDestroyPipelineLayout(m_device, m_pipelineLayout, nullptr);
-        m_pipelineLayout = VK_NULL_HANDLE;
+    if (m_pipelineLayout != nullptr) {
+        vkDestroyPipelineLayout(vkDevice, static_cast<VkPipelineLayout>(m_pipelineLayout), nullptr);
+        m_pipelineLayout = nullptr;
     }
     
-    if (m_descriptorSetLayout != VK_NULL_HANDLE) {
-        vkDestroyDescriptorSetLayout(m_device, m_descriptorSetLayout, nullptr);
-        m_descriptorSetLayout = VK_NULL_HANDLE;
+    if (m_descriptorSetLayout != nullptr) {
+        vkDestroyDescriptorSetLayout(vkDevice, static_cast<VkDescriptorSetLayout>(m_descriptorSetLayout), nullptr);
+        m_descriptorSetLayout = nullptr;
     }
     
-    if (m_descriptorPool != VK_NULL_HANDLE) {
-        vkDestroyDescriptorPool(m_device, m_descriptorPool, nullptr);
-        m_descriptorPool = VK_NULL_HANDLE;
+    if (m_descriptorPool != nullptr) {
+        vkDestroyDescriptorPool(vkDevice, static_cast<VkDescriptorPool>(m_descriptorPool), nullptr);
+        m_descriptorPool = nullptr;
     }
     
-    if (m_textureSampler != VK_NULL_HANDLE) {
-        vkDestroySampler(m_device, m_textureSampler, nullptr);
-        m_textureSampler = VK_NULL_HANDLE;
+    if (m_textureSampler != nullptr) {
+        vkDestroySampler(vkDevice, static_cast<VkSampler>(m_textureSampler), nullptr);
+        m_textureSampler = nullptr;
     }
     
-    if (m_textureImageView != VK_NULL_HANDLE) {
-        vkDestroyImageView(m_device, m_textureImageView, nullptr);
-        m_textureImageView = VK_NULL_HANDLE;
+    if (m_textureImageView != nullptr) {
+        vkDestroyImageView(vkDevice, static_cast<VkImageView>(m_textureImageView), nullptr);
+        m_textureImageView = nullptr;
     }
     
-    if (m_textureImage != VK_NULL_HANDLE) {
-        vkDestroyImage(m_device, m_textureImage, nullptr);
-        m_textureImage = VK_NULL_HANDLE;
+    if (m_textureImage != nullptr) {
+        vkDestroyImage(vkDevice, static_cast<VkImage>(m_textureImage), nullptr);
+        m_textureImage = nullptr;
     }
     
-    if (m_textureImageMemory != VK_NULL_HANDLE) {
-        vkFreeMemory(m_device, m_textureImageMemory, nullptr);
-        m_textureImageMemory = VK_NULL_HANDLE;
+    if (m_textureImageMemory != nullptr) {
+        vkFreeMemory(vkDevice, static_cast<VkDeviceMemory>(m_textureImageMemory), nullptr);
+        m_textureImageMemory = nullptr;
     }
     
-    if (m_vertexBuffer != VK_NULL_HANDLE) {
-        vkDestroyBuffer(m_device, m_vertexBuffer, nullptr);
-        m_vertexBuffer = VK_NULL_HANDLE;
+    if (m_vertexBuffer != nullptr) {
+        vkDestroyBuffer(vkDevice, static_cast<VkBuffer>(m_vertexBuffer), nullptr);
+        m_vertexBuffer = nullptr;
     }
     
-    if (m_vertexBufferMemory != VK_NULL_HANDLE) {
-        vkFreeMemory(m_device, m_vertexBufferMemory, nullptr);
-        m_vertexBufferMemory = VK_NULL_HANDLE;
+    if (m_vertexBufferMemory != nullptr) {
+        vkFreeMemory(vkDevice, static_cast<VkDeviceMemory>(m_vertexBufferMemory), nullptr);
+        m_vertexBufferMemory = nullptr;
     }
     
     // 清理 GDI 资源
@@ -368,6 +374,11 @@ const TextRenderer::Glyph& TextRenderer::GetGlyph(uint32_t charCode) {
 }
 
 bool TextRenderer::CreateVulkanTexture(const void* data, uint32_t width, uint32_t height) {
+    // 将不透明指针转换为 Vulkan 类型
+    VkDevice vkDevice = static_cast<VkDevice>(m_device);
+    VkCommandPool vkCommandPool = static_cast<VkCommandPool>(m_commandPool);
+    VkQueue vkGraphicsQueue = static_cast<VkQueue>(m_graphicsQueue);
+    
     // 创建图像
     VkImageCreateInfo imageInfo = {};
     imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -384,14 +395,16 @@ bool TextRenderer::CreateVulkanTexture(const void* data, uint32_t width, uint32_
     imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     
-    if (vkCreateImage(m_device, &imageInfo, nullptr, &m_textureImage) != VK_SUCCESS) {
+    VkImage vkTextureImage;
+    if (vkCreateImage(vkDevice, &imageInfo, nullptr, &vkTextureImage) != VK_SUCCESS) {
         Window::ShowError("Failed to create texture image!");
         return false;
     }
+    m_textureImage = vkTextureImage;
     
     // 分配内存
     VkMemoryRequirements memRequirements;
-    vkGetImageMemoryRequirements(m_device, m_textureImage, &memRequirements);
+    vkGetImageMemoryRequirements(vkDevice, vkTextureImage, &memRequirements);
     
     VkMemoryAllocateInfo allocInfo = {};
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
@@ -399,12 +412,14 @@ bool TextRenderer::CreateVulkanTexture(const void* data, uint32_t width, uint32_
     allocInfo.memoryTypeIndex = FindMemoryType(memRequirements.memoryTypeBits, 
                                                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     
-    if (vkAllocateMemory(m_device, &allocInfo, nullptr, &m_textureImageMemory) != VK_SUCCESS) {
+    VkDeviceMemory vkTextureImageMemory;
+    if (vkAllocateMemory(vkDevice, &allocInfo, nullptr, &vkTextureImageMemory) != VK_SUCCESS) {
         Window::ShowError("Failed to allocate texture image memory!");
         return false;
     }
+    m_textureImageMemory = vkTextureImageMemory;
     
-    vkBindImageMemory(m_device, m_textureImage, m_textureImageMemory, 0);
+    vkBindImageMemory(vkDevice, vkTextureImage, vkTextureImageMemory, 0);
     
     // 创建暂存缓冲区并上传数据
     VkDeviceSize imageSize = width * height * 4;
@@ -418,13 +433,13 @@ bool TextRenderer::CreateVulkanTexture(const void* data, uint32_t width, uint32_
     bufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     
-    if (vkCreateBuffer(m_device, &bufferInfo, nullptr, &stagingBuffer) != VK_SUCCESS) {
+    if (vkCreateBuffer(vkDevice, &bufferInfo, nullptr, &stagingBuffer) != VK_SUCCESS) {
         Window::ShowError("Failed to create staging buffer!");
         return false;
     }
     
     VkMemoryRequirements stagingMemReq;
-    vkGetBufferMemoryRequirements(m_device, stagingBuffer, &stagingMemReq);
+    vkGetBufferMemoryRequirements(vkDevice, stagingBuffer, &stagingMemReq);
     
     VkMemoryAllocateInfo stagingAllocInfo = {};
     stagingAllocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
@@ -433,29 +448,29 @@ bool TextRenderer::CreateVulkanTexture(const void* data, uint32_t width, uint32_
                                                       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | 
                                                       VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     
-    if (vkAllocateMemory(m_device, &stagingAllocInfo, nullptr, &stagingBufferMemory) != VK_SUCCESS) {
-        vkDestroyBuffer(m_device, stagingBuffer, nullptr);
+    if (vkAllocateMemory(vkDevice, &stagingAllocInfo, nullptr, &stagingBufferMemory) != VK_SUCCESS) {
+        vkDestroyBuffer(vkDevice, stagingBuffer, nullptr);
         Window::ShowError("Failed to allocate staging buffer memory!");
         return false;
     }
     
-    vkBindBufferMemory(m_device, stagingBuffer, stagingBufferMemory, 0);
+    vkBindBufferMemory(vkDevice, stagingBuffer, stagingBufferMemory, 0);
     
     // 复制数据到暂存缓冲区
     void* mappedData;
-    vkMapMemory(m_device, stagingBufferMemory, 0, imageSize, 0, &mappedData);
+    vkMapMemory(vkDevice, stagingBufferMemory, 0, imageSize, 0, &mappedData);
     memcpy(mappedData, data, imageSize);
-    vkUnmapMemory(m_device, stagingBufferMemory);
+    vkUnmapMemory(vkDevice, stagingBufferMemory);
     
     // 创建命令缓冲区
     VkCommandBufferAllocateInfo allocCmdInfo = {};
     allocCmdInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     allocCmdInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocCmdInfo.commandPool = m_commandPool;
+    allocCmdInfo.commandPool = vkCommandPool;
     allocCmdInfo.commandBufferCount = 1;
     
     VkCommandBuffer commandBuffer;
-    vkAllocateCommandBuffers(m_device, &allocCmdInfo, &commandBuffer);
+    vkAllocateCommandBuffers(vkDevice, &allocCmdInfo, &commandBuffer);
     
     VkCommandBufferBeginInfo beginInfo = {};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -470,7 +485,7 @@ bool TextRenderer::CreateVulkanTexture(const void* data, uint32_t width, uint32_
     barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
     barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.image = m_textureImage;
+    barrier.image = vkTextureImage;
     barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     barrier.subresourceRange.baseMipLevel = 0;
     barrier.subresourceRange.levelCount = 1;
@@ -496,7 +511,7 @@ bool TextRenderer::CreateVulkanTexture(const void* data, uint32_t width, uint32_
     region.imageOffset = {0, 0, 0};
     region.imageExtent = {width, height, 1};
     
-    vkCmdCopyBufferToImage(commandBuffer, stagingBuffer, m_textureImage, 
+    vkCmdCopyBufferToImage(commandBuffer, stagingBuffer, vkTextureImage, 
                           VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
     
     // 转换图像布局为着色器读取
@@ -518,19 +533,19 @@ bool TextRenderer::CreateVulkanTexture(const void* data, uint32_t width, uint32_
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &commandBuffer;
     
-    vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
-    vkQueueWaitIdle(m_graphicsQueue);
+    vkQueueSubmit(vkGraphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(vkGraphicsQueue);
     
-    vkFreeCommandBuffers(m_device, m_commandPool, 1, &commandBuffer);
+    vkFreeCommandBuffers(vkDevice, vkCommandPool, 1, &commandBuffer);
     
     // 清理暂存缓冲区
-    vkDestroyBuffer(m_device, stagingBuffer, nullptr);
-    vkFreeMemory(m_device, stagingBufferMemory, nullptr);
+    vkDestroyBuffer(vkDevice, stagingBuffer, nullptr);
+    vkFreeMemory(vkDevice, stagingBufferMemory, nullptr);
     
     // 创建图像视图
     VkImageViewCreateInfo viewInfo = {};
     viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    viewInfo.image = m_textureImage;
+    viewInfo.image = vkTextureImage;
     viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
     viewInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
     viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -539,10 +554,12 @@ bool TextRenderer::CreateVulkanTexture(const void* data, uint32_t width, uint32_
     viewInfo.subresourceRange.baseArrayLayer = 0;
     viewInfo.subresourceRange.layerCount = 1;
     
-    if (vkCreateImageView(m_device, &viewInfo, nullptr, &m_textureImageView) != VK_SUCCESS) {
+    VkImageView vkTextureImageView;
+    if (vkCreateImageView(vkDevice, &viewInfo, nullptr, &vkTextureImageView) != VK_SUCCESS) {
         Window::ShowError("Failed to create texture image view!");
         return false;
     }
+    m_textureImageView = vkTextureImageView;
     
     // 创建采样器
     VkSamplerCreateInfo samplerInfo = {};
@@ -563,15 +580,20 @@ bool TextRenderer::CreateVulkanTexture(const void* data, uint32_t width, uint32_
     samplerInfo.minLod = 0.0f;
     samplerInfo.maxLod = 0.0f;
     
-    if (vkCreateSampler(m_device, &samplerInfo, nullptr, &m_textureSampler) != VK_SUCCESS) {
+    VkSampler vkTextureSampler;
+    if (vkCreateSampler(vkDevice, &samplerInfo, nullptr, &vkTextureSampler) != VK_SUCCESS) {
         Window::ShowError("Failed to create texture sampler!");
         return false;
     }
+    m_textureSampler = vkTextureSampler;
     
     return true;
 }
 
-bool TextRenderer::CreatePipeline(VkRenderPass renderPass) {
+bool TextRenderer::CreatePipeline(void* renderPass) {
+    // 将不透明指针转换为 Vulkan 类型
+    VkRenderPass vkRenderPass = static_cast<VkRenderPass>(renderPass);
+    VkDevice vkDevice = static_cast<VkDevice>(m_device);
     // 创建描述符集布局
     VkDescriptorSetLayoutBinding samplerBinding = {};
     samplerBinding.binding = 0;
@@ -585,10 +607,12 @@ bool TextRenderer::CreatePipeline(VkRenderPass renderPass) {
     layoutInfo.bindingCount = 1;
     layoutInfo.pBindings = &samplerBinding;
     
-    if (vkCreateDescriptorSetLayout(m_device, &layoutInfo, nullptr, &m_descriptorSetLayout) != VK_SUCCESS) {
+    VkDescriptorSetLayout vkDescriptorSetLayout;
+    if (vkCreateDescriptorSetLayout(vkDevice, &layoutInfo, nullptr, &vkDescriptorSetLayout) != VK_SUCCESS) {
         Window::ShowError("Failed to create descriptor set layout!");
         return false;
     }
+    m_descriptorSetLayout = vkDescriptorSetLayout;
     
     // 创建描述符池
     VkDescriptorPoolSize poolSize = {};
@@ -601,39 +625,43 @@ bool TextRenderer::CreatePipeline(VkRenderPass renderPass) {
     poolInfo.pPoolSizes = &poolSize;
     poolInfo.maxSets = 1;
     
-    if (vkCreateDescriptorPool(m_device, &poolInfo, nullptr, &m_descriptorPool) != VK_SUCCESS) {
+    VkDescriptorPool vkDescriptorPool;
+    if (vkCreateDescriptorPool(vkDevice, &poolInfo, nullptr, &vkDescriptorPool) != VK_SUCCESS) {
         Window::ShowError("Failed to create descriptor pool!");
         return false;
     }
+    m_descriptorPool = vkDescriptorPool;
     
     // 分配描述符集
     VkDescriptorSetAllocateInfo allocInfo = {};
     allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    allocInfo.descriptorPool = m_descriptorPool;
+    allocInfo.descriptorPool = vkDescriptorPool;
     allocInfo.descriptorSetCount = 1;
-    allocInfo.pSetLayouts = &m_descriptorSetLayout;
+    allocInfo.pSetLayouts = &vkDescriptorSetLayout;
     
-    if (vkAllocateDescriptorSets(m_device, &allocInfo, &m_descriptorSet) != VK_SUCCESS) {
+    VkDescriptorSet vkDescriptorSet;
+    if (vkAllocateDescriptorSets(vkDevice, &allocInfo, &vkDescriptorSet) != VK_SUCCESS) {
         Window::ShowError("Failed to allocate descriptor set!");
         return false;
     }
+    m_descriptorSet = vkDescriptorSet;
     
     // 更新描述符集
     VkDescriptorImageInfo imageInfo = {};
     imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    imageInfo.imageView = m_textureImageView;
-    imageInfo.sampler = m_textureSampler;
+    imageInfo.imageView = static_cast<VkImageView>(m_textureImageView);
+    imageInfo.sampler = static_cast<VkSampler>(m_textureSampler);
     
     VkWriteDescriptorSet descriptorWrite = {};
     descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrite.dstSet = m_descriptorSet;
+    descriptorWrite.dstSet = vkDescriptorSet;
     descriptorWrite.dstBinding = 0;
     descriptorWrite.dstArrayElement = 0;
     descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     descriptorWrite.descriptorCount = 1;
     descriptorWrite.pImageInfo = &imageInfo;
     
-    vkUpdateDescriptorSets(m_device, 1, &descriptorWrite, 0, nullptr);
+    vkUpdateDescriptorSets(vkDevice, 1, &descriptorWrite, 0, nullptr);
     
     // 加载 shader（优先尝试加载 SPIR-V 文件，如果不存在则尝试编译 GLSL）
     std::vector<char> vertShaderCode;
@@ -658,8 +686,8 @@ bool TextRenderer::CreatePipeline(VkRenderPass renderPass) {
         return false;
     }
     
-    VkShaderModule vertShaderModule = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(m_device, vertShaderCode);
-    VkShaderModule fragShaderModule = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(m_device, fragShaderCode);
+    VkShaderModule vertShaderModule = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(vkDevice, vertShaderCode);
+    VkShaderModule fragShaderModule = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(vkDevice, fragShaderCode);
     
     if (vertShaderModule == VK_NULL_HANDLE || fragShaderModule == VK_NULL_HANDLE) {
         Window::ShowError("Failed to create shader modules!");
@@ -795,16 +823,18 @@ bool TextRenderer::CreatePipeline(VkRenderPass renderPass) {
     VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutInfo.setLayoutCount = 1;
-    pipelineLayoutInfo.pSetLayouts = &m_descriptorSetLayout;
+    pipelineLayoutInfo.pSetLayouts = &vkDescriptorSetLayout;
     pipelineLayoutInfo.pushConstantRangeCount = 1;
     pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
     
-    if (vkCreatePipelineLayout(m_device, &pipelineLayoutInfo, nullptr, &m_pipelineLayout) != VK_SUCCESS) {
+    VkPipelineLayout vkPipelineLayout;
+    if (vkCreatePipelineLayout(vkDevice, &pipelineLayoutInfo, nullptr, &vkPipelineLayout) != VK_SUCCESS) {
         Window::ShowError("Failed to create pipeline layout!");
-        vkDestroyShaderModule(m_device, fragShaderModule, nullptr);
-        vkDestroyShaderModule(m_device, vertShaderModule, nullptr);
+        vkDestroyShaderModule(vkDevice, fragShaderModule, nullptr);
+        vkDestroyShaderModule(vkDevice, vertShaderModule, nullptr);
         return false;
     }
+    m_pipelineLayout = vkPipelineLayout;
     
     // 创建图形管线
     VkGraphicsPipelineCreateInfo pipelineInfo = {};
@@ -819,29 +849,32 @@ bool TextRenderer::CreatePipeline(VkRenderPass renderPass) {
     pipelineInfo.pDepthStencilState = &depthStencil;
     pipelineInfo.pColorBlendState = &colorBlending;
     pipelineInfo.pDynamicState = &dynamicState;
-    pipelineInfo.layout = m_pipelineLayout;
-    pipelineInfo.renderPass = renderPass;
+    pipelineInfo.layout = vkPipelineLayout;
+    pipelineInfo.renderPass = vkRenderPass;
     pipelineInfo.subpass = 0;
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
     
-    if (vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_graphicsPipeline) != VK_SUCCESS) {
+    VkPipeline vkGraphicsPipeline;
+    if (vkCreateGraphicsPipelines(vkDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &vkGraphicsPipeline) != VK_SUCCESS) {
         Window::ShowError("Failed to create graphics pipeline!");
-        vkDestroyPipelineLayout(m_device, m_pipelineLayout, nullptr);
-        vkDestroyShaderModule(m_device, fragShaderModule, nullptr);
-        vkDestroyShaderModule(m_device, vertShaderModule, nullptr);
+        vkDestroyPipelineLayout(vkDevice, vkPipelineLayout, nullptr);
+        vkDestroyShaderModule(vkDevice, fragShaderModule, nullptr);
+        vkDestroyShaderModule(vkDevice, vertShaderModule, nullptr);
         return false;
     }
+    m_graphicsPipeline = vkGraphicsPipeline;
     
     // 清理 shader 模块
-    vkDestroyShaderModule(m_device, fragShaderModule, nullptr);
-    vkDestroyShaderModule(m_device, vertShaderModule, nullptr);
+    vkDestroyShaderModule(vkDevice, fragShaderModule, nullptr);
+    vkDestroyShaderModule(vkDevice, vertShaderModule, nullptr);
     
     return true;
 }
 
-uint32_t TextRenderer::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
+uint32_t TextRenderer::FindMemoryType(uint32_t typeFilter, uint32_t properties) {
     VkPhysicalDeviceMemoryProperties memProperties;
-    vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &memProperties);
+    VkPhysicalDevice vkPhysicalDevice = static_cast<VkPhysicalDevice>(m_physicalDevice);
+    vkGetPhysicalDeviceMemoryProperties(vkPhysicalDevice, &memProperties);
     
     for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
         if ((typeFilter & (1 << i)) && 
@@ -855,6 +888,9 @@ uint32_t TextRenderer::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags
 }
 
 bool TextRenderer::CreateVertexBuffer() {
+    // 将不透明指针转换为 Vulkan 类型
+    VkDevice vkDevice = static_cast<VkDevice>(m_device);
+    
     // 创建动态顶点缓冲区（可以动态更新）
     VkDeviceSize bufferSize = sizeof(TextVertex) * 1000; // 最多支持 1000 个字符（每个字符 6 个顶点）
     
@@ -864,13 +900,15 @@ bool TextRenderer::CreateVertexBuffer() {
     bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     
-    if (vkCreateBuffer(m_device, &bufferInfo, nullptr, &m_vertexBuffer) != VK_SUCCESS) {
+    VkBuffer vkVertexBuffer;
+    if (vkCreateBuffer(vkDevice, &bufferInfo, nullptr, &vkVertexBuffer) != VK_SUCCESS) {
         Window::ShowError("Failed to create vertex buffer!");
         return false;
     }
+    m_vertexBuffer = vkVertexBuffer;
     
     VkMemoryRequirements memRequirements;
-    vkGetBufferMemoryRequirements(m_device, m_vertexBuffer, &memRequirements);
+    vkGetBufferMemoryRequirements(vkDevice, vkVertexBuffer, &memRequirements);
     
     VkMemoryAllocateInfo allocInfo = {};
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
@@ -879,12 +917,14 @@ bool TextRenderer::CreateVertexBuffer() {
                                                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | 
                                                VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     
-    if (vkAllocateMemory(m_device, &allocInfo, nullptr, &m_vertexBufferMemory) != VK_SUCCESS) {
+    VkDeviceMemory vkVertexBufferMemory;
+    if (vkAllocateMemory(vkDevice, &allocInfo, nullptr, &vkVertexBufferMemory) != VK_SUCCESS) {
         Window::ShowError("Failed to allocate vertex buffer memory!");
         return false;
     }
+    m_vertexBufferMemory = vkVertexBufferMemory;
     
-    vkBindBufferMemory(m_device, m_vertexBuffer, m_vertexBufferMemory, 0);
+    vkBindBufferMemory(vkDevice, vkVertexBuffer, vkVertexBufferMemory, 0);
     
     return true;
 }
@@ -1027,9 +1067,12 @@ void TextRenderer::AppendVerticesToBuffer(const std::string& text, float x, floa
     }
 }
 
-void TextRenderer::FlushBatch(VkCommandBuffer commandBuffer, float screenWidth, float screenHeight,
+void TextRenderer::FlushBatch(void* commandBuffer, float screenWidth, float screenHeight,
                               float viewportX, float viewportY,
                               float scaleX, float scaleY) {
+    // 将不透明指针转换为 Vulkan 类型
+    VkCommandBuffer vkCommandBuffer = static_cast<VkCommandBuffer>(commandBuffer);
+    VkDevice vkDevice = static_cast<VkDevice>(m_device);
     if (m_batchVertices.empty() || !m_initialized) {
         return;
     }
@@ -1089,9 +1132,10 @@ void TextRenderer::FlushBatch(VkCommandBuffer commandBuffer, float screenWidth, 
     if (!m_batchVertices.empty()) {
         void* data;
         size_t bufferSize = sizeof(TextVertex) * m_batchVertices.size();
-        vkMapMemory(m_device, m_vertexBufferMemory, 0, bufferSize, 0, &data);
+        VkDeviceMemory vkVertexBufferMemory = static_cast<VkDeviceMemory>(m_vertexBufferMemory);
+        vkMapMemory(vkDevice, vkVertexBufferMemory, 0, bufferSize, 0, &data);
         memcpy(data, m_batchVertices.data(), bufferSize);
-        vkUnmapMemory(m_device, m_vertexBufferMemory);
+        vkUnmapMemory(vkDevice, vkVertexBufferMemory);
     }
     
     // 设置viewport和scissor（使用传入的screenSize）
@@ -1109,28 +1153,32 @@ void TextRenderer::FlushBatch(VkCommandBuffer commandBuffer, float screenWidth, 
     scissor.extent = {(uint32_t)screenWidth, (uint32_t)screenHeight};
     
     // 绑定管线
-    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
+    VkPipeline vkGraphicsPipeline = static_cast<VkPipeline>(m_graphicsPipeline);
+    vkCmdBindPipeline(vkCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vkGraphicsPipeline);
     
     // 设置viewport和scissor
-    vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
-    vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+    vkCmdSetViewport(vkCommandBuffer, 0, 1, &viewport);
+    vkCmdSetScissor(vkCommandBuffer, 0, 1, &scissor);
     
     // 绑定描述符集
-    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, 
-                           m_pipelineLayout, 0, 1, &m_descriptorSet, 0, nullptr);
+    VkPipelineLayout vkPipelineLayout = static_cast<VkPipelineLayout>(m_pipelineLayout);
+    VkDescriptorSet vkDescriptorSet = static_cast<VkDescriptorSet>(m_descriptorSet);
+    vkCmdBindDescriptorSets(vkCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, 
+                           vkPipelineLayout, 0, 1, &vkDescriptorSet, 0, nullptr);
     
     // 设置 push constants（屏幕大小）
     float screenSize[2] = {screenWidth, screenHeight};
-    vkCmdPushConstants(commandBuffer, m_pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 
+    vkCmdPushConstants(vkCommandBuffer, vkPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 
                        0, sizeof(float) * 2, screenSize);
     
     // 绑定顶点缓冲区
-    VkBuffer vertexBuffers[] = {m_vertexBuffer};
+    VkBuffer vkVertexBuffer = static_cast<VkBuffer>(m_vertexBuffer);
+    VkBuffer vertexBuffers[] = {vkVertexBuffer};
     VkDeviceSize offsets[] = {0};
-    vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+    vkCmdBindVertexBuffers(vkCommandBuffer, 0, 1, vertexBuffers, offsets);
     
     // 绘制所有顶点
-    vkCmdDraw(commandBuffer, (uint32_t)m_batchVertices.size(), 1, 0, 0);
+    vkCmdDraw(vkCommandBuffer, (uint32_t)m_batchVertices.size(), 1, 0, 0);
     
     // 清空批次，准备下一帧
     m_batchVertices.clear();
@@ -1148,11 +1196,15 @@ void TextRenderer::UpdateVertexBuffer(const std::string& text, float x, float y,
     
     // 立即上传到GPU并清空批次（覆盖模式）
     if (!m_batchVertices.empty()) {
+        // 将不透明指针转换为 Vulkan 类型
+        VkDevice vkDevice = static_cast<VkDevice>(m_device);
+        VkDeviceMemory vkVertexBufferMemory = static_cast<VkDeviceMemory>(m_vertexBufferMemory);
+        
         void* data;
         size_t bufferSize = sizeof(TextVertex) * m_batchVertices.size();
-        vkMapMemory(m_device, m_vertexBufferMemory, 0, bufferSize, 0, &data);
+        vkMapMemory(vkDevice, vkVertexBufferMemory, 0, bufferSize, 0, &data);
         memcpy(data, m_batchVertices.data(), bufferSize);
-        vkUnmapMemory(m_device, m_vertexBufferMemory);
+        vkUnmapMemory(vkDevice, vkVertexBufferMemory);
         m_batchVertices.clear();
     }
 }
@@ -1196,23 +1248,27 @@ void TextRenderer::RenderText(CommandBufferHandle commandBuffer, const std::stri
     UpdateVertexBuffer(text, x, flippedY, r, g, b, a);
     
     // 绑定管线
-    vkCmdBindPipeline(vkCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
+    VkPipeline vkGraphicsPipeline = static_cast<VkPipeline>(m_graphicsPipeline);
+    vkCmdBindPipeline(vkCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vkGraphicsPipeline);
     
     // 设置viewport和scissor（必须在绑定管线之后设置，因为它们是动态状态）
     vkCmdSetViewport(vkCommandBuffer, 0, 1, &viewport);
     vkCmdSetScissor(vkCommandBuffer, 0, 1, &scissor);
     
     // 绑定描述符集
+    VkPipelineLayout vkPipelineLayout = static_cast<VkPipelineLayout>(m_pipelineLayout);
+    VkDescriptorSet vkDescriptorSet = static_cast<VkDescriptorSet>(m_descriptorSet);
     vkCmdBindDescriptorSets(vkCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, 
-                           m_pipelineLayout, 0, 1, &m_descriptorSet, 0, nullptr);
+                           vkPipelineLayout, 0, 1, &vkDescriptorSet, 0, nullptr);
     
     // 设置 push constants（屏幕大小）
     float screenSize[2] = {screenWidth, screenHeight};
-    vkCmdPushConstants(vkCommandBuffer, m_pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 
+    vkCmdPushConstants(vkCommandBuffer, vkPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 
                        0, sizeof(float) * 2, screenSize);
     
     // 绑定顶点缓冲区
-    VkBuffer vertexBuffers[] = {m_vertexBuffer};
+    VkBuffer vkVertexBuffer = static_cast<VkBuffer>(m_vertexBuffer);
+    VkBuffer vertexBuffers[] = {vkVertexBuffer};
     VkDeviceSize offsets[] = {0};
     vkCmdBindVertexBuffers(vkCommandBuffer, 0, 1, vertexBuffers, offsets);
     
@@ -1393,30 +1449,39 @@ void TextRenderer::SetFontSize(int fontSize) {
     if (LoadFont(m_fontName, fontSize)) {
         CreateFontAtlas();
         // 需要重新创建 Vulkan 纹理
-        if (m_textureImage != VK_NULL_HANDLE) {
-            vkDestroySampler(m_device, m_textureSampler, nullptr);
-            vkDestroyImageView(m_device, m_textureImageView, nullptr);
-            vkDestroyImage(m_device, m_textureImage, nullptr);
-            vkFreeMemory(m_device, m_textureImageMemory, nullptr);
+        if (m_textureImage != nullptr) {
+            // 将不透明指针转换为 Vulkan 类型
+            VkDevice vkDevice = static_cast<VkDevice>(m_device);
+            VkSampler vkTextureSampler = static_cast<VkSampler>(m_textureSampler);
+            VkImageView vkTextureImageView = static_cast<VkImageView>(m_textureImageView);
+            VkImage vkTextureImage = static_cast<VkImage>(m_textureImage);
+            VkDeviceMemory vkTextureImageMemory = static_cast<VkDeviceMemory>(m_textureImageMemory);
+            
+            vkDestroySampler(vkDevice, vkTextureSampler, nullptr);
+            vkDestroyImageView(vkDevice, vkTextureImageView, nullptr);
+            vkDestroyImage(vkDevice, vkTextureImage, nullptr);
+            vkFreeMemory(vkDevice, vkTextureImageMemory, nullptr);
         }
         CreateVulkanTexture(m_atlasData.data(), m_atlasWidth, m_atlasHeight);
         
         // 更新描述符集
+        VkDevice vkDevice = static_cast<VkDevice>(m_device);
+        VkDescriptorSet vkDescriptorSet = static_cast<VkDescriptorSet>(m_descriptorSet);
         VkDescriptorImageInfo imageInfo = {};
         imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        imageInfo.imageView = m_textureImageView;
-        imageInfo.sampler = m_textureSampler;
+        imageInfo.imageView = static_cast<VkImageView>(m_textureImageView);
+        imageInfo.sampler = static_cast<VkSampler>(m_textureSampler);
         
         VkWriteDescriptorSet descriptorWrite = {};
         descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrite.dstSet = m_descriptorSet;
+        descriptorWrite.dstSet = vkDescriptorSet;
         descriptorWrite.dstBinding = 0;
         descriptorWrite.dstArrayElement = 0;
         descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         descriptorWrite.descriptorCount = 1;
         descriptorWrite.pImageInfo = &imageInfo;
         
-        vkUpdateDescriptorSets(m_device, 1, &descriptorWrite, 0, nullptr);
+        vkUpdateDescriptorSets(vkDevice, 1, &descriptorWrite, 0, nullptr);
     }
 }
     

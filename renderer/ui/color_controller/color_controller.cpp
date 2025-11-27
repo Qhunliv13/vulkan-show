@@ -4,9 +4,11 @@
 #include <cmath>           // 2. 系统头文件
 #include <memory>          // 2. 系统头文件
 
-#include "text/text_renderer.h"       // 4. 项目头文件
-#include "ui/button/button.h"         // 4. 项目头文件
-#include "ui/slider/slider.h"         // 4. 项目头文件
+#include "core/types/render_types.h"               // 4. 项目头文件（抽象类型）
+#include "renderer/vulkan/vulkan_render_context_factory.h"  // 4. 项目头文件（工厂函数）
+#include "text/text_renderer.h"                    // 4. 项目头文件
+#include "ui/button/button.h"                      // 4. 项目头文件
+#include "ui/slider/slider.h"                     // 4. 项目头文件
 
 ColorController::ColorController() 
     : m_colorDisplayButtonInitialized(false)
@@ -134,13 +136,17 @@ bool ColorController::Initialize(VkDevice device, VkPhysicalDevice physicalDevic
     colorDisplayConfig.textColorB = 1.0f - m_colorB;
     colorDisplayConfig.textColorA = 1.0f;
     
+    // 创建临时渲染上下文（将 Vulkan 类型转换为抽象类型）
+    std::unique_ptr<IRenderContext> tempContext(CreateVulkanRenderContext(
+        static_cast<DeviceHandle>(device),
+        static_cast<PhysicalDeviceHandle>(physicalDevice),
+        static_cast<CommandPoolHandle>(commandPool),
+        static_cast<QueueHandle>(graphicsQueue),
+        static_cast<RenderPassHandle>(renderPass),
+        Extent2D{ swapchainExtent.width, swapchainExtent.height }));
+    
     if (m_colorDisplayButton.Initialize(
-            device,
-            physicalDevice,
-            commandPool,
-            graphicsQueue,
-            renderPass,
-            swapchainExtent,
+            tempContext.get(),
             colorDisplayConfig,
             textRenderer)) {
         

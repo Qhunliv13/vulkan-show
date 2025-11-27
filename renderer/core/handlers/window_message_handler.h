@@ -29,9 +29,9 @@ public:
      * 实际功能通过委托给 EventManager 实现
      * 
      * @param eventManager 事件管理器（不拥有所有权，由外部管理生命周期）
-     * @param window 窗口对象（不拥有所有权，仅用于兼容接口）
+     * @param window 窗口对象（不拥有所有权，仅用于兼容接口，当前未使用）
      * @param stretchMode 拉伸模式
-     * @param renderer 渲染器（不拥有所有权，仅用于兼容接口）
+     * @param renderer 渲染器（不拥有所有权，仅用于兼容接口，当前未使用）
      */
     void Initialize(EventManager* eventManager, Window* window, StretchMode stretchMode, IRenderer* renderer);
     

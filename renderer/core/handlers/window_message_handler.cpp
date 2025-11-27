@@ -34,6 +34,8 @@ void WindowMessageHandler::Initialize(EventManager* eventManager, Window* window
     m_eventManager = eventManager;
     m_stretchMode = stretchMode;
     // window 和 renderer 参数保留用于接口兼容性，实际功能由 EventManager 处理
+    (void)window;   // 未使用参数，保留用于接口兼容性
+    (void)renderer; // 未使用参数，保留用于接口兼容性
 }
 
 /**

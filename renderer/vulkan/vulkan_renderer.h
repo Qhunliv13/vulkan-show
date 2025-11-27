@@ -4,10 +4,12 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>                  // 2. 系统头文件
+
 #include <vulkan/vulkan.h>            // 3. 第三方库头文件
-#include <vector>                     // 3. 第三方库头文件
-#include <string>                     // 3. 第三方库头文件
-#include <memory>                     // 3. 第三方库头文件
+
+#include <memory>                     // 2. 系统头文件
+#include <string>                     // 2. 系统头文件
+#include <vector>                     // 2. 系统头文件
 #include "core/config/constants.h"    // 4. 项目头文件（配置）
 #include "core/config/stretch_params.h"  // 4. 项目头文件（配置）
 #include "core/interfaces/irenderer.h"   // 4. 项目头文件（接口）

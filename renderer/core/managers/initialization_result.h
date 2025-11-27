@@ -1,7 +1,7 @@
 #pragma once
 
-#include <string>
-#include <vector>
+#include <string>  // 2. 系统头文件
+#include <vector>  // 2. 系统头文件
 
 // 初始化结果 - 统一错误处理
 struct InitializationResult {

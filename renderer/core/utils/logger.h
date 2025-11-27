@@ -1,9 +1,9 @@
 #pragma once
 
-#include <fstream>        // 2. 系统头文件
-#include <memory>         // 2. 系统头文件
-#include <mutex>          // 2. 系统头文件
-#include <string>         // 2. 系统头文件
+#include <fstream>
+#include <memory>
+#include <mutex>
+#include <string>
 
 #include "core/interfaces/ilogger.h"  // 4. 项目头文件
 

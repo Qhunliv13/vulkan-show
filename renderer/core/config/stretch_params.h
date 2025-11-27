@@ -4,6 +4,9 @@
  * Canvas Items 模式的拉伸参数
  * 
  * 用于控制 UI 元素在不同窗口尺寸下的拉伸和定位行为
+ * 
+ * 注意：这是一个 POD（Plain Old Data）数据传输对象，用作配置参数结构体
+ * 成员变量不使用 m_ 前缀以保持数据结构的简洁性和直接访问性
  */
 struct StretchParams {
     float stretchScaleX = 1.0f;      // X轴拉伸比例

@@ -1,10 +1,8 @@
-// UIManager getter方法实现
-// 将getter方法单独实现，避免 ui_manager.cpp 文件过大
-// 需要包含子管理器的完整定义以访问其方法
+#include "core/ui/ui_manager.h"  // 1. 对应头文件
+
 #include "core/ui/button_ui_manager.h"  // 4. 项目头文件（UI管理器）
 #include "core/ui/color_ui_manager.h"  // 4. 项目头文件（UI管理器）
 #include "core/ui/slider_ui_manager.h"  // 4. 项目头文件（UI管理器）
-#include "core/ui/ui_manager.h"  // 4. 项目头文件（UI管理器）
 
 Button* UIManager::GetEnterButton() const {
     return m_buttonManager ? m_buttonManager->GetEnterButton() : nullptr;

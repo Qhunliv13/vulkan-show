@@ -1,11 +1,11 @@
 #pragma once
 
-#include <functional>      // 2. 系统头文件
-#include <memory>          // 2. 系统头文件
-#include <mutex>           // 2. 系统头文件
-#include <string>          // 2. 系统头文件
-#include <unordered_map>   // 2. 系统头文件
-#include <vector>          // 2. 系统头文件
+#include <functional>
+#include <memory>
+#include <mutex>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 #include "core/interfaces/ievent_bus.h"  // 4. 项目头文件
 

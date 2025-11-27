@@ -7,14 +7,18 @@
 
 #include <vulkan/vulkan.h>     // 3. 第三方库头文件
 
-// 注意：window.h已经包含了windows.h，所以LoadImage宏可能已经被定义
-// 在包含image_loader.h之前取消宏定义，避免与ImageLoader::LoadImage冲突
+/**
+ * 注意：window.h已经包含了windows.h，所以LoadImage宏可能已经被定义
+ * 在包含image_loader.h之前取消宏定义，避免与ImageLoader::LoadImage冲突
+ * 
+ * 原因：Windows API 定义了 LoadImage 宏，会与 ImageLoader::LoadImage 方法名冲突
+ */
 #ifdef LoadImage
 #undef LoadImage
 #endif
-#include "core/config/render_context.h"                    // 4. 项目头文件
+#include "core/interfaces/irender_context.h"  // 4. 项目头文件（接口）
 #include "core/config/stretch_params.h"                    // 4. 项目头文件
-#include "core/config/vulkan_render_context_factory.h"     // 4. 项目头文件
+#include "renderer/vulkan/vulkan_render_context_factory.h"  // 4. 项目头文件（工厂函数）
 #include "core/types/render_types.h"                       // 4. 项目头文件
 #include "image/image_loader.h"                            // 4. 项目头文件
 #include "shader/shader_loader.h"                          // 4. 项目头文件
@@ -167,25 +171,6 @@ bool Button::Initialize(IRenderContext* renderContext,
     
     m_initialized = true;
     return true;
-}
-
-// 兼容旧接口的初始化方法（已废弃）
-bool Button::Initialize(VkDevice device, VkPhysicalDevice physicalDevice, 
-                       VkCommandPool commandPool, VkQueue graphicsQueue, 
-                       VkRenderPass renderPass, VkExtent2D swapchainExtent,
-                       const ButtonConfig& config,
-                       TextRenderer* textRenderer,
-                       bool usePureShader) {
-    // 创建临时渲染上下文（仅用于向后兼容）
-    // 使用工厂函数创建 IRenderContext（将 Vulkan 类型转换为抽象类型）
-    std::unique_ptr<IRenderContext> tempContext(CreateVulkanRenderContext(
-        static_cast<DeviceHandle>(device),
-        static_cast<PhysicalDeviceHandle>(physicalDevice),
-        static_cast<CommandPoolHandle>(commandPool),
-        static_cast<QueueHandle>(graphicsQueue),
-        static_cast<RenderPassHandle>(renderPass),
-        Extent2D{ swapchainExtent.width, swapchainExtent.height }));
-    return Initialize(tempContext.get(), config, textRenderer, usePureShader);
 }
 
 void Button::Cleanup() {

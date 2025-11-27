@@ -1,9 +1,9 @@
 #pragma once
 
-#include <string>
-#include <memory>
-#include <vector>
-#include <functional>
+#include <functional>  // 2. 系统头文件
+#include <memory>  // 2. 系统头文件
+#include <string>  // 2. 系统头文件
+#include <vector>  // 2. 系统头文件
 
 // 初始化阶段结果
 struct PhaseResult {

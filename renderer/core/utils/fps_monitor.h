@@ -1,6 +1,6 @@
 #pragma once
 
-#include <windows.h>      // 2. 系统头文件
+#include <windows.h>
 
 /**
  * FPS监控器 - 独立管理帧率计算和性能统计

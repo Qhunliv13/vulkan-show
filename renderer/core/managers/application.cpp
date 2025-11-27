@@ -1,7 +1,7 @@
 #include "core/managers/application.h"  // 1. 对应头文件
 
-#include <windows.h>  // 2. 系统头文件
 #include <memory>  // 2. 系统头文件
+#include <windows.h>  // 2. 系统头文件
 
 #include "core/interfaces/irenderer_factory.h"  // 4. 项目头文件（接口）
 #include "core/interfaces/iconfig_provider.h"  // 4. 项目头文件（接口）

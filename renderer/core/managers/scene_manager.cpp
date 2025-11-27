@@ -4,7 +4,7 @@
 
 #include "core/interfaces/iconfig_provider.h"  // 4. 项目头文件（接口）
 #include "core/interfaces/ipipeline_manager.h"  // 4. 项目头文件（接口）
-#include "window/window.h"  // 4. 项目头文件（窗口）
+#include "window/window.h"  // 4. 项目头文件（窗口实现，用于ShowError静态方法）
 
 SceneManager::SceneManager() {
 }

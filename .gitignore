@@ -16,3 +16,6 @@ Thumbs.db
 # 保留 .obj 文件（不排除）
 # 保留 .py 文件（不排除）
 
+# 排除所有 Markdown 文件
+*.md
+

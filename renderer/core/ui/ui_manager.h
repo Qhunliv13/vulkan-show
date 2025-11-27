@@ -2,8 +2,9 @@
 
 #include <memory>  // 2. 系统头文件
 #include <vector>  // 2. 系统头文件
+
 #include "core/config/constants.h"  // 4. 项目头文件（配置）
-#include "core/config/render_context.h"  // 4. 项目头文件（配置）
+#include "core/interfaces/irender_context.h"  // 4. 项目头文件（接口）
 #include "core/interfaces/irenderer.h"  // 4. 项目头文件（接口）
 #include "core/interfaces/iuimanager.h"  // 4. 项目头文件（接口）
 #include "core/interfaces/iwindow.h"  // 4. 项目头文件（接口）

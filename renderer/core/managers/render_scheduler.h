@@ -1,14 +1,14 @@
 #pragma once
 
 #include "core/config/constants.h"  // 4. 项目头文件（配置）
+#include "core/interfaces/iinput_provider.h"  // 4. 项目头文件（接口）
 #include "core/interfaces/irenderer.h"  // 4. 项目头文件（接口）
 #include "core/interfaces/iscene_provider.h"  // 4. 项目头文件（接口）
 #include "core/interfaces/iuirender_provider.h"  // 4. 项目头文件（接口）
-#include "core/interfaces/iinput_provider.h"  // 4. 项目头文件（接口）
 
 // 前向声明
 class ITextRenderer;
-class Window;
+class IWindow;
 
 /**
  * 渲染调度器 - 负责根据场景状态调度渲染逻辑
@@ -32,7 +32,7 @@ public:
                    IUIRenderProvider* uiRenderProvider,
                    IInputProvider* inputProvider,
                    ITextRenderer* textRenderer,
-                   Window* window,
+                   IWindow* window,
                    StretchMode stretchMode);
     
     // 渲染一帧（根据当前场景状态调度渲染）
@@ -53,7 +53,7 @@ private:
     IUIRenderProvider* m_uiRenderProvider = nullptr;
     IInputProvider* m_inputProvider = nullptr;
     ITextRenderer* m_textRenderer = nullptr;
-    Window* m_window = nullptr;  // 仅用于获取窗口句柄，不用于输入
+    IWindow* m_window = nullptr;  // 仅用于获取窗口句柄，不用于输入
     StretchMode m_stretchMode = StretchMode::Fit;
 };
 

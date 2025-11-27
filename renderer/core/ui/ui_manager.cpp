@@ -1,24 +1,24 @@
 #include "core/ui/ui_manager.h"  // 1. 对应头文件
 
-#include <windows.h>  // 2. 系统头文件
 #include <stdio.h>  // 2. 系统头文件
+#include <windows.h>  // 2. 系统头文件
 
 #include <vulkan/vulkan.h>  // 3. 第三方库头文件
 
 #include "core/interfaces/iconfig_provider.h"  // 4. 项目头文件（接口）
 #include "core/interfaces/ievent_bus.h"  // 4. 项目头文件（接口）
+#include "core/interfaces/irender_context.h"  // 4. 项目头文件（接口）
 #include "core/interfaces/irender_device.h"  // 4. 项目头文件（接口）
-#include "core/config/render_context.h"  // 4. 项目头文件（配置）
-#include "core/config/vulkan_render_context_factory.h"  // 4. 项目头文件（配置）
-#include "core/managers/scene_manager.h"  // 4. 项目头文件（管理器）
 #include "core/ui/button_ui_manager.h"  // 4. 项目头文件（UI管理器）
 #include "core/ui/color_ui_manager.h"  // 4. 项目头文件（UI管理器）
 #include "core/ui/slider_ui_manager.h"  // 4. 项目头文件（UI管理器）
+#include "core/types/render_types.h"  // 4. 项目头文件（类型）
+#include "renderer/vulkan/vulkan_render_context_factory.h"  // 4. 项目头文件（工厂函数）
 #include "loading/loading_animation.h"  // 4. 项目头文件（加载动画）
 #include "text/text_renderer.h"  // 4. 项目头文件（文字渲染器）
 #include "ui/button/button.h"  // 4. 项目头文件（UI组件）
-#include "ui/slider/slider.h"  // 4. 项目头文件（UI组件）
 #include "ui/color_controller/color_controller.h"  // 4. 项目头文件（UI组件）
+#include "ui/slider/slider.h"  // 4. 项目头文件（UI组件）
 #include "window/window.h"  // 4. 项目头文件（窗口）
 
 UIManager::UIManager() {
@@ -207,20 +207,31 @@ void UIManager::GetAllSliders(std::vector<Slider*>& sliders) const {
     }
 }
 
-// 注意：所有 getter 方法在 ui_manager_getters.cpp 中实现，避免 ui_manager.cpp 文件过大
+/**
+ * 注意：所有 getter 方法在 ui_manager_getters.cpp 中实现，避免 ui_manager.cpp 文件过大
+ * 
+ * 原因：UIManager 类包含大量 getter 方法，分离到独立文件可以提高代码可读性和维护性
+ */
 
 bool UIManager::InitializeLoadingAnimation(IRenderer* renderer, const IRenderContext& renderContext, 
                                           StretchMode stretchMode, float screenWidth, float screenHeight) {
     Extent2D uiExtent = renderContext.GetSwapchainExtent();
     
+    // 通过 IRenderDevice 接口获取设备信息（遵循接口隔离原则，避免直接依赖 Vulkan 实现）
+    IRenderDevice* renderDevice = renderer->GetRenderDevice();
+    if (!renderDevice) {
+        return false;
+    }
+    
     m_loadingAnim = new LoadingAnimation();
+    // 将抽象类型转换为Vulkan类型（仅在实现层进行转换）
     VkExtent2D vkUiExtent = { uiExtent.width, uiExtent.height };
     if (m_loadingAnim->Initialize(
-            static_cast<VkDevice>(renderer->GetDevice()),
-            static_cast<VkPhysicalDevice>(renderer->GetPhysicalDevice()),
-            static_cast<VkCommandPool>(renderer->GetCommandPool()),
-            static_cast<VkQueue>(renderer->GetGraphicsQueue()),
-            static_cast<VkRenderPass>(renderer->GetRenderPass()),
+            static_cast<VkDevice>(renderDevice->GetDevice()),
+            static_cast<VkPhysicalDevice>(renderDevice->GetPhysicalDevice()),
+            static_cast<VkCommandPool>(renderDevice->GetCommandPool()),
+            static_cast<VkQueue>(renderDevice->GetGraphicsQueue()),
+            static_cast<VkRenderPass>(renderDevice->GetRenderPass()),
             vkUiExtent)) {
         float baseWidth = (stretchMode == StretchMode::Fit || stretchMode == StretchMode::Disabled) ? 
                           (float)uiExtent.width : screenWidth;

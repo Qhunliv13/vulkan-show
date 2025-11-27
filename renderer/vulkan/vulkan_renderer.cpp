@@ -1,19 +1,19 @@
 #include "vulkan/vulkan_renderer.h"  // 1. 对应头文件
 
-#include <windows.h>                // 2. 系统头文件
-#include <stdio.h>
-#include <cstring>
-#include <cmath>
-#include <algorithm>
-#include <vector>
-#include <set>
-#include <memory>
+#include <algorithm>                 // 2. 系统头文件
+#include <cmath>                     // 2. 系统头文件
+#include <cstring>                   // 2. 系统头文件
+#include <memory>                    // 2. 系统头文件
+#include <set>                       // 2. 系统头文件
+#include <stdio.h>                   // 2. 系统头文件
+#include <vector>                    // 2. 系统头文件
+#include <windows.h>                 // 2. 系统头文件
 
 #include <vulkan/vulkan.h>           // 3. 第三方库头文件
 
 #include "core/config/constants.h"   // 4. 项目头文件（按依赖层级从内到外）
 #include "core/config/stretch_params.h"
-#include "core/config/vulkan_render_context_factory.h"  // Vulkan 渲染上下文工厂
+#include "renderer/vulkan/vulkan_render_context_factory.h"  // Vulkan 渲染上下文工厂
 #include "core/types/render_types.h"  // 抽象类型定义
 #include "core/utils/render_command_buffer.h"  // 在 .cpp 中包含实现
 #include "shader/shader_loader.h"

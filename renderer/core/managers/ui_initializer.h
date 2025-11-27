@@ -1,6 +1,6 @@
 #pragma once
 
-#include "initialization_result.h"
+#include "initialization_result.h"  // 4. 项目头文件（初始化结果）
 
 // 前向声明
 class IRenderer;

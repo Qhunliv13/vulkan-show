@@ -1,6 +1,6 @@
-#include "core/utils/fps_monitor.h"  // 1. 对应头文件
+#include "core/utils/fps_monitor.h"
 
-#include <windows.h>      // 2. 系统头文件
+#include <windows.h>
 
 FPSMonitor::FPSMonitor() {
 }

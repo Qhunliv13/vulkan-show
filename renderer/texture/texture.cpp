@@ -5,10 +5,15 @@
 #undef LoadImage
 #endif
 
-#include <cstring>     // 2. 系统头文件
 #include <algorithm>    // 2. 系统头文件
+#include <cstring>      // 2. 系统头文件
 
-#include "window/window.h"  // 4. 项目头文件
+// 前向声明
+class Window;
+
+// 使用前向声明替代直接包含，减少头文件依赖
+// 注意：Window::ShowError 是静态方法，需要在实现文件中包含
+#include "window/window.h"  // 4. 项目头文件（仅用于静态方法调用）
 
 renderer::texture::Texture::Texture() {
 }

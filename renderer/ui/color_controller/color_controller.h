@@ -1,13 +1,18 @@
 #pragma once
 
 #include <functional>    // 2. 系统头文件
-#include <vector>        // 2. 系统头文件
+#include <vector>         // 2. 系统头文件
 
 #include <vulkan/vulkan.h>  // 3. 第三方库头文件
 
 // 前向声明
+class Button;
+class Slider;
 class TextRenderer;
 
+// 注意：根据开发标准第4.5节，高频渲染对象允许直接使用具体实现类
+// 但为减少头文件依赖，优先使用前向声明
+// 如果需要在头文件中使用类的完整定义，则包含头文件
 #include "ui/button/button.h"   // 4. 项目头文件
 #include "ui/slider/slider.h"   // 4. 项目头文件
 

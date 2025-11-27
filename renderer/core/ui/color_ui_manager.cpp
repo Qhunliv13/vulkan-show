@@ -1,21 +1,28 @@
 #include "core/ui/color_ui_manager.h"  // 1. 对应头文件
 
-#include <windows.h>  // 2. 系统头文件
 #include <stdio.h>  // 2. 系统头文件
+#include <windows.h>  // 2. 系统头文件
 
 #include <vulkan/vulkan.h>  // 3. 第三方库头文件
 
-#include "core/interfaces/irenderer.h"  // 4. 项目头文件（接口）
+#include "core/interfaces/irender_context.h"  // 4. 项目头文件（接口）
 #include "core/interfaces/irender_device.h"  // 4. 项目头文件（接口）
+#include "core/interfaces/irenderer.h"  // 4. 项目头文件（接口）
 #include "core/interfaces/itext_renderer.h"  // 4. 项目头文件（接口）
-#include "core/config/render_context.h"  // 4. 项目头文件（配置）
-#include "core/config/vulkan_render_context_factory.h"  // 4. 项目头文件（配置）
+#include "core/types/render_types.h"  // 4. 项目头文件（类型）
+#include "renderer/vulkan/vulkan_render_context_factory.h"  // 4. 项目头文件（工厂函数）
 #include "loading/loading_animation.h"  // 4. 项目头文件（加载动画）
 #include "text/text_renderer.h"  // 4. 项目头文件（文字渲染器）
 #include "ui/color_controller/color_controller.h"  // 4. 项目头文件（UI组件）
 #include "window/window.h"  // 4. 项目头文件（窗口）
 
-// 辅助函数：将 ITextRenderer* 转换为 TextRenderer*（用于向后兼容）
+/**
+ * 辅助函数：将 ITextRenderer* 转换为 TextRenderer*（用于向后兼容）
+ * 
+ * 注意：此函数违反接口隔离原则（第15.1节），应修改 ColorController 组件使用 ITextRenderer 接口
+ * 当前保留此函数的原因：ColorController 组件尚未支持接口，需要后续重构
+ * 建议：修改 ColorController::Initialize() 方法接受 ITextRenderer* 参数，移除此转换函数
+ */
 static TextRenderer* ToTextRenderer(ITextRenderer* tr) {
     return tr ? static_cast<TextRenderer*>(tr) : nullptr;
 }
@@ -128,6 +135,7 @@ void ColorUIManager::HandleWindowResize(StretchMode stretchMode, IRenderer* rend
 bool ColorUIManager::InitializeColorController(IRenderer* renderer, IRenderContext& renderContext,
                                                StretchMode stretchMode, float screenWidth, float screenHeight) {
     Extent2D extent = renderContext.GetSwapchainExtent();
+    // 将抽象类型转换为Vulkan类型（仅在实现层进行转换）
     VkExtent2D uiExtent = { extent.width, extent.height };
     
     m_colorController = std::make_unique<ColorController>();
@@ -192,6 +200,7 @@ bool ColorUIManager::InitializeColorController(IRenderer* renderer, IRenderConte
 bool ColorUIManager::InitializeBoxColorControllers(IRenderer* renderer, IRenderContext& renderContext,
                                                    StretchMode stretchMode, float screenWidth, float screenHeight) {
     Extent2D extent = renderContext.GetSwapchainExtent();
+    // 将抽象类型转换为Vulkan类型（仅在实现层进行转换）
     VkExtent2D uiExtent = { extent.width, extent.height };
     
     // 计算方块按钮矩阵的位置（与InitializeBoxColorButtons中的计算保持一致）

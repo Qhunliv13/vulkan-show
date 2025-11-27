@@ -18,22 +18,24 @@
 #include "core/interfaces/ievent_bus.h"  // 4. 项目头文件（接口）
 #include "image/image_loader.h"          // 4. 项目头文件
 
-// 辅助函数：编码32位整数（小端序）
-static void encode_uint32(uint32_t value, uint8_t* buffer) {
-    buffer[0] = (value) & 0xFF;
-    buffer[1] = (value >> 8) & 0xFF;
-    buffer[2] = (value >> 16) & 0xFF;
-    buffer[3] = (value >> 24) & 0xFF;
-}
+// 匿名命名空间：将辅助函数放在命名空间内，避免全局作用域污染
+namespace {
+    // 辅助函数：编码32位整数（小端序）
+    void encode_uint32(uint32_t value, uint8_t* buffer) {
+        buffer[0] = (value) & 0xFF;
+        buffer[1] = (value >> 8) & 0xFF;
+        buffer[2] = (value >> 16) & 0xFF;
+        buffer[3] = (value >> 24) & 0xFF;
+    }
 
-// 辅助函数：编码16位整数（小端序）
-static void encode_uint16(uint16_t value, uint8_t* buffer) {
-    buffer[0] = (value) & 0xFF;
-    buffer[1] = (value >> 8) & 0xFF;
-}
+    // 辅助函数：编码16位整数（小端序）
+    void encode_uint16(uint16_t value, uint8_t* buffer) {
+        buffer[0] = (value) & 0xFF;
+        buffer[1] = (value >> 8) & 0xFF;
+    }
 
-// 辅助函数：从ImageData创建指定尺寸的图标
-static HICON CreateIconFromImageData(const renderer::image::ImageData& imageData, uint32_t targetSize) {
+    // 辅助函数：从ImageData创建指定尺寸的图标
+    HICON CreateIconFromImageData(const renderer::image::ImageData& imageData, uint32_t targetSize) {
     // 创建源位图
     // 使用static_cast防止宏展开，PixelFormat32bppARGB = 0x0026200A
     const Gdiplus::PixelFormat pixelFormat = static_cast<Gdiplus::PixelFormat>(0x0026200A);
@@ -103,7 +105,8 @@ static HICON CreateIconFromImageData(const renderer::image::ImageData& imageData
     delete targetBitmap;
     
     return hIcon;
-}
+    }
+} // 匿名命名空间结束
 
 Window::Window() {
 }

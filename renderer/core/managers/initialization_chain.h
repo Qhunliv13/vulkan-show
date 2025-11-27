@@ -1,10 +1,10 @@
 #pragma once
 
-#include "initialization_result.h"
-#include <vector>
-#include <memory>
-#include <unordered_map>
-#include <string>
+#include <memory>  // 2. 系统头文件
+#include <string>  // 2. 系统头文件
+#include <unordered_map>  // 2. 系统头文件
+#include <vector>  // 2. 系统头文件
+#include "initialization_result.h"  // 4. 项目头文件（初始化结果）
 
 // 初始化链 - 管理初始化顺序和依赖关系
 class InitializationChain {

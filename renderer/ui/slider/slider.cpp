@@ -6,9 +6,9 @@
 
 #include <vulkan/vulkan.h>     // 3. 第三方库头文件
 
-#include "core/config/render_context.h"                    // 4. 项目头文件
+#include "core/interfaces/irender_context.h"  // 4. 项目头文件（接口）
 #include "core/config/stretch_params.h"                    // 4. 项目头文件
-#include "core/config/vulkan_render_context_factory.h"     // 4. 项目头文件
+#include "renderer/vulkan/vulkan_render_context_factory.h"  // 4. 项目头文件（工厂函数）
 #include "core/types/render_types.h"                       // 4. 项目头文件
 #include "shader/shader_loader.h"                          // 4. 项目头文件
 #include "ui/button/button.h"                              // 4. 项目头文件

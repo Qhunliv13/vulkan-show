@@ -1,8 +1,8 @@
 #pragma once
 
-#include <string>  // 2. 系统头文件
-#include <vector>  // 2. 系统头文件
 #include <cstdint>  // 2. 系统头文件
+#include <string>   // 2. 系统头文件
+#include <vector>   // 2. 系统头文件
 
 namespace renderer {
 namespace image {

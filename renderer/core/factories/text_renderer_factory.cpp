@@ -5,27 +5,12 @@
 /**
  * 创建文字渲染器实例
  * 
- * 使用 new 创建 TextRenderer 对象，调用方负责通过 DestroyTextRenderer() 销毁
- * 所有权：[TRANSFER] 调用方获得所有权
+ * 使用 std::make_unique 创建 TextRenderer 对象，确保异常安全
+ * 返回的 unique_ptr 自动管理文字渲染器生命周期
  * 
- * @return ITextRenderer* 文字渲染器接口指针，调用方获得所有权
+ * @return std::unique_ptr<ITextRenderer> 文字渲染器实例，调用方获得所有权
  */
-ITextRenderer* TextRendererFactory::CreateTextRenderer() {
-    return new TextRenderer();
-}
-
-/**
- * 销毁文字渲染器实例
- * 
- * 先调用 Cleanup() 方法清理资源，然后释放内存
- * 必须与 CreateTextRenderer() 配对使用，确保资源正确释放
- * 
- * @param renderer 文字渲染器指针（拥有所有权，将被销毁）
- */
-void TextRendererFactory::DestroyTextRenderer(ITextRenderer* renderer) {
-    if (renderer) {
-        renderer->Cleanup();
-        delete renderer;
-    }
+std::unique_ptr<ITextRenderer> TextRendererFactory::CreateTextRenderer() {
+    return std::make_unique<TextRenderer>();
 }
 

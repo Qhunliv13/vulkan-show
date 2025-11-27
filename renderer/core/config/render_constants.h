@@ -9,9 +9,7 @@ namespace config {
 /**
  * 数学常量：圆周率，用于角度计算和几何变换
  */
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
+constexpr double PI = 3.14159265358979323846;
 
 /**
  * Vulkan 渲染常量：最大并发帧数，用于双缓冲或三缓冲机制

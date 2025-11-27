@@ -2,12 +2,12 @@
 
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
-#include <windows.h>  // 2. 系统头文件
+#include <algorithm>  // 2. 系统头文件
+#include <cctype>     // 2. 系统头文件
+#include <fstream>    // 2. 系统头文件
 #include <objidl.h>   // 2. 系统头文件（提供IStream等COM接口定义，GDI+需要）
-#include <fstream>
-#include <vector>
-#include <algorithm>
-#include <cctype>
+#include <vector>     // 2. 系统头文件
+#include <windows.h>  // 2. 系统头文件
 
 #ifdef LoadImage
 #undef LoadImage  // 取消Windows API的LoadImage宏定义
@@ -23,6 +23,9 @@
     #include "thirdparty/stb_image.h"  // 3. 第三方库头文件
 #endif
 
+// 注意：直接包含window/window.h是因为需要使用Window::ShowError静态方法
+// 根据开发标准第15.1节，应优先使用接口或前向声明，但静态方法需要完整定义
+// 未来可考虑创建IErrorHandler接口以符合依赖注入原则
 #include "window/window.h"  // 4. 项目头文件
 
 // GDI+初始化辅助类
@@ -41,7 +44,9 @@ private:
     ULONG_PTR m_gdiplusToken;
 };
 
-// GDI+初始化器（静态成员，确保在使用前初始化）
+// GDI+初始化器（静态局部变量，确保在使用前初始化）
+// 注意：使用静态局部变量而非全局变量，符合RAII原则
+// 虽然使用了静态变量，但这是资源初始化的必要模式，不是单例模式
 static GdiplusInitializer& GetGdiplusInit() {
     static GdiplusInitializer g_gdiplusInit;
     return g_gdiplusInit;

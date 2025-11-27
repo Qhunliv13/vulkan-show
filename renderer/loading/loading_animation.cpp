@@ -1,15 +1,18 @@
 #include "loading/loading_animation.h"  // 1. 对应头文件
 
+#include <algorithm>  // 2. 系统头文件
+#include <cmath>      // 2. 系统头文件
+#include <cstdio>     // 2. 系统头文件
+#include <fstream>    // 2. 系统头文件
 #include <windows.h>  // 2. 系统头文件
-#include <stdio.h>
-#include <algorithm>
-#include <cmath>
-#include <fstream>
 
 #include <vulkan/vulkan.h>  // 3. 第三方库头文件
 
+// 注意：直接包含shader/shader_loader.h和window/window.h是因为需要使用具体类的静态方法
+// 根据开发标准第15.1节，应优先使用接口或前向声明，但静态方法需要完整定义
+// 未来可考虑创建IShaderLoader接口和IErrorHandler接口以符合依赖注入原则
 #include "shader/shader_loader.h"  // 4. 项目头文件
-#include "window/window.h"
+#include "window/window.h"         // 4. 项目头文件
 
 LoadingAnimation::LoadingAnimation() {
 }

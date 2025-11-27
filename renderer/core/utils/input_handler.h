@@ -1,15 +1,15 @@
 #pragma once
 
-#include <windows.h>      // 2. 系统头文件
+#include <windows.h>
 
 // 前向声明
 class Window;
 
-#include "core/config/constants.h"                  // 4. 项目头文件
-#include "core/config/stretch_params.h"             // 4. 项目头文件
-#include "core/interfaces/iinput_handler.h"         // 4. 项目头文件
-#include "core/interfaces/iinput_provider.h"        // 4. 项目头文件
-#include "core/interfaces/irenderer.h"              // 4. 项目头文件
+#include "core/config/constants.h"
+#include "core/config/stretch_params.h"
+#include "core/interfaces/iinput_handler.h"
+#include "core/interfaces/iinput_provider.h"
+#include "core/interfaces/irenderer.h"
 
 /**
  * 输入处理器 - 负责坐标转换和输入状态管理

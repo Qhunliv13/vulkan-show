@@ -1,7 +1,7 @@
 #pragma once
 
-#include <memory>        // 2. 系统头文件
-#include <vector>        // 2. 系统头文件
+#include <memory>
+#include <vector>
 
 #include "core/interfaces/irender_command.h"  // 4. 项目头文件
 

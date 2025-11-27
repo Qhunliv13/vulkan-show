@@ -1,6 +1,6 @@
-#include "core/utils/event_bus.h"  // 1. 对应头文件
+#include "core/utils/event_bus.h"
 
-#include <algorithm>       // 2. 系统头文件
+#include <algorithm>
 
 void EventBus::Initialize() {
     if (m_initialized) {

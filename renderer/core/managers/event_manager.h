@@ -1,11 +1,11 @@
 #pragma once
 
-#include <windows.h>  // 2. 系统头文件
 #include <functional>  // 2. 系统头文件
 #include <memory>  // 2. 系统头文件
+#include <windows.h>  // 2. 系统头文件
 #include "core/config/constants.h"  // 4. 项目头文件（配置）
-#include "core/interfaces/irenderer.h"  // 4. 项目头文件（接口）
 #include "core/interfaces/iinput_handler.h"  // 4. 项目头文件（接口）
+#include "core/interfaces/irenderer.h"  // 4. 项目头文件（接口）
 #include "core/interfaces/iwindow.h"  // 4. 项目头文件（接口）
 
 // 前向声明

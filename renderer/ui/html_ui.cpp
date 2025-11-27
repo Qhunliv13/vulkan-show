@@ -1,16 +1,21 @@
 #include "ui/html_ui.h"  // 1. 对应头文件
 
-#include <windows.h>     // 2. 系统头文件
-#include <shlwapi.h>     // 2. 系统头文件
-#include <shlobj.h>      // 2. 系统头文件
 #include <comdef.h>      // 2. 系统头文件
 #include <exdisp.h>      // 2. 系统头文件
-#include <mshtml.h>      // 2. 系统头文件
-#include <stdlib.h>      // 2. 系统头文件
-#include <stdio.h>       // 2. 系统头文件
 #include <fstream>       // 2. 系统头文件
+#include <mshtml.h>      // 2. 系统头文件
+#include <shlobj.h>      // 2. 系统头文件
+#include <shlwapi.h>     // 2. 系统头文件
+#include <stdio.h>       // 2. 系统头文件
+#include <stdlib.h>      // 2. 系统头文件
 #include <sstream>       // 2. 系统头文件
+#include <windows.h>     // 2. 系统头文件
 
+// 前向声明
+class Window;
+
+// 使用前向声明替代直接包含，减少头文件依赖
+// 注意：如果需要在实现文件中调用Window的方法，则必须包含头文件
 #include "window/window.h"  // 4. 项目头文件
 
 #pragma comment(lib, "shlwapi.lib")

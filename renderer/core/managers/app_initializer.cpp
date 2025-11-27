@@ -327,10 +327,7 @@ InitializationResult AppInitializer::InitializeUI() {
     // 通过 IRenderDevice 接口获取设备信息（遵循接口隔离原则）
     IRenderDevice* renderDevice = m_renderer->GetRenderDevice();
     if (!renderDevice) {
-        if (m_textRendererFactory) {
-            m_textRendererFactory->DestroyTextRenderer(m_textRenderer);
-        }
-        m_textRenderer = nullptr;
+        m_textRenderer.reset();
         return InitializationResult::Failure("Renderer does not provide IRenderDevice interface");
     }
     
@@ -340,21 +337,15 @@ InitializationResult AppInitializer::InitializeUI() {
             renderDevice->GetCommandPool(),
             renderDevice->GetGraphicsQueue(),
             renderDevice->GetRenderPass())) {
-        if (m_textRendererFactory) {
-            m_textRendererFactory->DestroyTextRenderer(m_textRenderer);
-        }
-        m_textRenderer = nullptr;
+        m_textRenderer.reset();
         return InitializationResult::Failure("Failed to initialize TextRenderer");
     }
     
     m_textRenderer->LoadFont("Microsoft YaHei", 24);
     
     // 初始化UI管理器
-    if (!m_uiManager->Initialize(m_renderer.get(), m_textRenderer, m_windowManager->GetWindow(), m_configProvider->GetStretchMode())) {
-        if (m_textRenderer && m_textRendererFactory) {
-            m_textRendererFactory->DestroyTextRenderer(m_textRenderer);
-        }
-        m_textRenderer = nullptr;
+    if (!m_uiManager->Initialize(m_renderer.get(), m_textRenderer.get(), m_windowManager->GetWindow(), m_configProvider->GetStretchMode())) {
+        m_textRenderer.reset();
         return InitializationResult::Failure("Failed to initialize UIManager");
     }
     
@@ -409,7 +400,7 @@ InitializationResult AppInitializer::InitializeEventSystem() {
 }
 
 InitializationResult AppInitializer::InitializeRenderScheduler() {
-    if (!m_renderer || !m_sceneManager || !m_uiManager || !m_textRenderer || !m_windowManager || !m_configProvider || !m_inputHandler) {
+    if (!m_renderer || !m_sceneManager || !m_uiManager || !m_textRenderer.get() || !m_windowManager || !m_configProvider || !m_inputHandler) {
         return InitializationResult::Failure("Invalid parameters for render scheduler initialization");
     }
     
@@ -423,7 +414,7 @@ InitializationResult AppInitializer::InitializeRenderScheduler() {
                                   m_sceneManager.get(),  // ISceneProvider*
                                   uiRenderProvider,      // IUIRenderProvider* (通过适配器)
                                   inputProvider,         // IInputProvider*
-                                  m_textRenderer, 
+                                  m_textRenderer.get(), 
                                   m_windowManager->GetWindow(), 
                                   m_configProvider->GetStretchMode());
     
@@ -506,9 +497,9 @@ void AppInitializer::CleanupPartial(int initializedSteps) {
     
     // 步骤4: 清理渲染器
     if (initializedSteps >= 5) {
-        if (m_textRenderer && m_textRendererFactory) {
-            m_textRendererFactory->DestroyTextRenderer(m_textRenderer);
-            m_textRenderer = nullptr;
+        if (m_textRenderer) {
+            m_textRenderer->Cleanup();
+            m_textRenderer.reset();
         }
         // unique_ptr 自动管理渲染器生命周期，调用 Cleanup() 后重置
         if (m_renderer) {
@@ -587,9 +578,9 @@ void AppInitializer::Cleanup() {
     m_sceneManager.reset();
     
     // 3. 清理渲染相关资源
-    if (m_textRenderer && m_textRendererFactory) {
-        m_textRendererFactory->DestroyTextRenderer(m_textRenderer);
-        m_textRenderer = nullptr;
+    if (m_textRenderer) {
+        m_textRenderer->Cleanup();
+        m_textRenderer.reset();
     }
     
     // 4. 清理渲染器（unique_ptr 自动管理生命周期）

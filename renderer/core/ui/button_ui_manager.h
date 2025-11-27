@@ -2,10 +2,12 @@
 
 #include <memory>  // 2. 系统头文件
 #include <vector>  // 2. 系统头文件
+
 #include "core/config/constants.h"  // 4. 项目头文件（配置）
-#include "core/config/render_context.h"  // 4. 项目头文件（配置）
+#include "core/interfaces/irender_context.h"  // 4. 项目头文件（接口）
 #include "core/interfaces/iwindow_resize_handler.h"  // 4. 项目头文件（接口）
 #include "ui/button/button.h"  // 4. 项目头文件（UI组件）
+// 注意：必须包含完整定义，因为 std::unique_ptr<Button> 作为成员变量需要完整类型（析构函数需要知道如何删除）
 
 // 前向声明
 class ITextRenderer;

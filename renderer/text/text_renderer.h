@@ -3,53 +3,13 @@
 #define VK_USE_PLATFORM_WIN32_KHR
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
-#include <windows.h>         // 2. 系统头文件
-#include <vector>            // 2. 系统头文件
-#include <string>            // 2. 系统头文件
-#include <unordered_map>     // 2. 系统头文件
+#include <string>         // 2. 系统头文件
+#include <unordered_map>  // 2. 系统头文件
+#include <vector>         // 2. 系统头文件
+#include <windows.h>      // 2. 系统头文件
 
 #include "core/interfaces/itext_renderer.h"  // 4. 项目头文件（接口）
 #include "core/types/render_types.h"         // 4. 项目头文件（类型）
-
-// Vulkan 类型前向声明（避免包含 vulkan.h，但允许使用 Vulkan 类型）
-// 注意：这些前向声明仅用于头文件，实际定义在 .cpp 中包含 vulkan.h
-struct VkDevice_T;
-struct VkPhysicalDevice_T;
-struct VkCommandPool_T;
-struct VkQueue_T;
-struct VkRenderPass_T;
-struct VkImage_T;
-struct VkDeviceMemory_T;
-struct VkImageView_T;
-struct VkSampler_T;
-struct VkBuffer_T;
-struct VkPipeline_T;
-struct VkPipelineLayout_T;
-struct VkDescriptorSetLayout_T;
-struct VkDescriptorPool_T;
-struct VkDescriptorSet_T;
-struct VkCommandBuffer_T;
-
-typedef VkDevice_T* VkDevice;
-typedef VkPhysicalDevice_T* VkPhysicalDevice;
-typedef VkCommandPool_T* VkCommandPool;
-typedef VkQueue_T* VkQueue;
-typedef VkRenderPass_T* VkRenderPass;
-typedef VkImage_T* VkImage;
-typedef VkDeviceMemory_T* VkDeviceMemory;
-typedef VkImageView_T* VkImageView;
-typedef VkSampler_T* VkSampler;
-typedef VkBuffer_T* VkBuffer;
-typedef VkPipeline_T* VkPipeline;
-typedef VkPipelineLayout_T* VkPipelineLayout;
-typedef VkDescriptorSetLayout_T* VkDescriptorSetLayout;
-typedef VkDescriptorPool_T* VkDescriptorPool;
-typedef VkDescriptorSet_T* VkDescriptorSet;
-typedef VkCommandBuffer_T* VkCommandBuffer;
-
-typedef uint32_t VkMemoryPropertyFlags;
-typedef uint64_t VkDeviceSize;
-#define VK_NULL_HANDLE nullptr
 
 // 文字渲染器 - 使用Windows GDI生成字体纹理图集，在Vulkan中渲染文本
 // 支持批量渲染和居中文本，自动处理UTF-8编码和字符字形缓存
@@ -106,7 +66,7 @@ public:
     
 private:
     // 查找内存类型
-    uint32_t FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
+    uint32_t FindMemoryType(uint32_t typeFilter, uint32_t properties);
     
     // 创建字体纹理图集
     bool CreateFontAtlas();
@@ -115,7 +75,7 @@ private:
     bool CreateVulkanTexture(const void* data, uint32_t width, uint32_t height);
     
     // 创建渲染管线
-    bool CreatePipeline(VkRenderPass renderPass);
+    bool CreatePipeline(void* renderPass);
     
     // 获取或创建字符字形
     const Glyph& GetGlyph(uint32_t charCode);
@@ -134,16 +94,17 @@ private:
     // 将累积的顶点数据上传到GPU并渲染
     // viewportX/viewportY: viewport的偏移（在Fit模式下需要设置，用于正确对齐文本）
     // scaleX/scaleY: 文本缩放比例（在Fit模式下需要根据viewport和UI基准大小的比例设置）
-    void FlushBatch(VkCommandBuffer commandBuffer, float screenWidth, float screenHeight,
+    void FlushBatch(void* commandBuffer, float screenWidth, float screenHeight,
                    float viewportX = 0.0f, float viewportY = 0.0f,
                    float scaleX = 1.0f, float scaleY = 1.0f);
     
-    // Vulkan 对象
-    VkDevice m_device = VK_NULL_HANDLE;
-    VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
-    VkCommandPool m_commandPool = VK_NULL_HANDLE;
-    VkQueue m_graphicsQueue = VK_NULL_HANDLE;
-    VkRenderPass m_renderPass = VK_NULL_HANDLE;
+    // Vulkan 对象（使用不透明指针，避免头文件直接依赖 Vulkan 实现）
+    // 注意：在 .cpp 文件中转换为 Vulkan 类型使用
+    void* m_device = nullptr;
+    void* m_physicalDevice = nullptr;
+    void* m_commandPool = nullptr;
+    void* m_graphicsQueue = nullptr;
+    void* m_renderPass = nullptr;
     
     // 字体相关
     std::string m_fontName;
@@ -157,10 +118,12 @@ private:
     uint32_t m_atlasWidth = 512;
     uint32_t m_atlasHeight = 512;
     std::vector<uint8_t> m_atlasData;
-    VkImage m_textureImage = VK_NULL_HANDLE;
-    VkDeviceMemory m_textureImageMemory = VK_NULL_HANDLE;
-    VkImageView m_textureImageView = VK_NULL_HANDLE;
-    VkSampler m_textureSampler = VK_NULL_HANDLE;
+    // Vulkan 纹理对象（使用不透明指针，避免头文件直接依赖 Vulkan 实现）
+    // 注意：在 .cpp 文件中转换为 Vulkan 类型使用
+    void* m_textureImage = nullptr;
+    void* m_textureImageMemory = nullptr;
+    void* m_textureImageView = nullptr;
+    void* m_textureSampler = nullptr;
     
     // 字形缓存
     std::unordered_map<uint32_t, Glyph> m_glyphs;
@@ -168,14 +131,15 @@ private:
     float m_currentY = 0.0f;
     float m_lineHeight = 0.0f;
     
-    // 渲染资源
-    VkBuffer m_vertexBuffer = VK_NULL_HANDLE;
-    VkDeviceMemory m_vertexBufferMemory = VK_NULL_HANDLE;
-    VkPipeline m_graphicsPipeline = VK_NULL_HANDLE;
-    VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
-    VkDescriptorSetLayout m_descriptorSetLayout = VK_NULL_HANDLE;
-    VkDescriptorPool m_descriptorPool = VK_NULL_HANDLE;
-    VkDescriptorSet m_descriptorSet = VK_NULL_HANDLE;
+    // 渲染资源（使用不透明指针，避免头文件直接依赖 Vulkan 实现）
+    // 注意：在 .cpp 文件中转换为 Vulkan 类型使用
+    void* m_vertexBuffer = nullptr;
+    void* m_vertexBufferMemory = nullptr;
+    void* m_graphicsPipeline = nullptr;
+    void* m_pipelineLayout = nullptr;
+    void* m_descriptorSetLayout = nullptr;
+    void* m_descriptorPool = nullptr;
+    void* m_descriptorSet = nullptr;
     
     // 批量渲染相关的临时顶点数据
     std::vector<TextVertex> m_batchVertices;

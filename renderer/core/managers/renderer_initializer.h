@@ -1,7 +1,7 @@
 #pragma once
 
-#include "initialization_result.h"
-#include <windows.h>
+#include <windows.h>  // 2. 系统头文件
+#include "initialization_result.h"  // 4. 项目头文件（初始化结果）
 
 // 前向声明
 class IRendererFactory;
