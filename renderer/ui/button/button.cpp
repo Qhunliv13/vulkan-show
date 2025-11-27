@@ -7,24 +7,43 @@
 
 #include <vulkan/vulkan.h>     // 3. 第三方库头文件
 
+#include "core/types/render_types.h"  // 4. 项目头文件（抽象类型）
+
 /**
  * 注意：window.h已经包含了windows.h，所以LoadImage宏可能已经被定义
  * 在包含image_loader.h之前取消宏定义，避免与ImageLoader::LoadImage冲突
  * 
- * 原因：Windows API 定义了 LoadImage 宏，会与 ImageLoader::LoadImage 方法名冲突
+ * 原因：Windows API 定义了 LoadImage 宏（会展开为LoadImageA或LoadImageW），
+ * 会与 ImageLoader::LoadImage 方法名冲突
  */
 #ifdef LoadImage
 #undef LoadImage
 #endif
+#ifdef LoadImageA
+#undef LoadImageA
+#endif
+#ifdef LoadImageW
+#undef LoadImageW
+#endif
 #include "core/interfaces/irender_context.h"  // 4. 项目头文件（接口）
 #include "core/config/stretch_params.h"                    // 4. 项目头文件
 #include "renderer/vulkan/vulkan_render_context_factory.h"  // 4. 项目头文件（工厂函数）
-#include "core/types/render_types.h"                       // 4. 项目头文件
 #include "image/image_loader.h"                            // 4. 项目头文件
 #include "shader/shader_loader.h"                          // 4. 项目头文件
-#include "text/text_renderer.h"                            // 4. 项目头文件
+#include "core/interfaces/itext_renderer.h"                // 4. 项目头文件（接口）
 #include "texture/texture.h"                               // 4. 项目头文件
 #include "window/window.h"                                 // 4. 项目头文件
+
+// 在包含 window.h 之后再次取消 LoadImage 宏定义，防止与 ImageLoader::LoadImage 冲突
+#ifdef LoadImage
+#undef LoadImage
+#endif
+#ifdef LoadImageA
+#undef LoadImageA
+#endif
+#ifdef LoadImageW
+#undef LoadImageW
+#endif
 
 Button::Button() {
 }
@@ -35,7 +54,7 @@ Button::~Button() {
 
 bool Button::Initialize(IRenderContext* renderContext,
                        const ButtonConfig& config,
-                       TextRenderer* textRenderer,
+                       ITextRenderer* textRenderer,
                        bool usePureShader) {
     if (!renderContext) {
         return false;
@@ -103,7 +122,10 @@ bool Button::Initialize(IRenderContext* renderContext,
         m_texturePath = config.texturePath;
         
         // 加载纹理图像数据（用于点击判定）
-        auto imageData = renderer::image::ImageLoader::LoadImage(config.texturePath);
+        // 使用函数指针避免 Windows API LoadImage 宏展开
+        using LoadImageFunc = renderer::image::ImageData(*)(const std::string&);
+        LoadImageFunc loadImageFunc = renderer::image::ImageLoader::LoadImage;
+        auto imageData = loadImageFunc(config.texturePath);
         if (imageData.width > 0 && imageData.height > 0) {
             m_textureData.pixels = imageData.pixels;
             m_textureData.width = imageData.width;
@@ -118,8 +140,8 @@ bool Button::Initialize(IRenderContext* renderContext,
             if (std::abs(textureAspect - buttonAspect) > 0.01f) {
                 // 保持宽度不变，调整高度以匹配纹理宽高比
                 m_height = m_width / textureAspect;
-                printf("[BUTTON] Adjusted button size to match texture aspect ratio: %.2fx%.2f (texture: %dx%d, aspect: %.3f)\n",
-                       m_width, m_height, imageData.width, imageData.height, textureAspect);
+                printf("[BUTTON] Adjusted button size to match texture aspect ratio: %.2fx%.2f (texture: %ux%u, aspect: %.3f)\n",
+                       m_width, m_height, static_cast<unsigned int>(imageData.width), static_cast<unsigned int>(imageData.height), textureAspect);
             }
         }
         
@@ -418,8 +440,8 @@ bool Button::CreatePipeline(RenderPassHandle renderPass) {
         if (vertFile.is_open() && fragFile.is_open()) {
             std::string vertSource((std::istreambuf_iterator<char>(vertFile)), std::istreambuf_iterator<char>());
             std::string fragSource((std::istreambuf_iterator<char>(fragFile)), std::istreambuf_iterator<char>());
-            vertCode = renderer::shader::ShaderLoader::CompileGLSLFromSource(vertSource, VK_SHADER_STAGE_VERTEX_BIT, "button.vert");
-            fragCode = renderer::shader::ShaderLoader::CompileGLSLFromSource(fragSource, VK_SHADER_STAGE_FRAGMENT_BIT, "button.frag");
+            vertCode = renderer::shader::ShaderLoader::CompileGLSLFromSource(vertSource, ShaderStage::Vertex, "button.vert");
+            fragCode = renderer::shader::ShaderLoader::CompileGLSLFromSource(fragSource, ShaderStage::Fragment, "button.frag");
         }
         #endif
     }
@@ -429,8 +451,18 @@ bool Button::CreatePipeline(RenderPassHandle renderPass) {
         return false;
     }
     
-    VkShaderModule vertShaderModule = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(vkDevice, vertCode);
-    VkShaderModule fragShaderModule = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(vkDevice, fragCode);
+    // 使用抽象类型，然后在需要时转换为Vulkan类型
+    ShaderModuleHandle vertShaderModuleHandle = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(static_cast<DeviceHandle>(vkDevice), vertCode);
+    ShaderModuleHandle fragShaderModuleHandle = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(static_cast<DeviceHandle>(vkDevice), fragCode);
+    
+    if (vertShaderModuleHandle == nullptr || fragShaderModuleHandle == nullptr) {
+        Window::ShowError("Failed to create shader modules for button!");
+        return false;
+    }
+    
+    // 将抽象句柄转换为Vulkan类型用于创建管线
+    VkShaderModule vertShaderModule = static_cast<VkShaderModule>(vertShaderModuleHandle);
+    VkShaderModule fragShaderModule = static_cast<VkShaderModule>(fragShaderModuleHandle);
     
     if (vertShaderModule == VK_NULL_HANDLE || fragShaderModule == VK_NULL_HANDLE) {
         Window::ShowError("Failed to create shader modules for button!");
@@ -662,12 +694,12 @@ void Button::Render(CommandBufferHandle commandBuffer, Extent2D extent) {
         
         if (m_stretchParams) {
             // 逻辑坐标 -> 屏幕坐标
-            renderX = m_x * m_stretchParams->stretchScaleX + m_stretchParams->marginX;
-            renderY = m_y * m_stretchParams->stretchScaleY + m_stretchParams->marginY;
-            renderWidth = m_width * m_stretchParams->stretchScaleX;
-            renderHeight = m_height * m_stretchParams->stretchScaleY;
-            renderScreenWidth = m_stretchParams->screenWidth;
-            renderScreenHeight = m_stretchParams->screenHeight;
+            renderX = m_x * m_stretchParams->m_stretchScaleX + m_stretchParams->m_marginX;
+            renderY = m_y * m_stretchParams->m_stretchScaleY + m_stretchParams->m_marginY;
+            renderWidth = m_width * m_stretchParams->m_stretchScaleX;
+            renderHeight = m_height * m_stretchParams->m_stretchScaleY;
+            renderScreenWidth = m_stretchParams->m_screenWidth;
+            renderScreenHeight = m_stretchParams->m_screenHeight;
         }
         
         // 计算翻转的Y坐标（与loading animation相同的逻辑）
@@ -740,10 +772,10 @@ void Button::RenderText(CommandBufferHandle commandBuffer, Extent2D extent,
         
         if (m_stretchParams) {
             // Scaled模式：将逻辑坐标转换为屏幕坐标
-            buttonCenterX = buttonCenterX * m_stretchParams->stretchScaleX + m_stretchParams->marginX;
-            buttonCenterY = buttonCenterY * m_stretchParams->stretchScaleY + m_stretchParams->marginY;
-            renderScreenWidth = m_stretchParams->screenWidth;
-            renderScreenHeight = m_stretchParams->screenHeight;
+            buttonCenterX = buttonCenterX * m_stretchParams->m_stretchScaleX + m_stretchParams->m_marginX;
+            buttonCenterY = buttonCenterY * m_stretchParams->m_stretchScaleY + m_stretchParams->m_marginY;
+            renderScreenWidth = m_stretchParams->m_screenWidth;
+            renderScreenHeight = m_stretchParams->m_screenHeight;
         } else if (vkViewport && vkScissor) {
             // Fit/Disabled模式：将UI坐标转换为实际窗口坐标
             // UI坐标基于extent（UI基准大小），需要映射到viewport区域
@@ -780,7 +812,10 @@ void Button::SetTexture(const std::string& texturePath) {
     
     if (!texturePath.empty()) {
         // 加载纹理图像数据（用于点击判定）
-        auto imageData = renderer::image::ImageLoader::LoadImage(texturePath);
+        // 使用函数指针避免 Windows API LoadImage 宏展开
+        using LoadImageFunc = renderer::image::ImageData(*)(const std::string&);
+        LoadImageFunc loadImageFunc = renderer::image::ImageLoader::LoadImage;
+        auto imageData = loadImageFunc(texturePath);
         if (imageData.width > 0 && imageData.height > 0) {
             m_textureData.pixels = imageData.pixels;
             m_textureData.width = imageData.width;
@@ -1020,8 +1055,8 @@ void Button::UpdateRelativePosition() {
     if (m_useRelativePosition) {
         // Scaled模式：使用逻辑坐标计算位置
         if (m_stretchParams) {
-            m_x = m_relativeX * m_stretchParams->logicalWidth - m_width / 2.0f;
-            m_y = m_relativeY * m_stretchParams->logicalHeight - m_height / 2.0f;
+            m_x = m_relativeX * m_stretchParams->m_logicalWidth - m_width / 2.0f;
+            m_y = m_relativeY * m_stretchParams->m_logicalHeight - m_height / 2.0f;
         } else if (m_screenWidth > 0.0f && m_screenHeight > 0.0f) {
             // 其他模式：使用屏幕坐标计算位置
         m_x = m_relativeX * m_screenWidth - m_width / 2.0f;
@@ -1049,8 +1084,8 @@ bool Button::IsPointInside(float px, float py) const {
     
     // Scaled模式：将屏幕坐标转换为逻辑坐标
     if (m_stretchParams) {
-        checkX = (px - m_stretchParams->marginX) / m_stretchParams->stretchScaleX;
-        checkY = (py - m_stretchParams->marginY) / m_stretchParams->stretchScaleY;
+        checkX = (px - m_stretchParams->m_marginX) / m_stretchParams->m_stretchScaleX;
+        checkY = (py - m_stretchParams->m_marginY) / m_stretchParams->m_stretchScaleY;
     }
     
     // 根据形状类型进行判断
@@ -1204,8 +1239,8 @@ bool Button::CreatePureShaderPipeline(RenderPassHandle renderPass) {
         if (vertFile.is_open() && fragFile.is_open()) {
             std::string vertSource((std::istreambuf_iterator<char>(vertFile)), std::istreambuf_iterator<char>());
             std::string fragSource((std::istreambuf_iterator<char>(fragFile)), std::istreambuf_iterator<char>());
-            vertCode = renderer::shader::ShaderLoader::CompileGLSLFromSource(vertSource, VK_SHADER_STAGE_VERTEX_BIT, "button_pure.vert");
-            fragCode = renderer::shader::ShaderLoader::CompileGLSLFromSource(fragSource, VK_SHADER_STAGE_FRAGMENT_BIT, "button_pure.frag");
+            vertCode = renderer::shader::ShaderLoader::CompileGLSLFromSource(vertSource, ShaderStage::Vertex, "button_pure.vert");
+            fragCode = renderer::shader::ShaderLoader::CompileGLSLFromSource(fragSource, ShaderStage::Fragment, "button_pure.frag");
         }
         #endif
     }
@@ -1215,8 +1250,18 @@ bool Button::CreatePureShaderPipeline(RenderPassHandle renderPass) {
         return false;
     }
     
-    VkShaderModule vertShaderModule = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(vkDevice, vertCode);
-    VkShaderModule fragShaderModule = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(vkDevice, fragCode);
+    // 使用抽象类型，然后在需要时转换为Vulkan类型
+    ShaderModuleHandle vertShaderModuleHandle = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(static_cast<DeviceHandle>(vkDevice), vertCode);
+    ShaderModuleHandle fragShaderModuleHandle = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(static_cast<DeviceHandle>(vkDevice), fragCode);
+    
+    if (vertShaderModuleHandle == nullptr || fragShaderModuleHandle == nullptr) {
+        Window::ShowError("Failed to create shader modules for button!");
+        return false;
+    }
+    
+    // 将抽象句柄转换为Vulkan类型用于创建管线
+    VkShaderModule vertShaderModule = static_cast<VkShaderModule>(vertShaderModuleHandle);
+    VkShaderModule fragShaderModule = static_cast<VkShaderModule>(fragShaderModuleHandle);
     
     if (vertShaderModule == VK_NULL_HANDLE || fragShaderModule == VK_NULL_HANDLE) {
         Window::ShowError("Failed to create pure shader modules for button!");

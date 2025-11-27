@@ -21,9 +21,7 @@
  * 当前保留此函数的原因：Button 组件尚未支持接口，需要后续重构
  * 建议：修改 Button::Initialize() 方法接受 ITextRenderer* 参数，移除此转换函数
  */
-static TextRenderer* ToTextRenderer(ITextRenderer* tr) {
-    return tr ? static_cast<TextRenderer*>(tr) : nullptr;
-}
+// ToTextRenderer() 函数已移除 - Button 现在直接使用 ITextRenderer* 接口
 
 ButtonUIManager::ButtonUIManager() {
 }
@@ -153,7 +151,7 @@ void ButtonUIManager::HandleWindowResize(StretchMode stretchMode, IRenderer* ren
     }
 }
 
-void ButtonUIManager::GetAllButtons(std::vector<Button*>& buttons) const {
+void ButtonUIManager::GetAllButtons(std::vector<IButton*>& buttons) const {
     buttons.clear();
     
     for (int i = 0; i < 9; i++) {
@@ -202,7 +200,7 @@ bool ButtonUIManager::InitializeEnterButton(IRenderContext& renderContext, Stret
     if (m_enterButton->Initialize(
             &renderContext,
             buttonConfig,
-            ToTextRenderer(m_textRenderer))) {
+            m_textRenderer)) {
         if (stretchMode == StretchMode::Fit || stretchMode == StretchMode::Disabled) {
             m_enterButton->SetFixedScreenSize(true);
         }
@@ -217,7 +215,7 @@ bool ButtonUIManager::InitializeColorButton(IRenderContext& renderContext, Stret
     if (m_colorButton->Initialize(
             &renderContext,
             colorButtonConfig,
-            ToTextRenderer(m_textRenderer))) {
+            m_textRenderer)) {
         if (stretchMode == StretchMode::Fit || stretchMode == StretchMode::Disabled) {
             m_colorButton->SetFixedScreenSize(true);
         }
@@ -245,7 +243,7 @@ bool ButtonUIManager::InitializeLeftButton(IRenderContext& renderContext, Stretc
     if (m_leftButton->Initialize(
             &renderContext,
             leftButtonConfig,
-            ToTextRenderer(m_textRenderer),
+            m_textRenderer,
             false)) {
         if (stretchMode == StretchMode::Fit || stretchMode == StretchMode::Disabled) {
             m_leftButton->SetFixedScreenSize(true);
@@ -261,7 +259,7 @@ bool ButtonUIManager::InitializeLeftButton(IRenderContext& renderContext, Stretc
         if (m_leftButton->Initialize(
                 &renderContext,
                 fallbackConfig,
-                ToTextRenderer(m_textRenderer),
+                m_textRenderer,
                 false)) {
             if (stretchMode == StretchMode::Fit || stretchMode == StretchMode::Disabled) {
                 m_leftButton->SetFixedScreenSize(true);
@@ -275,8 +273,6 @@ bool ButtonUIManager::InitializeLeftButton(IRenderContext& renderContext, Stretc
 bool ButtonUIManager::InitializeColorButtons(IRenderContext& renderContext, StretchMode stretchMode, 
                                            float screenWidth, float screenHeight) {
     Extent2D extent = renderContext.GetSwapchainExtent();
-    // 将抽象类型转换为Vulkan类型（仅在实现层进行转换）
-    VkExtent2D uiExtent = { extent.width, extent.height };
     
     struct ColorInfo {
         float r, g, b;
@@ -300,9 +296,9 @@ bool ButtonUIManager::InitializeColorButtons(IRenderContext& renderContext, Stre
     float centerY = 0.1f;
     
     float colorBtnScreenWidth = (stretchMode == StretchMode::Fit || stretchMode == StretchMode::Disabled) ? 
-                                 (float)uiExtent.width : screenWidth;
+                                 (float)extent.width : screenWidth;
     float colorBtnScreenHeight = (stretchMode == StretchMode::Fit || stretchMode == StretchMode::Disabled) ? 
-                                  (float)uiExtent.height : screenHeight;
+                                  (float)extent.height : screenHeight;
     
     float matrixCenterX = centerX;
     float matrixCenterY = centerY + (80.0f + spacing + 80.0f) / colorBtnScreenHeight;
@@ -336,7 +332,7 @@ bool ButtonUIManager::InitializeColorButtons(IRenderContext& renderContext, Stre
             if (m_colorButtons[index]->Initialize(
                     &renderContext,
                     colorBtnConfig,
-                    ToTextRenderer(m_textRenderer))) {
+                    m_textRenderer)) {
                 if (stretchMode == StretchMode::Fit || stretchMode == StretchMode::Disabled) {
                     m_colorButtons[index]->SetFixedScreenSize(true);
                 }
@@ -352,8 +348,6 @@ bool ButtonUIManager::InitializeColorButtons(IRenderContext& renderContext, Stre
 bool ButtonUIManager::InitializeBoxColorButtons(IRenderContext& renderContext, StretchMode stretchMode,
                                                float screenWidth, float screenHeight) {
     Extent2D extent = renderContext.GetSwapchainExtent();
-    // 将抽象类型转换为Vulkan类型（仅在实现层进行转换）
-    VkExtent2D uiExtent = { extent.width, extent.height };
     
     float boxBtnMatrixCenterX = 0.85f;
     float boxBtnMatrixCenterY = 0.5f;
@@ -361,13 +355,13 @@ bool ButtonUIManager::InitializeBoxColorButtons(IRenderContext& renderContext, S
     float boxBtnSpacing = 8.0f;
     
     float boxBtnButtonSizeRel = boxBtnButtonSize / ((stretchMode == StretchMode::Fit || stretchMode == StretchMode::Disabled) ? 
-                                                     (float)uiExtent.width : screenWidth);
+                                                     (float)extent.width : screenWidth);
     float boxBtnButtonSizeRelY = boxBtnButtonSize / ((stretchMode == StretchMode::Fit || stretchMode == StretchMode::Disabled) ? 
-                                                      (float)uiExtent.height : screenHeight);
+                                                      (float)extent.height : screenHeight);
     float boxBtnSpacingRelX = boxBtnSpacing / ((stretchMode == StretchMode::Fit || stretchMode == StretchMode::Disabled) ? 
-                                                (float)uiExtent.width : screenWidth);
+                                                (float)extent.width : screenWidth);
     float boxBtnSpacingRelY = boxBtnSpacing / ((stretchMode == StretchMode::Fit || stretchMode == StretchMode::Disabled) ? 
-                                                (float)uiExtent.height : screenHeight);
+                                                (float)extent.height : screenHeight);
     
     float boxBtnMatrixWidth = 3.0f * boxBtnButtonSizeRel + 2.0f * boxBtnSpacingRelX;
     float boxBtnMatrixHeight = 3.0f * boxBtnButtonSizeRelY + 2.0f * boxBtnSpacingRelY;
@@ -396,7 +390,7 @@ bool ButtonUIManager::InitializeBoxColorButtons(IRenderContext& renderContext, S
             if (m_boxColorButtons[index]->Initialize(
                     &renderContext,
                     boxBtnConfig,
-                    ToTextRenderer(m_textRenderer))) {
+                    m_textRenderer)) {
                 if (stretchMode == StretchMode::Fit || stretchMode == StretchMode::Disabled) {
                     m_boxColorButtons[index]->SetFixedScreenSize(true);
                 }
@@ -420,7 +414,7 @@ bool ButtonUIManager::InitializeColorAdjustButton(IRenderContext& renderContext,
     if (m_colorAdjustButton->Initialize(
             &renderContext,
             colorAdjustButtonConfig,
-            ToTextRenderer(m_textRenderer),
+            m_textRenderer,
             false)) {
         if (stretchMode == StretchMode::Fit || stretchMode == StretchMode::Disabled) {
             m_colorAdjustButton->SetFixedScreenSize(true);

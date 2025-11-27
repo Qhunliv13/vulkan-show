@@ -1,8 +1,8 @@
 #pragma once
 
 #include <windows.h>  // 2. 系统头文件
-#include <string>  // 2. 系统头文件
-#include <vector>  // 2. 系统头文件
+#include <string>     // 2. 系统头文件
+#include <vector>     // 2. 系统头文件
 #include "core/config/constants.h"  // 4. 项目头文件（配置）
 #include "core/config/stretch_params.h"  // 4. 项目头文件（配置）
 #include "core/types/render_types.h"  // 4. 项目头文件（类型）

@@ -1,12 +1,8 @@
 #include "core/utils/input_handler.h"
 
-#include <algorithm>
-#include <cmath>
-
-#include <vulkan/vulkan.h>
+#include <windows.h>  // 2. 系统头文件
 
 #include "core/types/render_types.h"
-#include "window/window.h"
 
 InputHandler::InputHandler() {
 }
@@ -14,7 +10,7 @@ InputHandler::InputHandler() {
 InputHandler::~InputHandler() {
 }
 
-void InputHandler::Initialize(IRenderer* renderer, Window* window, StretchMode stretchMode) {
+void InputHandler::Initialize(IRenderer* renderer, IWindow* window, StretchMode stretchMode) {
     m_renderer = renderer;
     m_window = window;
     m_stretchMode = stretchMode;
@@ -50,9 +46,9 @@ void InputHandler::ConvertWindowToUICoords(int windowX, int windowY, float& uiX,
     if (m_stretchMode == StretchMode::Scaled) {
         // Scaled模式：将屏幕坐标转换为逻辑坐标
         StretchParams stretchParams = m_renderer->GetStretchParams();
-        if (stretchParams.stretchScaleX > 0.0f && stretchParams.stretchScaleY > 0.0f) {
-            clickX = (clickX - stretchParams.marginX) / stretchParams.stretchScaleX;
-            clickY = (clickY - stretchParams.marginY) / stretchParams.stretchScaleY;
+        if (stretchParams.m_stretchScaleX > 0.0f && stretchParams.m_stretchScaleY > 0.0f) {
+            clickX = (clickX - stretchParams.m_marginX) / stretchParams.m_stretchScaleX;
+            clickY = (clickY - stretchParams.m_marginY) / stretchParams.m_stretchScaleY;
         }
     } else if (m_stretchMode == StretchMode::Fit) {
         // 获取UI基准尺寸（背景纹理大小，如果没有背景则使用800x800）

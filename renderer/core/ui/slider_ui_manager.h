@@ -4,8 +4,10 @@
 #include <vector>  // 2. 系统头文件
 
 #include "core/config/constants.h"  // 4. 项目头文件（配置）
+#include "core/interfaces/icolor_controller.h"  // 4. 项目头文件（接口）
+#include "core/interfaces/islider.h"  // 4. 项目头文件（接口）
 #include "core/interfaces/iwindow_resize_handler.h"  // 4. 项目头文件（接口）
-#include "ui/slider/slider.h"  // 4. 项目头文件（UI组件）
+#include "ui/slider/slider.h"  // 4. 项目头文件（UI组件实现）
 // 注意：必须包含完整定义，因为 std::unique_ptr<Slider> 作为成员变量需要完整类型（析构函数需要知道如何删除）
 
 // 前向声明（ColorController 仅作为参数类型，不需要完整定义）
@@ -67,19 +69,23 @@ public:
      * 
      * 所有权：[BORROW] 返回的指针不拥有所有权，由 SliderUIManager 管理生命周期
      */
-    Slider* GetOrangeSlider() const { return m_orangeSlider.get(); }
+    ISlider* GetOrangeSlider() const { return m_orangeSlider.get(); }
     
     /**
      * 获取所有滑块（包括颜色控制器中的滑块）
      * 
      * 收集所有滑块指针到向量中，包括颜色控制器中的滑块
      * 
-     * @param sliders 输出参数，存储所有滑块指针
-     * @param colorController 颜色控制器（可选，用于获取其中的滑块）
-     * @param boxColorControllers 盒子颜色控制器组（可选，用于获取其中的滑块）
+     * 注意：boxColorControllers 参数使用具体类型而非接口类型，原因：
+     * - std::vector<std::unique_ptr<ColorController>> 需要具体类型用于析构函数
+     * - 这是资源管理的技术限制，符合开发标准第4.3节关于 unique_ptr 的要求
+     * 
+     * @param sliders 输出参数，存储所有滑块接口指针
+     * @param colorController 颜色控制器接口（可选，用于获取其中的滑块）
+     * @param boxColorControllers 盒子颜色控制器组（可选，用于获取其中的滑块，使用具体类型因 unique_ptr 需要完整类型）
      */
-    void GetAllSliders(std::vector<Slider*>& sliders, 
-                      ColorController* colorController = nullptr,
+    void GetAllSliders(std::vector<ISlider*>& sliders, 
+                      IColorController* colorController = nullptr,
                       const std::vector<std::unique_ptr<ColorController>>* boxColorControllers = nullptr) const;
     
 private:

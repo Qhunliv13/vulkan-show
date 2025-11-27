@@ -4,17 +4,20 @@
 #include <vector>  // 2. 系统头文件
 
 #include "core/config/constants.h"  // 4. 项目头文件（配置）
+#include "core/interfaces/ibutton.h"  // 4. 项目头文件（接口）
+#include "core/interfaces/icolor_controller.h"  // 4. 项目头文件（接口）
 #include "core/interfaces/irender_context.h"  // 4. 项目头文件（接口）
 #include "core/interfaces/irenderer.h"  // 4. 项目头文件（接口）
+#include "core/interfaces/islider.h"  // 4. 项目头文件（接口）
 #include "core/interfaces/iuimanager.h"  // 4. 项目头文件（接口）
 #include "core/interfaces/iwindow.h"  // 4. 项目头文件（接口）
 
 // 前向声明
 class ITextRenderer;
-class Button;
 class IEventBus;
-class Slider;
-class ColorController;
+class Button;  // 具体实现类，用于std::unique_ptr
+class Slider;  // 具体实现类，用于std::unique_ptr
+class ColorController;  // 具体实现类，用于std::unique_ptr
 class LoadingAnimation;
 class ButtonUIManager;
 class ColorUIManager;
@@ -66,21 +69,21 @@ public:
      * 
      * 所有权：[BORROW] 返回的指针不拥有所有权，由 UIManager 管理生命周期
      */
-    LoadingAnimation* GetLoadingAnimation() const { return m_loadingAnim; }
-    Button* GetEnterButton() const;
-    Button* GetColorButton() const;
-    Button* GetLeftButton() const;
-    Slider* GetOrangeSlider() const;
-    void GetAllButtons(std::vector<Button*>& buttons) const;
-    void GetAllSliders(std::vector<Slider*>& sliders) const;
+    LoadingAnimation* GetLoadingAnimation() const { return m_loadingAnim.get(); }
+    IButton* GetEnterButton() const;
+    IButton* GetColorButton() const;
+    IButton* GetLeftButton() const;
+    ISlider* GetOrangeSlider() const;
+    void GetAllButtons(std::vector<IButton*>& buttons) const;
+    void GetAllSliders(std::vector<ISlider*>& sliders) const;
     
     /**
      * 其他UI组件获取方法
      * 
      * 所有权：[BORROW] 返回的指针不拥有所有权，由 UIManager 管理生命周期
      */
-    Button* GetColorAdjustButton() const;
-    ColorController* GetColorController() const;
+    IButton* GetColorAdjustButton() const;
+    IColorController* GetColorController() const;
     
     const std::vector<std::unique_ptr<Button>>& GetColorButtons() const;
     const std::vector<std::unique_ptr<Button>>& GetBoxColorButtons() const;
@@ -143,7 +146,7 @@ private:
                                     StretchMode stretchMode, float screenWidth, float screenHeight);
     
     // UI组件
-    LoadingAnimation* m_loadingAnim = nullptr;  // 加载动画（不拥有所有权，由子管理器管理）
+    std::unique_ptr<LoadingAnimation> m_loadingAnim;  // 加载动画（拥有所有权）
     
     // 子管理器（职责分离，拥有所有权）
     std::unique_ptr<ButtonUIManager> m_buttonManager;  // 按钮管理器

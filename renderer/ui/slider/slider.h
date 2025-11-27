@@ -4,7 +4,8 @@
 #include <memory>         // 2. 系统头文件
 #include <string>         // 2. 系统头文件
 
-#include <vulkan/vulkan.h>  // 3. 第三方库头文件
+#include "core/interfaces/islider.h"  // 4. 项目头文件（接口）
+#include "core/types/render_types.h"  // 4. 项目头文件（类型）
 
 // 前向声明
 class Button;
@@ -82,8 +83,21 @@ struct SliderConfig {
     }
 };
 
-// 独立的滑块组件
-class Slider {
+/**
+ * 独立的滑块组件 - 实现ISlider接口
+ * 
+ * 提供完整的滑块功能，包括：
+ * - 位置和大小管理（支持绝对位置和相对位置）
+ * - 轨道和填充区域渲染
+ * - 拖动点（thumb）管理
+ * - 值范围管理和回调处理
+ * 
+ * 设计意图：
+ * - 通过依赖注入接收 IRenderContext，避免直接依赖 Vulkan 实现
+ * - 实现 ISlider 接口，支持接口隔离原则
+ * - 支持快速创建和配置，一行代码即可初始化
+ */
+class Slider : public ISlider {
 public:
     Slider();
     ~Slider();
@@ -93,37 +107,38 @@ public:
     // 返回：是否初始化成功
     bool Initialize(IRenderContext* renderContext,
                     const SliderConfig& config,
-                    bool usePureShader = false);
+                    bool usePureShader = false) override;
     
     // 兼容旧接口的初始化方法（已废弃，建议使用新接口）
+    // 注意：此方法在实现文件中需要包含 Vulkan 头文件
     [[deprecated("Use Initialize(IRenderContext*, ...) instead")]]
-    bool Initialize(VkDevice device, VkPhysicalDevice physicalDevice, 
-                    VkCommandPool commandPool, VkQueue graphicsQueue, 
-                    VkRenderPass renderPass, VkExtent2D swapchainExtent,
+    bool Initialize(DeviceHandle device, PhysicalDeviceHandle physicalDevice, 
+                    CommandPoolHandle commandPool, QueueHandle graphicsQueue, 
+                    RenderPassHandle renderPass, Extent2D swapchainExtent,
                     const SliderConfig& config,
                     bool usePureShader = false);
     
     // 清理资源
-    void Cleanup();
+    void Cleanup() override;
     
     // 设置滑块位置和大小（窗口坐标，Y向下，原点在左上角）
-    void SetPosition(float x, float y);
-    void SetSize(float width, float height);
+    void SetPosition(float x, float y) override;
+    void SetSize(float width, float height) override;
     
     // 设置滑块值（会自动限制在minValue和maxValue之间）
-    void SetValue(float value);
+    void SetValue(float value) override;
     
     // 获取当前值
-    float GetValue() const { return m_value; }
+    float GetValue() const override { return m_value; }
     
     // 获取归一化值（0.0-1.0）
-    float GetNormalizedValue() const {
+    float GetNormalizedValue() const override {
         if (m_maxValue == m_minValue) return 0.0f;
         return (m_value - m_minValue) / (m_maxValue - m_minValue);
     }
     
     // 设置值范围
-    void SetRange(float minValue, float maxValue) {
+    void SetRange(float minValue, float maxValue) override {
         m_minValue = minValue;
         m_maxValue = maxValue;
         if (m_value < m_minValue) m_value = m_minValue;
@@ -132,25 +147,25 @@ public:
     }
     
     // 设置滑块轨道颜色
-    void SetTrackColor(float r, float g, float b, float a = 1.0f) {
+    void SetTrackColor(float r, float g, float b, float a = 1.0f) override {
         m_trackColorR = r; m_trackColorG = g; m_trackColorB = b; m_trackColorA = a;
         UpdateTrackBuffer();
     }
     
     // 设置滑块填充颜色
-    void SetFillColor(float r, float g, float b, float a = 1.0f) {
+    void SetFillColor(float r, float g, float b, float a = 1.0f) override {
         m_fillColorR = r; m_fillColorG = g; m_fillColorB = b; m_fillColorA = a;
         UpdateFillBuffer();
     }
     
     // 设置拖动点颜色（如果使用按钮，这个颜色可能被按钮覆盖）
-    void SetThumbColor(float r, float g, float b, float a = 1.0f);
+    void SetThumbColor(float r, float g, float b, float a = 1.0f) override;
     
     // 设置拖动点纹理
-    void SetThumbTexture(const std::string& texturePath);
+    void SetThumbTexture(const std::string& texturePath) override;
     
     // 设置滑块在屏幕上的相对位置（0.0-1.0，相对于屏幕宽高）
-    void SetRelativePosition(float relX, float relY, float screenWidth = 0.0f, float screenHeight = 0.0f) {
+    void SetRelativePosition(float relX, float relY, float screenWidth = 0.0f, float screenHeight = 0.0f) override {
         m_relativeX = relX;
         m_relativeY = relY;
         m_useRelativePosition = true;
@@ -162,7 +177,7 @@ public:
     }
     
     // 更新窗口大小（用于相对位置计算）
-    void UpdateScreenSize(float screenWidth, float screenHeight) {
+    void UpdateScreenSize(float screenWidth, float screenHeight) override {
         m_screenWidth = screenWidth;
         m_screenHeight = screenHeight;
         if (m_useRelativePosition) {
@@ -171,54 +186,54 @@ public:
     }
     
     // 获取滑块位置和大小
-    float GetX() const { return m_x; }
-    float GetY() const { return m_y; }
-    float GetWidth() const { return m_width; }
-    float GetHeight() const { return m_height; }
+    float GetX() const override { return m_x; }
+    float GetY() const override { return m_y; }
+    float GetWidth() const override { return m_width; }
+    float GetHeight() const override { return m_height; }
     
     // 设置和获取渲染层级（z-index，数值越大越在上层）
-    void SetZIndex(int zIndex);
-    int GetZIndex() const { return m_zIndex; }
+    void SetZIndex(int zIndex) override;
+    int GetZIndex() const override { return m_zIndex; }
     
     // 设置和获取可见性（是否渲染）
-    void SetVisible(bool visible);
-    bool IsVisible() const { return m_visible; }
+    void SetVisible(bool visible) override;
+    bool IsVisible() const override { return m_visible; }
     
     // 检测点是否在滑块轨道内（窗口坐标）
-    bool IsPointInsideTrack(float px, float py) const;
+    bool IsPointInsideTrack(float px, float py) const override;
     
     // 检测点是否在拖动点内（窗口坐标）
-    bool IsPointInsideThumb(float px, float py) const;
+    bool IsPointInsideThumb(float px, float py) const override;
     
     // 根据鼠标位置设置滑块值（用于拖动）
-    void SetValueFromPosition(float px, float py);
+    void SetValueFromPosition(float px, float py) override;
     
     // 渲染滑块到命令缓冲区
-    void Render(VkCommandBuffer commandBuffer, VkExtent2D extent);
+    void Render(CommandBufferHandle commandBuffer, Extent2D extent) override;
     
     // 设置值变化回调函数
-    void SetOnValueChangedCallback(std::function<void(float)> callback) {
+    void SetOnValueChangedCallback(std::function<void(float)> callback) override {
         m_onValueChangedCallback = callback;
     }
     
     // 处理鼠标按下（在窗口消息循环中调用）
     // 返回：是否点击了滑块
-    bool HandleMouseDown(float clickX, float clickY);
+    bool HandleMouseDown(float clickX, float clickY) override;
     
     // 处理鼠标移动（在窗口消息循环中调用，用于拖动）
     // 返回：是否正在拖动滑块
-    bool HandleMouseMove(float mouseX, float mouseY);
+    bool HandleMouseMove(float mouseX, float mouseY) override;
     
     // 处理鼠标释放（在窗口消息循环中调用）
-    void HandleMouseUp();
+    void HandleMouseUp() override;
     
     // 更新滑块位置以适应窗口大小变化（保持相对位置）
-    void UpdateForWindowResize(float newWidth, float newHeight) {
+    void UpdateForWindowResize(float newWidth, float newHeight) override {
         UpdateScreenSize(newWidth, newHeight);
     }
     
     // 设置Scaled模式的拉伸参数（已废弃）
-    void SetStretchParams(const struct StretchParams& params);
+    void SetStretchParams(const struct StretchParams& params) override;
 
 private:
     // 更新相对位置
@@ -240,13 +255,13 @@ private:
     void UpdateFillBuffer();
     
     // 查找内存类型
-    uint32_t FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
+    uint32_t FindMemoryType(uint32_t typeFilter, MemoryPropertyFlag properties);
     
     // 创建图形管线
-    bool CreatePipeline(VkRenderPass renderPass);
+    bool CreatePipeline(RenderPassHandle renderPass);
     
     // 创建纯shader图形管线
-    bool CreatePureShaderPipeline(VkRenderPass renderPass);
+    bool CreatePureShaderPipeline(RenderPassHandle renderPass);
     
     // 创建全屏四边形顶点缓冲区（用于纯shader渲染）
     bool CreateFullscreenQuadBuffer();
@@ -254,13 +269,13 @@ private:
     // 渲染上下文（新接口）
     IRenderContext* m_renderContext = nullptr;
     
-    // Vulkan对象（通过渲染上下文获取，保留用于向后兼容）
-    VkDevice m_device = VK_NULL_HANDLE;
-    VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
-    VkCommandPool m_commandPool = VK_NULL_HANDLE;
-    VkQueue m_graphicsQueue = VK_NULL_HANDLE;
-    VkRenderPass m_renderPass = VK_NULL_HANDLE;
-    VkExtent2D m_swapchainExtent = {};
+    // 渲染设备对象（使用抽象类型，在实现层转换为Vulkan类型）
+    DeviceHandle m_device = nullptr;
+    PhysicalDeviceHandle m_physicalDevice = nullptr;
+    CommandPoolHandle m_commandPool = nullptr;
+    QueueHandle m_graphicsQueue = nullptr;
+    RenderPassHandle m_renderPass = nullptr;
+    Extent2D m_swapchainExtent = {};
     bool m_usePureShader = false;
     
     // 滑块属性
@@ -310,18 +325,20 @@ private:
     bool m_isDragging = false;
     
     // 渲染资源（传统方式）
-    VkBuffer m_trackVertexBuffer = VK_NULL_HANDLE;
-    VkDeviceMemory m_trackVertexBufferMemory = VK_NULL_HANDLE;
-    VkBuffer m_fillVertexBuffer = VK_NULL_HANDLE;
-    VkDeviceMemory m_fillVertexBufferMemory = VK_NULL_HANDLE;
-    VkPipeline m_graphicsPipeline = VK_NULL_HANDLE;
-    VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
+    // 注意：以下成员变量在 .cpp 文件中使用 Vulkan 类型，头文件中使用不透明指针
+    // 使用不透明指针避免头文件直接依赖 Vulkan 实现
+    void* m_trackVertexBuffer = nullptr;
+    void* m_trackVertexBufferMemory = nullptr;
+    void* m_fillVertexBuffer = nullptr;
+    void* m_fillVertexBufferMemory = nullptr;
+    void* m_graphicsPipeline = nullptr;
+    void* m_pipelineLayout = nullptr;
     
     // 纯shader渲染资源
-    VkBuffer m_fullscreenQuadBuffer = VK_NULL_HANDLE;
-    VkDeviceMemory m_fullscreenQuadBufferMemory = VK_NULL_HANDLE;
-    VkPipeline m_pureShaderPipeline = VK_NULL_HANDLE;
-    VkPipelineLayout m_pureShaderPipelineLayout = VK_NULL_HANDLE;
+    void* m_fullscreenQuadBuffer = nullptr;
+    void* m_fullscreenQuadBufferMemory = nullptr;
+    void* m_pureShaderPipeline = nullptr;
+    void* m_pureShaderPipelineLayout = nullptr;
     
     // 值变化回调
     std::function<void(float)> m_onValueChangedCallback;

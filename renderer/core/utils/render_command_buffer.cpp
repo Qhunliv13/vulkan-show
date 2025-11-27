@@ -1,7 +1,5 @@
 #include "core/utils/render_command_buffer.h"
 
-#include <algorithm>
-
 #include "core/interfaces/irender_command.h"
 
 RenderCommandBuffer::RenderCommandBuffer() {

@@ -1,5 +1,8 @@
 #include "ui/html_ui.h"  // 1. 对应头文件
 
+// 前向声明
+class Window;
+
 #include <comdef.h>      // 2. 系统头文件
 #include <exdisp.h>      // 2. 系统头文件
 #include <fstream>       // 2. 系统头文件
@@ -10,9 +13,6 @@
 #include <stdlib.h>      // 2. 系统头文件
 #include <sstream>       // 2. 系统头文件
 #include <windows.h>     // 2. 系统头文件
-
-// 前向声明
-class Window;
 
 // 使用前向声明替代直接包含，减少头文件依赖
 // 注意：如果需要在实现文件中调用Window的方法，则必须包含头文件
@@ -26,7 +26,7 @@ HtmlUI::HtmlUI()
     : m_parentHwnd(nullptr)
     , m_webViewHwnd(nullptr)
     , m_initialized(false)
-    , m_pWebBrowser(nullptr)
+    , m_webBrowser(nullptr)
     , m_enterMainCallback(nullptr)
 {
 }
@@ -171,7 +171,7 @@ bool HtmlUI::CreateFallbackBrowser() {
         UpdateWindow(m_webViewHwnd);
         
         // 保存接口指针
-        m_pWebBrowser = pWebBrowser;
+        m_webBrowser = pWebBrowser;
         return true;
     }
     
@@ -272,12 +272,12 @@ bool HtmlUI::LoadHtmlStringWithCss(const std::string& htmlContent, const std::st
 }
 
 bool HtmlUI::NavigateToHtml(const std::string& htmlContent) {
-    if (!m_webViewHwnd || !m_pWebBrowser) {
+    if (!m_webViewHwnd || !m_webBrowser) {
         return false;
     }
     
     // 使用保存的WebBrowser接口
-    IWebBrowser2* pWebBrowser = (IWebBrowser2*)m_pWebBrowser;
+    IWebBrowser2* pWebBrowser = (IWebBrowser2*)m_webBrowser;
     
     // 先导航到about:blank
     VARIANT vEmpty;
@@ -376,8 +376,8 @@ void HtmlUI::SetVisible(bool visible) {
     }
     
     // 同时设置WebBrowser控件的可见性
-    if (m_pWebBrowser) {
-        IWebBrowser2* pWebBrowser = (IWebBrowser2*)m_pWebBrowser;
+    if (m_webBrowser) {
+        IWebBrowser2* pWebBrowser = (IWebBrowser2*)m_webBrowser;
         pWebBrowser->put_Visible(visible ? VARIANT_TRUE : VARIANT_FALSE);
     }
 }
@@ -388,8 +388,8 @@ void HtmlUI::Resize(int x, int y, int width, int height) {
     }
     
     // 同时更新WebBrowser控件的大小
-    if (m_pWebBrowser) {
-        IWebBrowser2* pWebBrowser = (IWebBrowser2*)m_pWebBrowser;
+    if (m_webBrowser) {
+        IWebBrowser2* pWebBrowser = (IWebBrowser2*)m_webBrowser;
         pWebBrowser->put_Left(x);
         pWebBrowser->put_Top(y);
         pWebBrowser->put_Width(width);
@@ -398,10 +398,10 @@ void HtmlUI::Resize(int x, int y, int width, int height) {
 }
 
 void HtmlUI::Cleanup() {
-    if (m_pWebBrowser) {
-        IWebBrowser2* pWebBrowser = (IWebBrowser2*)m_pWebBrowser;
+    if (m_webBrowser) {
+        IWebBrowser2* pWebBrowser = (IWebBrowser2*)m_webBrowser;
         pWebBrowser->Release();
-        m_pWebBrowser = nullptr;
+        m_webBrowser = nullptr;
     }
     
     if (m_webViewHwnd) {

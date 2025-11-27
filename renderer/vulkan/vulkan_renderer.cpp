@@ -13,8 +13,8 @@
 
 #include "core/config/constants.h"   // 4. 项目头文件（按依赖层级从内到外）
 #include "core/config/stretch_params.h"
-#include "renderer/vulkan/vulkan_render_context_factory.h"  // Vulkan 渲染上下文工厂
 #include "core/types/render_types.h"  // 抽象类型定义
+#include "renderer/vulkan/vulkan_render_context_factory.h"  // Vulkan 渲染上下文工厂
 #include "core/utils/render_command_buffer.h"  // 在 .cpp 中包含实现
 #include "shader/shader_loader.h"
 #include "texture/texture.h"
@@ -46,6 +46,10 @@ IRenderCommandBuffer* VulkanRenderer::GetCommandBuffer() {
 }
 
 bool VulkanRenderer::Initialize(HWND hwnd, HINSTANCE hInstance) {
+    if (m_initialized) {
+        return true;  // 已初始化，直接返回
+    }
+    
     m_hwnd = hwnd;
     
     if (!CreateInstance()) return false;
@@ -60,10 +64,15 @@ bool VulkanRenderer::Initialize(HWND hwnd, HINSTANCE hInstance) {
     if (!CreateCommandBuffers()) return false;
     if (!CreateSyncObjects()) return false;
     
+    m_initialized = true;
     return true;
 }
 
 void VulkanRenderer::Cleanup() {
+    if (!m_initialized) {
+        return;  // 未初始化，无需清理
+    }
+    
     if (m_device != VK_NULL_HANDLE) {
         VkResult result = vkDeviceWaitIdle(m_device);
         if (result != VK_SUCCESS) {
@@ -150,6 +159,8 @@ void VulkanRenderer::Cleanup() {
         vkDestroyInstance(m_instance, nullptr);
         m_instance = VK_NULL_HANDLE;
     }
+    
+    m_initialized = false;
 }
 
 bool VulkanRenderer::CreateInstance() {
@@ -440,14 +451,14 @@ bool VulkanRenderer::CreateGraphicsPipeline(const std::string& vertShaderPath, c
         vertShaderCode = renderer::shader::ShaderLoader::LoadSPIRV(vertShaderPath);
     } else {
         // 尝试从GLSL编译
-        vertShaderCode = renderer::shader::ShaderLoader::CompileGLSLFromFile(vertShaderPath, VK_SHADER_STAGE_VERTEX_BIT);
+        vertShaderCode = renderer::shader::ShaderLoader::CompileGLSLFromFile(vertShaderPath, ShaderStage::Vertex);
     }
     
     size_t fragExtPos = fragShaderPath.find_last_of('.');
     if (fragExtPos != std::string::npos && fragShaderPath.substr(fragExtPos) == ".spv") {
         fragShaderCode = renderer::shader::ShaderLoader::LoadSPIRV(fragShaderPath);
     } else {
-        fragShaderCode = renderer::shader::ShaderLoader::CompileGLSLFromFile(fragShaderPath, VK_SHADER_STAGE_FRAGMENT_BIT);
+        fragShaderCode = renderer::shader::ShaderLoader::CompileGLSLFromFile(fragShaderPath, ShaderStage::Fragment);
     }
     
     if (vertShaderCode.empty() || fragShaderCode.empty()) {
@@ -455,8 +466,18 @@ bool VulkanRenderer::CreateGraphicsPipeline(const std::string& vertShaderPath, c
         return false;
     }
     
-    VkShaderModule vertShaderModule = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(m_device, vertShaderCode);
-    VkShaderModule fragShaderModule = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(m_device, fragShaderCode);
+    // 使用抽象类型，然后在需要时转换为Vulkan类型
+    ShaderModuleHandle vertShaderModuleHandle = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(static_cast<DeviceHandle>(m_device), vertShaderCode);
+    ShaderModuleHandle fragShaderModuleHandle = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(static_cast<DeviceHandle>(m_device), fragShaderCode);
+    
+    if (vertShaderModuleHandle == nullptr || fragShaderModuleHandle == nullptr) {
+        Window::ShowError("Failed to create shader modules!");
+        return false;
+    }
+    
+    // 将抽象句柄转换为Vulkan类型用于创建管线
+    VkShaderModule vertShaderModule = static_cast<VkShaderModule>(vertShaderModuleHandle);
+    VkShaderModule fragShaderModule = static_cast<VkShaderModule>(fragShaderModuleHandle);
     
     if (vertShaderModule == VK_NULL_HANDLE || fragShaderModule == VK_NULL_HANDLE) {
         Window::ShowError("Failed to create shader modules!");
@@ -595,14 +616,14 @@ bool VulkanRenderer::CreateLoadingCubesPipeline(const std::string& vertShaderPat
         vertShaderCode = renderer::shader::ShaderLoader::LoadSPIRV(vertShaderPath);
     } else {
         // 尝试从GLSL编译
-        vertShaderCode = renderer::shader::ShaderLoader::CompileGLSLFromFile(vertShaderPath, VK_SHADER_STAGE_VERTEX_BIT);
+        vertShaderCode = renderer::shader::ShaderLoader::CompileGLSLFromFile(vertShaderPath, ShaderStage::Vertex);
     }
     
     size_t fragExtPos = fragShaderPath.find_last_of('.');
     if (fragExtPos != std::string::npos && fragShaderPath.substr(fragExtPos) == ".spv") {
         fragShaderCode = renderer::shader::ShaderLoader::LoadSPIRV(fragShaderPath);
     } else {
-        fragShaderCode = renderer::shader::ShaderLoader::CompileGLSLFromFile(fragShaderPath, VK_SHADER_STAGE_FRAGMENT_BIT);
+        fragShaderCode = renderer::shader::ShaderLoader::CompileGLSLFromFile(fragShaderPath, ShaderStage::Fragment);
     }
     
     if (vertShaderCode.empty() || fragShaderCode.empty()) {
@@ -610,8 +631,18 @@ bool VulkanRenderer::CreateLoadingCubesPipeline(const std::string& vertShaderPat
         return false;
     }
     
-    VkShaderModule vertShaderModule = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(m_device, vertShaderCode);
-    VkShaderModule fragShaderModule = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(m_device, fragShaderCode);
+    // 使用抽象类型，然后在需要时转换为Vulkan类型
+    ShaderModuleHandle vertShaderModuleHandle = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(static_cast<DeviceHandle>(m_device), vertShaderCode);
+    ShaderModuleHandle fragShaderModuleHandle = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(static_cast<DeviceHandle>(m_device), fragShaderCode);
+    
+    if (vertShaderModuleHandle == nullptr || fragShaderModuleHandle == nullptr) {
+        Window::ShowError("Failed to create shader modules!");
+        return false;
+    }
+    
+    // 将抽象句柄转换为Vulkan类型用于创建管线
+    VkShaderModule vertShaderModule = static_cast<VkShaderModule>(vertShaderModuleHandle);
+    VkShaderModule fragShaderModule = static_cast<VkShaderModule>(fragShaderModuleHandle);
     
     if (vertShaderModule == VK_NULL_HANDLE || fragShaderModule == VK_NULL_HANDLE) {
         Window::ShowError("Failed to create loading cubes shader modules!");
@@ -950,14 +981,14 @@ void VulkanRenderer::RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
             float stretchScaleY = screenHeight / viewportHeight;
             
             // 保存拉伸参数（用于UI渲染）
-            m_stretchParams.stretchScaleX = stretchScaleX;
-            m_stretchParams.stretchScaleY = stretchScaleY;
-            m_stretchParams.logicalWidth = viewportWidth;
-            m_stretchParams.logicalHeight = viewportHeight;
-            m_stretchParams.screenWidth = screenWidth;
-            m_stretchParams.screenHeight = screenHeight;
-            m_stretchParams.marginX = offsetX;
-            m_stretchParams.marginY = offsetY;
+            m_stretchParams.m_stretchScaleX = stretchScaleX;
+            m_stretchParams.m_stretchScaleY = stretchScaleY;
+            m_stretchParams.m_logicalWidth = viewportWidth;
+            m_stretchParams.m_logicalHeight = viewportHeight;
+            m_stretchParams.m_screenWidth = screenWidth;
+            m_stretchParams.m_screenHeight = screenHeight;
+            m_stretchParams.m_marginX = offsetX;
+            m_stretchParams.m_marginY = offsetY;
             
             viewport.x = offsetX;
             viewport.y = offsetY;
@@ -1409,7 +1440,10 @@ bool VulkanRenderer::DrawFrameWithLoading(const DrawFrameWithLoadingParams& para
     // 渲染加载动画（方块动画）
     // UI使用固定的坐标系尺寸（uiExtent），这样UI位置始终正确
     if (params.loadingAnim) {
-        params.loadingAnim->Render(m_commandBuffers[imageIndex], uiExtent);
+        // 将Vulkan类型转换为抽象类型
+        CommandBufferHandle commandBuffer = static_cast<CommandBufferHandle>(m_commandBuffers[imageIndex]);
+        Extent2D abstractUiExtent = { uiExtent.width, uiExtent.height };
+        params.loadingAnim->Render(commandBuffer, abstractUiExtent);
     }
     
     // 收集所有按钮并按zIndex排序（数值越大越在上层）
@@ -1471,14 +1505,14 @@ bool VulkanRenderer::DrawFrameWithLoading(const DrawFrameWithLoadingParams& para
             }
             sliderDebugCount++;
             if (params.slider->IsVisible()) {
-                params.slider->Render(m_commandBuffers[imageIndex], uiExtent);
+                params.slider->Render(static_cast<CommandBufferHandle>(m_commandBuffers[imageIndex]), abstractUiExtent);
             }
         }
         // 渲染额外的滑块（如果有）
         if (params.additionalSliders) {
             for (Slider* sld : *params.additionalSliders) {
                 if (sld && sld->IsVisible()) {
-                    sld->Render(m_commandBuffers[imageIndex], uiExtent);
+                    sld->Render(static_cast<CommandBufferHandle>(m_commandBuffers[imageIndex]), abstractUiExtent);
                 }
             }
         }
@@ -1586,14 +1620,14 @@ bool VulkanRenderer::DrawFrameWithLoading(const DrawFrameWithLoadingParams& para
             }
             sliderDebugCount2++;
             if (params.slider->IsVisible()) {
-                params.slider->Render(m_commandBuffers[imageIndex], uiExtent);
+                params.slider->Render(static_cast<CommandBufferHandle>(m_commandBuffers[imageIndex]), abstractUiExtent);
             }
         }
         // 渲染额外的滑块（如果有）
         if (params.additionalSliders) {
             for (Slider* sld : *params.additionalSliders) {
                 if (sld && sld->IsVisible()) {
-                    sld->Render(m_commandBuffers[imageIndex], uiExtent);
+                    sld->Render(static_cast<CommandBufferHandle>(m_commandBuffers[imageIndex]), abstractUiExtent);
                 }
             }
         }

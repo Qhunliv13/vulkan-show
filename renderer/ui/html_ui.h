@@ -5,8 +5,12 @@
 #include <string>        // 2. 系统头文件
 #include <windows.h>     // 2. 系统头文件
 
-// HTML UI管理器 - 使用WebView2或备用浏览器控件显示HTML内容
-// 支持加载HTML文件和字符串，自动加载对应的CSS文件，提供JavaScript回调接口
+/**
+ * HTML UI管理器 - 使用WebView2或备用浏览器控件显示HTML内容
+ * 
+ * 支持加载HTML文件和字符串，自动加载对应的CSS文件，提供JavaScript回调接口
+ * 通过依赖注入接收父窗口句柄，避免直接依赖窗口实现类
+ */
 class HtmlUI {
 public:
     HtmlUI();
@@ -52,8 +56,8 @@ private:
     HWND m_parentHwnd;
     HWND m_webViewHwnd;
     bool m_initialized;
-    void* m_pWebBrowser; // IWebBrowser2* 指针（使用void*避免头文件包含COM接口）
-    std::function<void()> m_enterMainCallback; // 进入主界面的回调函数
+    void* m_webBrowser;  // IWebBrowser2* 指针（使用void*避免头文件包含COM接口，不拥有所有权）
+    std::function<void()> m_enterMainCallback;  // 进入主界面的回调函数
     
     // 创建WebView2控件（如果可用）
     bool CreateWebView2();

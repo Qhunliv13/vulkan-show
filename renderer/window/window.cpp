@@ -1,112 +1,90 @@
-#include "window/window.h"  // 1. 对应头文件
+#include "window/window.h"
 
-// 确保在包含Gdiplus之前NOMINMAX已定义（window.h中已定义）
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
 
-#include <gdiplus.h>  // 2. 系统头文件
+#include <gdiplus.h>
 #pragma comment(lib, "gdiplus.lib")
 
-// 注意：window.h已经包含了windows.h，所以LoadImage宏可能已经被定义
-// 在包含image_loader.h之前取消宏定义，避免与ImageLoader::LoadImage冲突
 #ifdef LoadImage
 #undef LoadImage
 #endif
 
-#include "core/config/constants.h"      // 4. 项目头文件（配置）
-#include "core/interfaces/ievent_bus.h"  // 4. 项目头文件（接口）
-#include "image/image_loader.h"          // 4. 项目头文件
+#include "core/config/constants.h"
+#include "core/interfaces/ievent_bus.h"
+#include "image/image_loader.h"
 
-// 匿名命名空间：将辅助函数放在命名空间内，避免全局作用域污染
 namespace {
-    // 辅助函数：编码32位整数（小端序）
-    void encode_uint32(uint32_t value, uint8_t* buffer) {
-        buffer[0] = (value) & 0xFF;
-        buffer[1] = (value >> 8) & 0xFF;
-        buffer[2] = (value >> 16) & 0xFF;
-        buffer[3] = (value >> 24) & 0xFF;
-    }
-
-    // 辅助函数：编码16位整数（小端序）
-    void encode_uint16(uint16_t value, uint8_t* buffer) {
-        buffer[0] = (value) & 0xFF;
-        buffer[1] = (value >> 8) & 0xFF;
-    }
-
-    // 辅助函数：从ImageData创建指定尺寸的图标
+    /**
+     * 从ImageData创建指定尺寸的Windows图标
+     * 使用GDI+进行图像处理和高质量缩放，支持RGBA到BGRA的颜色格式转换
+     * @param imageData 源图像数据
+     * @param targetSize 目标图标尺寸
+     * @return 成功返回图标句柄，失败返回 nullptr
+     */
     HICON CreateIconFromImageData(const renderer::image::ImageData& imageData, uint32_t targetSize) {
-    // 创建源位图
-    // 使用static_cast防止宏展开，PixelFormat32bppARGB = 0x0026200A
-    const Gdiplus::PixelFormat pixelFormat = static_cast<Gdiplus::PixelFormat>(0x0026200A);
-    Gdiplus::Bitmap* sourceBitmap = new Gdiplus::Bitmap(
-        static_cast<INT>(imageData.width), 
-        static_cast<INT>(imageData.height), 
-        pixelFormat);
-    if (sourceBitmap->GetLastStatus() != Gdiplus::Ok) {
-        delete sourceBitmap;
-        return nullptr;
-    }
-    
-    // 复制像素数据到源位图
-    Gdiplus::BitmapData sourceData;
-    Gdiplus::Rect sourceRect(0, 0, static_cast<INT>(imageData.width), static_cast<INT>(imageData.height));
-    // 使用局部变量防止宏展开
-    // ImageLockModeWrite = 1, PixelFormat32bppARGB = 0x0026200A
-    const Gdiplus::ImageLockMode lockMode = static_cast<Gdiplus::ImageLockMode>(1);
-    const Gdiplus::PixelFormat lockFormat = static_cast<Gdiplus::PixelFormat>(0x0026200A);
-    if (sourceBitmap->LockBits(&sourceRect, lockMode, lockFormat, &sourceData) == Gdiplus::Ok) {
-        uint8_t* dst = (uint8_t*)sourceData.Scan0;
-        const uint8_t* src = imageData.pixels.data();
-        
-        for (uint32_t y = 0; y < imageData.height; y++) {
-            for (uint32_t x = 0; x < imageData.width; x++) {
-                uint8_t* dstPixel = dst + (y * sourceData.Stride + x * 4);
-                const uint8_t* srcPixel = src + ((y * imageData.width + x) * 4);
-                
-                // RGBA -> BGRA
-                dstPixel[0] = srcPixel[2];  // B
-                dstPixel[1] = srcPixel[1];  // G
-                dstPixel[2] = srcPixel[0];  // R
-                dstPixel[3] = srcPixel[3];  // A
-            }
+        const Gdiplus::PixelFormat pixelFormat = static_cast<Gdiplus::PixelFormat>(0x0026200A);
+        Gdiplus::Bitmap* sourceBitmap = new Gdiplus::Bitmap(
+            static_cast<INT>(imageData.width), 
+            static_cast<INT>(imageData.height), 
+            pixelFormat);
+        if (sourceBitmap->GetLastStatus() != Gdiplus::Ok) {
+            delete sourceBitmap;
+            return nullptr;
         }
         
-        sourceBitmap->UnlockBits(&sourceData);
-    }
-    
-    // 创建目标尺寸的位图
-    // 重用之前定义的pixelFormat变量
-    Gdiplus::Bitmap* targetBitmap = new Gdiplus::Bitmap(
-        static_cast<INT>(targetSize), 
-        static_cast<INT>(targetSize), 
-        pixelFormat);
-    if (targetBitmap->GetLastStatus() != Gdiplus::Ok) {
+        Gdiplus::BitmapData sourceData;
+        Gdiplus::Rect sourceRect(0, 0, static_cast<INT>(imageData.width), static_cast<INT>(imageData.height));
+        const Gdiplus::ImageLockMode lockMode = static_cast<Gdiplus::ImageLockMode>(1);
+        const Gdiplus::PixelFormat lockFormat = static_cast<Gdiplus::PixelFormat>(0x0026200A);
+        if (sourceBitmap->LockBits(&sourceRect, lockMode, lockFormat, &sourceData) == Gdiplus::Ok) {
+            uint8_t* dst = (uint8_t*)sourceData.Scan0;
+            const uint8_t* src = imageData.pixels.data();
+            
+            for (uint32_t y = 0; y < imageData.height; y++) {
+                for (uint32_t x = 0; x < imageData.width; x++) {
+                    uint8_t* dstPixel = dst + (y * sourceData.Stride + x * 4);
+                    const uint8_t* srcPixel = src + ((y * imageData.width + x) * 4);
+                    
+                    dstPixel[0] = srcPixel[2];
+                    dstPixel[1] = srcPixel[1];
+                    dstPixel[2] = srcPixel[0];
+                    dstPixel[3] = srcPixel[3];
+                }
+            }
+            
+            sourceBitmap->UnlockBits(&sourceData);
+        }
+        
+        Gdiplus::Bitmap* targetBitmap = new Gdiplus::Bitmap(
+            static_cast<INT>(targetSize), 
+            static_cast<INT>(targetSize), 
+            pixelFormat);
+        if (targetBitmap->GetLastStatus() != Gdiplus::Ok) {
+            delete sourceBitmap;
+            delete targetBitmap;
+            return nullptr;
+        }
+        
+        Gdiplus::Graphics* g = Gdiplus::Graphics::FromImage(targetBitmap);
+        if (g) {
+            g->SetInterpolationMode(Gdiplus::InterpolationModeHighQualityBicubic);
+            g->SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
+            g->SetPixelOffsetMode(Gdiplus::PixelOffsetModeHalf);
+            g->DrawImage(sourceBitmap, 0, 0, targetSize, targetSize);
+            delete g;
+        }
+        
+        HICON hIcon = nullptr;
+        targetBitmap->GetHICON(&hIcon);
+        
         delete sourceBitmap;
         delete targetBitmap;
-        return nullptr;
+        
+        return hIcon;
     }
-    
-    // 使用高质量缩放
-    Gdiplus::Graphics* g = Gdiplus::Graphics::FromImage(targetBitmap);
-    if (g) {
-        g->SetInterpolationMode(Gdiplus::InterpolationModeHighQualityBicubic);
-        g->SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
-        g->SetPixelOffsetMode(Gdiplus::PixelOffsetModeHalf);
-        g->DrawImage(sourceBitmap, 0, 0, targetSize, targetSize);
-        delete g;
-    }
-    
-    // 创建图标
-    HICON hIcon = nullptr;
-    targetBitmap->GetHICON(&hIcon);
-    
-    delete sourceBitmap;
-    delete targetBitmap;
-    
-    return hIcon;
-    }
-} // 匿名命名空间结束
+}
 
 Window::Window() {
 }
@@ -116,7 +94,6 @@ Window::~Window() {
 }
 
 LRESULT CALLBACK Window::WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
-    // 从窗口用户数据中获取Window实例指针
     Window* window = nullptr;
     if (uMsg == WM_NCCREATE) {
         CREATESTRUCT* cs = (CREATESTRUCT*)lParam;
@@ -136,19 +113,15 @@ LRESULT CALLBACK Window::WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM 
             PostQuitMessage(0);
             return 0;
         case WM_SIZE:
-            // 最小化时保持原有尺寸，避免使用0x0等无效尺寸导致渲染错误
             if (wParam == SIZE_MINIMIZED) {
                 return 0;
             }
-            // 窗口正常大小或最大化时更新尺寸
             window->m_width = LOWORD(lParam);
             window->m_height = HIWORD(lParam);
-            // 确保尺寸至少为1，防止除零错误和无效渲染
             if (window->m_width < 1) window->m_width = 1;
             if (window->m_height < 1) window->m_height = 1;
             return 0;
         case WM_GETMINMAXINFO: {
-            // Set minimum window size (like Godot)
             MINMAXINFO* mmi = (MINMAXINFO*)lParam;
             mmi->ptMinTrackSize.x = config::WINDOW_MIN_WIDTH;
             mmi->ptMinTrackSize.y = config::WINDOW_MIN_HEIGHT;
@@ -158,12 +131,10 @@ LRESULT CALLBACK Window::WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM 
             window->m_leftButtonDown = true;
             window->m_lastMouseX = LOWORD(lParam);
             window->m_lastMouseY = HIWORD(lParam);
-            // 捕获鼠标以在移出窗口后仍能接收移动消息，确保拖拽操作连贯
             SetCapture(hwnd);
             return 0;
         case WM_LBUTTONUP:
             window->m_leftButtonDown = false;
-            // 释放鼠标捕获，恢复正常鼠标消息处理
             ReleaseCapture();
             return 0;
         case WM_MOUSEMOVE:
@@ -221,7 +192,6 @@ bool Window::Create(HINSTANCE hInstance, int width, int height, const char* titl
         m_className = className;
     }
     
-    // 如果提供了图标路径，先加载图标（创建32x32图标用于任务栏）
     HICON hIcon = nullptr;
     HICON hIconSm = nullptr;
     if (iconPath) {
@@ -230,7 +200,6 @@ bool Window::Create(HINSTANCE hInstance, int width, int height, const char* titl
         if (imageData.width > 0 && imageData.height > 0) {
             printf("[ICON] Image loaded: %ux%u pixels\n", imageData.width, imageData.height);
             
-            // 创建32x32大图标（用于任务栏和Alt+Tab）
             hIcon = CreateIconFromImageData(imageData, 32);
             if (hIcon) {
                 printf("[ICON] 32x32 icon created successfully, handle: %p\n", hIcon);
@@ -238,13 +207,11 @@ bool Window::Create(HINSTANCE hInstance, int width, int height, const char* titl
                 printf("[ICON] Failed to create 32x32 icon!\n");
             }
             
-            // 创建16x16小图标（用于窗口标题栏）
             hIconSm = CreateIconFromImageData(imageData, 16);
             if (hIconSm) {
                 printf("[ICON] 16x16 icon created successfully, handle: %p\n", hIconSm);
             } else {
                 printf("[ICON] Failed to create 16x16 icon!\n");
-                // 如果16x16创建失败，使用32x32作为备用
                 hIconSm = hIcon;
             }
         } else {
@@ -252,8 +219,6 @@ bool Window::Create(HINSTANCE hInstance, int width, int height, const char* titl
         }
     }
     
-    // 注册窗口类
-    // 优先使用资源中的图标（IDI_APP_ICON），这样任务栏和文件管理器会显示正确的图标
     WNDCLASSEX wc = {};
     wc.cbSize = sizeof(WNDCLASSEX);
     wc.lpfnWndProc = WindowProc;
@@ -262,17 +227,14 @@ bool Window::Create(HINSTANCE hInstance, int width, int height, const char* titl
     wc.hCursor = LoadCursor(NULL, IDC_ARROW);
     wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
     
-    // 尝试从资源加载图标（资源ID为1，在app_icon.rc中定义）
-    // 如果资源中没有图标，则使用默认图标
-    HICON hResourceIcon = LoadIcon(hInstance, MAKEINTRESOURCE(1));  // 资源ID = 1
+    HICON hResourceIcon = LoadIcon(hInstance, MAKEINTRESOURCE(1));
     if (hResourceIcon) {
         wc.hIcon = hResourceIcon;
-        wc.hIconSm = hResourceIcon;  // 小图标也使用同一个
+        wc.hIconSm = hResourceIcon;
         printf("[ICON] Using icon from resource (IDI_APP_ICON)\n");
     } else {
-        // 如果资源中没有图标，使用默认图标
         wc.hIcon = LoadIcon(nullptr, IDI_WINLOGO);
-        wc.hIconSm = nullptr;  // 小图标稍后通过WM_SETICON设置
+        wc.hIconSm = nullptr;
         printf("[ICON] Resource icon not found, using default icon\n");
     }
     
@@ -282,7 +244,6 @@ bool Window::Create(HINSTANCE hInstance, int width, int height, const char* titl
     }
     
     if (fullscreen) {
-        // 全屏模式
         DEVMODE dmScreenSettings = {};
         dmScreenSettings.dmSize = sizeof(dmScreenSettings);
         EnumDisplaySettings(NULL, ENUM_CURRENT_SETTINGS, &dmScreenSettings);
@@ -297,7 +258,7 @@ bool Window::Create(HINSTANCE hInstance, int width, int height, const char* titl
             WS_POPUP | WS_VISIBLE,
             0, 0,
             m_width, m_height,
-            NULL, NULL, hInstance, this  // 传递this指针
+            NULL, NULL, hInstance, this
         );
         
         if (m_hwnd == NULL) {
@@ -305,18 +266,14 @@ bool Window::Create(HINSTANCE hInstance, int width, int height, const char* titl
             return false;
         }
         
-        // 隐藏鼠标光标（可选，全屏时更美观）
         ShowCursor(FALSE);
-        
         ShowWindow(m_hwnd, SW_SHOWMAXIMIZED);
     } else {
-        // 窗口模式
         RECT rect = {0, 0, width, height};
         AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW, FALSE);
         int windowWidth = rect.right - rect.left;
         int windowHeight = rect.bottom - rect.top;
         
-        // 计算屏幕中心位置
         int screenWidth = GetSystemMetrics(SM_CXSCREEN);
         int screenHeight = GetSystemMetrics(SM_CYSCREEN);
         int windowX = (screenWidth - windowWidth) / 2;
@@ -329,7 +286,7 @@ bool Window::Create(HINSTANCE hInstance, int width, int height, const char* titl
             WS_OVERLAPPEDWINDOW,
             windowX, windowY,
             windowWidth, windowHeight,
-            NULL, NULL, hInstance, this  // 传递this指针
+            NULL, NULL, hInstance, this
         );
         
         if (m_hwnd == NULL) {
@@ -337,16 +294,12 @@ bool Window::Create(HINSTANCE hInstance, int width, int height, const char* titl
             return false;
         }
         
-        // 显示正常大小的窗口
         ShowWindow(m_hwnd, SW_SHOWNORMAL);
     }
     
     UpdateWindow(m_hwnd);
     
-    // 如果创建了图标，在窗口完全创建后设置（按照Godot的方式）
     if (hIcon && m_hwnd) {
-        // 按照Godot的方式：先清除错误，然后设置图标
-        // 注意：Godot 先设置 ICON_SMALL，再设置 ICON_BIG
         SetLastError(0);
         LRESULT result_small = SendMessage(m_hwnd, WM_SETICON, ICON_SMALL, (LPARAM)(hIconSm ? hIconSm : hIcon));
         DWORD error = GetLastError();
@@ -363,16 +316,12 @@ bool Window::Create(HINSTANCE hInstance, int width, int height, const char* titl
         
         printf("[ICON] Set icon - Small: %p, Big: %p\n", (void*)result_small, (void*)result_big);
         
-        // 额外尝试：设置窗口类图标（某些情况下需要）
         SetClassLongPtr(m_hwnd, GCLP_HICON, (LONG_PTR)hIcon);
         SetClassLongPtr(m_hwnd, GCLP_HICONSM, (LONG_PTR)(hIconSm ? hIconSm : hIcon));
         
-        // 强制刷新窗口和任务栏
         InvalidateRect(m_hwnd, NULL, TRUE);
         UpdateWindow(m_hwnd);
         
-        // 通过最小化和恢复窗口强制刷新任务栏图标，解决某些系统下图标不更新的问题
-        // 此方法可能引起短暂闪烁，但可确保图标状态正确
         BOOL isVisible = IsWindowVisible(m_hwnd);
         if (isVisible) {
             ShowWindow(m_hwnd, SW_MINIMIZE);
@@ -388,7 +337,6 @@ bool Window::Create(HINSTANCE hInstance, int width, int height, const char* titl
 }
 
 void Window::Destroy() {
-    // 恢复鼠标光标（如果之前隐藏了）
     ShowCursor(TRUE);
     
     if (m_hwnd) {
@@ -402,7 +350,6 @@ void Window::Destroy() {
 }
 
 void Window::ToggleFullscreen() {
-    // 全屏切换功能：接口保留用于支持窗口模式和全屏模式之间的切换
 }
 
 void Window::ShowError(const std::string& message) {
@@ -429,7 +376,6 @@ bool Window::SetIcon(const std::string& iconPath) {
     
     printf("[ICON] SetIcon: Loading icon from: %s\n", iconPath.c_str());
     
-    // 加载图标图像
     auto imageData = renderer::image::ImageLoader::LoadImage(iconPath);
     if (imageData.width == 0 || imageData.height == 0) {
         printf("[ICON] SetIcon: Failed to load image data\n");
@@ -438,7 +384,6 @@ bool Window::SetIcon(const std::string& iconPath) {
     
     printf("[ICON] SetIcon: Image loaded: %ux%u pixels\n", imageData.width, imageData.height);
     
-    // 创建32x32大图标（用于任务栏和Alt+Tab）
     HICON hicon = CreateIconFromImageData(imageData, 32);
     if (!hicon) {
         printf("[ICON] SetIcon: Failed to create 32x32 icon!\n");
@@ -446,7 +391,6 @@ bool Window::SetIcon(const std::string& iconPath) {
     }
     printf("[ICON] SetIcon: 32x32 icon created successfully, handle: %p\n", hicon);
     
-    // 创建16x16小图标（用于窗口标题栏）
     HICON hiconSm = CreateIconFromImageData(imageData, 16);
     if (!hiconSm) {
         printf("[ICON] SetIcon: Failed to create 16x16 icon, using 32x32 as fallback\n");
@@ -455,8 +399,6 @@ bool Window::SetIcon(const std::string& iconPath) {
         printf("[ICON] SetIcon: 16x16 icon created successfully, handle: %p\n", hiconSm);
     }
     
-    // 按照Godot的方式：先清除错误，然后设置图标
-    // 注意：Godot 先设置 ICON_SMALL，再设置 ICON_BIG
     SetLastError(0);
     LRESULT result_small = SendMessage(m_hwnd, WM_SETICON, ICON_SMALL, (LPARAM)hiconSm);
     DWORD error = GetLastError();
@@ -473,15 +415,12 @@ bool Window::SetIcon(const std::string& iconPath) {
     
     printf("[ICON] SetIcon: Set icon - Small: %p, Big: %p\n", (void*)result_small, (void*)result_big);
     
-    // 额外尝试：设置窗口类图标（某些情况下需要）
     SetClassLongPtr(m_hwnd, GCLP_HICON, (LONG_PTR)hicon);
     SetClassLongPtr(m_hwnd, GCLP_HICONSM, (LONG_PTR)hiconSm);
     
-    // 强制刷新窗口和任务栏
     InvalidateRect(m_hwnd, NULL, TRUE);
     UpdateWindow(m_hwnd);
     
-    // 强制刷新任务栏（通过最小化和恢复窗口）
     BOOL isVisible = IsWindowVisible(m_hwnd);
     if (isVisible) {
         ShowWindow(m_hwnd, SW_MINIMIZE);

@@ -1,15 +1,17 @@
 #pragma once
 
-#include <windows.h>
+#include <windows.h>  // 2. 系统头文件
 
 // 前向声明
-class Window;
+class IWindow;
 
-#include "core/config/constants.h"
-#include "core/config/stretch_params.h"
+// 4. 项目头文件（按依赖层级从内到外）
 #include "core/interfaces/iinput_handler.h"
 #include "core/interfaces/iinput_provider.h"
 #include "core/interfaces/irenderer.h"
+#include "core/interfaces/iwindow.h"
+#include "core/config/constants.h"
+#include "core/config/stretch_params.h"
 
 /**
  * 输入处理器 - 负责坐标转换和输入状态管理
@@ -25,10 +27,10 @@ public:
     /**
      * 初始化输入处理器
      * @param renderer 渲染器接口（不拥有所有权，由外部管理生命周期）
-     * @param window 窗口对象（不拥有所有权，由外部管理生命周期）
+     * @param window 窗口接口（不拥有所有权，由外部管理生命周期）
      * @param stretchMode 拉伸模式，用于坐标转换
      */
-    void Initialize(IRenderer* renderer, Window* window, StretchMode stretchMode);
+    void Initialize(IRenderer* renderer, IWindow* window, StretchMode stretchMode);
     
     /**
      * 清理资源
@@ -58,7 +60,7 @@ public:
 
 private:
     IRenderer* m_renderer = nullptr;  // 渲染器接口（不拥有所有权，由外部管理生命周期）
-    Window* m_window = nullptr;  // 窗口对象（不拥有所有权，由外部管理生命周期）
+    IWindow* m_window = nullptr;  // 窗口接口（不拥有所有权，由外部管理生命周期）
     StretchMode m_stretchMode = StretchMode::Fit;  // 拉伸模式，用于坐标转换
 };
 

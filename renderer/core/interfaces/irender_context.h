@@ -53,7 +53,8 @@ public:
      * 
      * @param typeFilter 内存类型过滤器（位掩码）
      * @param properties 所需的内存属性标志
-     * @return 匹配的内存类型索引，如果未找到则返回 0
+     * @return 匹配的内存类型索引，如果未找到则返回 UINT32_MAX
+     * @note 调用者必须检查返回值，UINT32_MAX 表示查找失败
      */
     virtual uint32_t FindMemoryType(uint32_t typeFilter, MemoryPropertyFlag properties) const = 0;
 };

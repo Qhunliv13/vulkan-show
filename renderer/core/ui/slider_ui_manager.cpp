@@ -61,20 +61,21 @@ void SliderUIManager::HandleWindowResize(StretchMode stretchMode, IRenderer* ren
     }
 }
 
-void SliderUIManager::GetAllSliders(std::vector<Slider*>& sliders, 
-                                   ColorController* colorController,
+void SliderUIManager::GetAllSliders(std::vector<ISlider*>& sliders, 
+                                   IColorController* colorController,
                                    const std::vector<std::unique_ptr<ColorController>>* boxColorControllers) const {
     sliders.clear();
     
     // 添加橙色滑块
     if (m_sliderInitialized && m_orangeSlider) {
-        sliders.push_back(m_orangeSlider.get());
+        sliders.push_back(m_orangeSlider.get());  // Slider继承ISlider，可以直接使用
     }
     
     // 收集颜色控制器中的滑块（颜色控制器内部包含RGBA四个滑块）
     if (colorController && colorController->IsVisible()) {
-        std::vector<Slider*> colorControllerSliders = colorController->GetSliders();
-        for (Slider* slider : colorControllerSliders) {
+        // ColorController已实现IColorController接口，直接使用
+        std::vector<ISlider*> colorControllerSliders = colorController->GetSliders();
+        for (ISlider* slider : colorControllerSliders) {
             sliders.push_back(slider);
         }
     }
@@ -83,8 +84,9 @@ void SliderUIManager::GetAllSliders(std::vector<Slider*>& sliders,
     if (boxColorControllers) {
         for (const auto& controller : *boxColorControllers) {
             if (controller && controller->IsVisible()) {
-                std::vector<Slider*> boxControllerSliders = controller->GetSliders();
-                for (Slider* slider : boxControllerSliders) {
+                // ColorController已实现IColorController接口，直接使用
+                std::vector<ISlider*> boxControllerSliders = controller->GetSliders();
+                for (ISlider* slider : boxControllerSliders) {
                     sliders.push_back(slider);
                 }
             }

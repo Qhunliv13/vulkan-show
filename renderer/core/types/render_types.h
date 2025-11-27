@@ -101,3 +101,59 @@ inline MemoryPropertyFlag operator&(MemoryPropertyFlag a, MemoryPropertyFlag b) 
     return static_cast<MemoryPropertyFlag>(static_cast<uint32_t>(a) & static_cast<uint32_t>(b));
 }
 
+/**
+ * 着色器模块句柄（不透明指针，替代 VkShaderModule）
+ * 
+ * 用于表示编译后的着色器模块，支持多种渲染后端
+ */
+using ShaderModuleHandle = void*;
+
+/**
+ * 着色器阶段枚举（替代 VkShaderStageFlagBits）
+ * 
+ * 定义着色器阶段类型，用于编译和创建着色器模块
+ */
+enum class ShaderStage : uint32_t {
+    Vertex = 0x00000001,              // 顶点着色器
+    TessellationControl = 0x00000002, // 曲面细分控制着色器
+    TessellationEvaluation = 0x00000004, // 曲面细分评估着色器
+    Geometry = 0x00000008,            // 几何着色器
+    Fragment = 0x00000010,            // 片段着色器
+    Compute = 0x00000020,             // 计算着色器
+};
+
+/**
+ * 缓冲区句柄（不透明指针，替代 VkBuffer）
+ * 
+ * 用于表示GPU缓冲区，支持顶点缓冲区、索引缓冲区等
+ */
+using BufferHandle = void*;
+
+/**
+ * 设备内存句柄（不透明指针，替代 VkDeviceMemory）
+ * 
+ * 用于表示GPU设备内存，用于存储缓冲区和纹理数据
+ */
+using DeviceMemoryHandle = void*;
+
+/**
+ * 管线句柄（不透明指针，替代 VkPipeline）
+ * 
+ * 用于表示图形或计算管线，包含着色器、状态等信息
+ */
+using PipelineHandle = void*;
+
+/**
+ * 管线布局句柄（不透明指针，替代 VkPipelineLayout）
+ * 
+ * 用于表示管线的布局，包含描述符集布局和推送常量范围
+ */
+using PipelineLayoutHandle = void*;
+
+/**
+ * 描述符集布局句柄（不透明指针，替代 VkDescriptorSetLayout）
+ * 
+ * 用于表示描述符集的布局，定义着色器中使用的资源绑定
+ */
+using DescriptorSetLayoutHandle = void*;
+

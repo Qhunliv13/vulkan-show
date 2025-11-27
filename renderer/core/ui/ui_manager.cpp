@@ -90,7 +90,7 @@ bool UIManager::Initialize(IRenderer* renderer,
     }
     
     m_colorManager = std::make_unique<ColorUIManager>();
-    if (!m_colorManager->Initialize(m_renderer, *renderContext, textRenderer, m_window, stretchMode, screenWidth, screenHeight, m_loadingAnim)) {
+    if (!m_colorManager->Initialize(m_renderer, *renderContext, textRenderer, m_window, stretchMode, screenWidth, screenHeight, m_loadingAnim.get())) {
         return false;
     }
     
@@ -110,8 +110,7 @@ void UIManager::Cleanup() {
     
     if (m_loadingAnim) {
         m_loadingAnim->Cleanup();
-        delete m_loadingAnim;
-        m_loadingAnim = nullptr;
+        m_loadingAnim.reset();
     }
 }
 
@@ -166,7 +165,7 @@ void UIManager::HandleWindowResize(StretchMode stretchMode, IRenderer* renderer)
     }
 }
 
-void UIManager::GetAllButtons(std::vector<Button*>& buttons) const {
+void UIManager::GetAllButtons(std::vector<IButton*>& buttons) const {
     buttons.clear();
     
     if (m_buttonManager) {
@@ -177,8 +176,9 @@ void UIManager::GetAllButtons(std::vector<Button*>& buttons) const {
     if (m_colorManager) {
         auto* colorController = m_colorManager->GetColorController();
         if (colorController) {
-            std::vector<Button*> colorControllerButtons = colorController->GetButtons();
-            for (Button* btn : colorControllerButtons) {
+            // ColorController已实现IColorController接口，直接使用
+            std::vector<IButton*> colorControllerButtons = colorController->GetButtons();
+            for (IButton* btn : colorControllerButtons) {
                 buttons.push_back(btn);
             }
         }
@@ -187,8 +187,9 @@ void UIManager::GetAllButtons(std::vector<Button*>& buttons) const {
         const auto& boxColorControllers = m_colorManager->GetBoxColorControllers();
         for (const auto& controller : boxColorControllers) {
             if (controller && controller->IsVisible()) {
-                std::vector<Button*> boxControllerButtons = controller->GetButtons();
-                for (Button* btn : boxControllerButtons) {
+                // ColorController已实现IColorController接口，直接使用
+                std::vector<IButton*> boxControllerButtons = controller->GetButtons();
+                for (IButton* btn : boxControllerButtons) {
                     buttons.push_back(btn);
                 }
             }
@@ -196,11 +197,12 @@ void UIManager::GetAllButtons(std::vector<Button*>& buttons) const {
     }
 }
 
-void UIManager::GetAllSliders(std::vector<Slider*>& sliders) const {
+void UIManager::GetAllSliders(std::vector<ISlider*>& sliders) const {
     sliders.clear();
     
     // 从滑块管理器和颜色管理器获取所有滑块
     if (m_sliderManager && m_colorManager) {
+        // ColorController已实现IColorController接口，直接使用接口类型
         m_sliderManager->GetAllSliders(sliders, 
                                       m_colorManager->GetColorController(),
                                       &m_colorManager->GetBoxColorControllers());
@@ -223,16 +225,15 @@ bool UIManager::InitializeLoadingAnimation(IRenderer* renderer, const IRenderCon
         return false;
     }
     
-    m_loadingAnim = new LoadingAnimation();
-    // 将抽象类型转换为Vulkan类型（仅在实现层进行转换）
-    VkExtent2D vkUiExtent = { uiExtent.width, uiExtent.height };
+    m_loadingAnim = std::make_unique<LoadingAnimation>();
+    // 使用抽象类型（LoadingAnimation接口已改为使用抽象类型）
     if (m_loadingAnim->Initialize(
-            static_cast<VkDevice>(renderDevice->GetDevice()),
-            static_cast<VkPhysicalDevice>(renderDevice->GetPhysicalDevice()),
-            static_cast<VkCommandPool>(renderDevice->GetCommandPool()),
-            static_cast<VkQueue>(renderDevice->GetGraphicsQueue()),
-            static_cast<VkRenderPass>(renderDevice->GetRenderPass()),
-            vkUiExtent)) {
+            renderDevice->GetDevice(),
+            renderDevice->GetPhysicalDevice(),
+            renderDevice->GetCommandPool(),
+            renderDevice->GetGraphicsQueue(),
+            renderDevice->GetRenderPass(),
+            uiExtent)) {
         float baseWidth = (stretchMode == StretchMode::Fit || stretchMode == StretchMode::Disabled) ? 
                           (float)uiExtent.width : screenWidth;
         float baseHeight = (stretchMode == StretchMode::Fit || stretchMode == StretchMode::Disabled) ? 

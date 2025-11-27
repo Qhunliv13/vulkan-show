@@ -53,3 +53,6 @@ python compile_shaders.py --build-only
 ```bash
 .\shader_app.exe --stretch=scaled -b Fit
 ```
+
+## 仅core层严格遵守开发标准
+由于其他多为测试/引擎界面内容，无耦合，无变化，所以无需严格遵守

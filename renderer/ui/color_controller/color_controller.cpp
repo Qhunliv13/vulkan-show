@@ -4,14 +4,17 @@
 #include <cmath>           // 2. 系统头文件
 #include <memory>          // 2. 系统头文件
 
+#include <vulkan/vulkan.h>     // 3. 第三方库头文件
+
+#include "core/interfaces/itext_renderer.h"        // 4. 项目头文件（接口）
 #include "core/types/render_types.h"               // 4. 项目头文件（抽象类型）
 #include "renderer/vulkan/vulkan_render_context_factory.h"  // 4. 项目头文件（工厂函数）
-#include "text/text_renderer.h"                    // 4. 项目头文件
-#include "ui/button/button.h"                      // 4. 项目头文件
-#include "ui/slider/slider.h"                     // 4. 项目头文件
+#include "ui/button/button.h"                      // 4. 项目头文件（UI组件实现）
+#include "ui/slider/slider.h"                     // 4. 项目头文件（UI组件实现）
 
 ColorController::ColorController() 
-    : m_colorDisplayButtonInitialized(false)
+    : m_colorDisplayButton(std::make_unique<Button>())
+    , m_colorDisplayButtonInitialized(false)
     , m_visible(false)
     , m_fixedScreenSize(false)
     , m_initialized(false)
@@ -28,11 +31,12 @@ ColorController::~ColorController() {
     Cleanup();
 }
 
-bool ColorController::Initialize(VkDevice device, VkPhysicalDevice physicalDevice,
-                                VkCommandPool commandPool, VkQueue graphicsQueue,
-                                VkRenderPass renderPass, VkExtent2D swapchainExtent,
+bool ColorController::Initialize(DeviceHandle device, PhysicalDeviceHandle physicalDevice,
+                                CommandPoolHandle commandPool, QueueHandle graphicsQueue,
+                                RenderPassHandle renderPass, Extent2D swapchainExtent,
                                 const ColorControllerConfig& config,
-                                TextRenderer* textRenderer) {
+                                ITextRenderer* textRenderer) {
+    // 存储抽象类型（在实现层转换为Vulkan类型使用）
     m_device = device;
     m_physicalDevice = physicalDevice;
     m_commandPool = commandPool;
@@ -95,6 +99,7 @@ bool ColorController::Initialize(VkDevice device, VkPhysicalDevice physicalDevic
         else if (i == 3) initialValue = m_colorA * 255.0f;
         sliderConfig.defaultValue = initialValue;
         
+        // 使用废弃接口初始化滑块（直接使用抽象类型）
         if (m_sliders[i]->Initialize(
                 device,
                 physicalDevice,
@@ -136,21 +141,21 @@ bool ColorController::Initialize(VkDevice device, VkPhysicalDevice physicalDevic
     colorDisplayConfig.textColorB = 1.0f - m_colorB;
     colorDisplayConfig.textColorA = 1.0f;
     
-    // 创建临时渲染上下文（将 Vulkan 类型转换为抽象类型）
+    // 创建临时渲染上下文（直接使用抽象类型）
     std::unique_ptr<IRenderContext> tempContext(CreateVulkanRenderContext(
-        static_cast<DeviceHandle>(device),
-        static_cast<PhysicalDeviceHandle>(physicalDevice),
-        static_cast<CommandPoolHandle>(commandPool),
-        static_cast<QueueHandle>(graphicsQueue),
-        static_cast<RenderPassHandle>(renderPass),
-        Extent2D{ swapchainExtent.width, swapchainExtent.height }));
+        device,
+        physicalDevice,
+        commandPool,
+        graphicsQueue,
+        renderPass,
+        swapchainExtent));
     
-    if (m_colorDisplayButton.Initialize(
+    if (m_colorDisplayButton->Initialize(
             tempContext.get(),
             colorDisplayConfig,
             textRenderer)) {
         
-        m_colorDisplayButton.SetVisible(m_visible);
+        m_colorDisplayButton->SetVisible(m_visible);
         m_colorDisplayButtonInitialized = true;
     }
     
@@ -175,10 +180,11 @@ void ColorController::Cleanup() {
     }
     
     // 清理颜色显示按钮
-    if (m_colorDisplayButtonInitialized) {
-        m_colorDisplayButton.Cleanup();
+    if (m_colorDisplayButtonInitialized && m_colorDisplayButton) {
+        m_colorDisplayButton->Cleanup();
         m_colorDisplayButtonInitialized = false;
     }
+    m_colorDisplayButton.reset();
     
     m_initialized = false;
 }
@@ -218,8 +224,8 @@ void ColorController::SetVisible(bool visible) {
     }
     
     // 更新颜色显示区域的可见性
-    if (m_colorDisplayButtonInitialized) {
-        m_colorDisplayButton.SetVisible(visible);
+    if (m_colorDisplayButtonInitialized && m_colorDisplayButton) {
+        m_colorDisplayButton->SetVisible(visible);
     }
 }
 
@@ -235,8 +241,8 @@ void ColorController::UpdateScreenSize(float screenWidth, float screenHeight) {
     }
     
     // 更新颜色显示按钮的屏幕大小
-    if (m_colorDisplayButtonInitialized) {
-        m_colorDisplayButton.UpdateScreenSize(screenWidth, screenHeight);
+    if (m_colorDisplayButtonInitialized && m_colorDisplayButton) {
+        m_colorDisplayButton->UpdateScreenSize(screenWidth, screenHeight);
     }
 }
 
@@ -244,24 +250,24 @@ void ColorController::SetFixedScreenSize(bool fixed) {
     m_fixedScreenSize = fixed;
     
     // 设置颜色显示按钮的固定屏幕大小
-    if (m_colorDisplayButtonInitialized) {
-        m_colorDisplayButton.SetFixedScreenSize(fixed);
+    if (m_colorDisplayButtonInitialized && m_colorDisplayButton) {
+        m_colorDisplayButton->SetFixedScreenSize(fixed);
     }
 }
 
-void ColorController::Render(VkCommandBuffer commandBuffer, VkExtent2D extent) {
+void ColorController::Render(CommandBufferHandle commandBuffer, Extent2D extent) {
     // 渲染所有滑块
     for (int i = 0; i < 4; i++) {
         if (m_slidersInitialized[i] && m_sliders[i]->IsVisible()) {
+            // 使用接口方法（Slider已实现ISlider接口）
             m_sliders[i]->Render(commandBuffer, extent);
         }
     }
     
     // 渲染颜色显示按钮
-    if (m_colorDisplayButtonInitialized && m_colorDisplayButton.IsVisible()) {
-        // 将 Vulkan 类型转换为抽象类型
-        Extent2D abstractExtent = { extent.width, extent.height };
-        m_colorDisplayButton.Render(static_cast<CommandBufferHandle>(commandBuffer), abstractExtent);
+    if (m_colorDisplayButtonInitialized && m_colorDisplayButton && m_colorDisplayButton->IsVisible()) {
+        // 使用接口方法（Button已实现IButton接口）
+        m_colorDisplayButton->Render(commandBuffer, extent);
     }
 }
 
@@ -304,18 +310,20 @@ void ColorController::HandleMouseUp() {
     // 颜色显示按钮不需要处理鼠标释放事件
 }
 
-std::vector<Button*> ColorController::GetButtons() const {
-    std::vector<Button*> buttons;
-    if (m_colorDisplayButtonInitialized) {
-        buttons.push_back(const_cast<Button*>(&m_colorDisplayButton));
+std::vector<IButton*> ColorController::GetButtons() const {
+    std::vector<IButton*> buttons;
+    if (m_colorDisplayButtonInitialized && m_colorDisplayButton) {
+        // Button继承IButton，可以直接使用
+        buttons.push_back(m_colorDisplayButton.get());
     }
     return buttons;
 }
 
-std::vector<Slider*> ColorController::GetSliders() const {
-    std::vector<Slider*> sliders;
+std::vector<ISlider*> ColorController::GetSliders() const {
+    std::vector<ISlider*> sliders;
     for (int i = 0; i < 4; i++) {
         if (m_slidersInitialized[i]) {
+            // Slider继承ISlider，可以直接使用
             sliders.push_back(m_sliders[i].get());
         }
     }
@@ -323,15 +331,15 @@ std::vector<Slider*> ColorController::GetSliders() const {
 }
 
 void ColorController::UpdateColorDisplay() {
-    if (!m_colorDisplayButtonInitialized) {
+    if (!m_colorDisplayButtonInitialized || !m_colorDisplayButton) {
         return;
     }
     
     // 更新颜色显示按钮的颜色
-    m_colorDisplayButton.SetColor(m_colorR, m_colorG, m_colorB, m_colorA);
+    m_colorDisplayButton->SetColor(m_colorR, m_colorG, m_colorB, m_colorA);
     
     // 更新文本颜色（取反色以便看清）
-    m_colorDisplayButton.SetTextColor(
+    m_colorDisplayButton->SetTextColor(
         1.0f - m_colorR, 
         1.0f - m_colorG, 
         1.0f - m_colorB, 

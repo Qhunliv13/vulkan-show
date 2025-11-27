@@ -192,76 +192,268 @@ public:
     AppInitializer();
     ~AppInitializer();
     
-    // 初始化所有组件（按正确顺序）
-    // 使用配置对象封装所有初始化参数，简化接口
+    /**
+     * 初始化所有组件（按正确顺序）
+     * 
+     * 使用配置对象封装所有初始化参数，简化接口
+     * 按依赖顺序初始化所有组件，失败时自动回滚
+     * 
+     * @param config 初始化配置对象，包含所有必需的依赖
+     * @return bool 如果初始化成功返回 true，否则返回 false
+     */
     bool Initialize(const AppInitializationConfig& config);
     
     // 获取组件指针（优先返回接口，减少对具体类的依赖）
+    /**
+     * 获取窗口管理器
+     * 
+     * 所有权：[BORROW] 返回的指针不拥有所有权，由 AppInitializer 管理生命周期
+     * 
+     * @return WindowManager* 窗口管理器指针，可能为 nullptr
+     */
     WindowManager* GetWindowManager() const { return m_windowManager.get(); }
+    
+    /**
+     * 获取渲染器
+     * 
+     * 所有权：[BORROW] 返回的指针不拥有所有权，由 AppInitializer 管理生命周期
+     * 
+     * @return IRenderer* 渲染器接口指针，可能为 nullptr
+     */
     IRenderer* GetRenderer() const { return m_renderer.get(); }
+    
+    /**
+     * 获取文字渲染器
+     * 
+     * 所有权：[BORROW] 返回的指针不拥有所有权，由 AppInitializer 管理生命周期
+     * 
+     * @return ITextRenderer* 文字渲染器接口指针，可能为 nullptr
+     */
     ITextRenderer* GetTextRenderer() const { return m_textRenderer.get(); }
+    
+    /**
+     * 获取输入处理器
+     * 
+     * 所有权：[BORROW] 返回的指针不拥有所有权，由 AppInitializer 管理生命周期
+     * 
+     * @return IInputHandler* 输入处理器接口指针，可能为 nullptr
+     */
     IInputHandler* GetInputHandler() const { return m_inputHandler; }
+    
+    /**
+     * 获取UI管理器
+     * 
+     * 所有权：[BORROW] 返回的指针不拥有所有权，由 AppInitializer 管理生命周期
+     * 
+     * @return IUIManager* UI管理器接口指针，可能为 nullptr
+     */
     IUIManager* GetUIManager() const;
+    
+    /**
+     * 获取事件管理器
+     * 
+     * 所有权：[BORROW] 返回的指针不拥有所有权，由 AppInitializer 管理生命周期
+     * 
+     * @return EventManager* 事件管理器指针，可能为 nullptr
+     */
     EventManager* GetEventManager() const { return m_eventManager.get(); }
+    
+    /**
+     * 获取场景提供者
+     * 
+     * 所有权：[BORROW] 返回的指针不拥有所有权，由 AppInitializer 管理生命周期
+     * 
+     * @return ISceneProvider* 场景提供者接口指针，可能为 nullptr
+     */
     ISceneProvider* GetSceneProvider() const;
+    
+    /**
+     * 获取渲染调度器
+     * 
+     * 所有权：[BORROW] 返回的指针不拥有所有权，由 AppInitializer 管理生命周期
+     * 
+     * @return RenderScheduler* 渲染调度器指针，可能为 nullptr
+     */
     RenderScheduler* GetRenderScheduler() const { return m_renderScheduler.get(); }
+    
+    /**
+     * 获取窗口消息处理器
+     * 
+     * 所有权：[BORROW] 返回的指针不拥有所有权，由 AppInitializer 管理生命周期
+     * 
+     * @return WindowMessageHandler* 窗口消息处理器指针，可能为 nullptr
+     */
     WindowMessageHandler* GetMessageHandler() const { return m_messageHandler.get(); }
+    
+    /**
+     * 获取配置提供者
+     * 
+     * 所有权：[BORROW] 返回的指针不拥有所有权，由外部管理生命周期
+     * 
+     * @return IConfigProvider* 配置提供者接口指针，可能为 nullptr
+     */
     IConfigProvider* GetConfigProvider() const { return m_configProvider; }
+    
+    /**
+     * 获取日志器
+     * 
+     * 所有权：[BORROW] 返回的指针不拥有所有权，由外部管理生命周期
+     * 
+     * @return ILogger* 日志器接口指针，可能为 nullptr
+     */
     ILogger* GetLogger() const { return m_logger; }
+    
+    /**
+     * 获取事件总线
+     * 
+     * 所有权：[BORROW] 返回的指针不拥有所有权，由外部管理生命周期
+     * 
+     * @return IEventBus* 事件总线接口指针，可能为 nullptr
+     */
     IEventBus* GetEventBus() const { return m_eventBus; }
     
-    // 清理所有资源
+    /**
+     * 清理所有资源
+     * 
+     * 按逆序清理所有已初始化的组件，取消所有事件订阅
+     */
     void Cleanup();
     
-    // 部分清理（用于初始化失败时的回滚）
-    // 注意：已废弃，使用阶段管理器自动处理回滚
+    /**
+     * 部分清理（用于初始化失败时的回滚）
+     * 
+     * 注意：已废弃，使用阶段管理器自动处理回滚
+     * 
+     * @param initializedSteps 已初始化的步骤数量
+     */
     void CleanupPartial(int initializedSteps);
     
-    // 使用阶段管理器简化初始化（新方法）
+    /**
+     * 使用阶段管理器简化初始化（新方法）
+     * 
+     * 使用 InitializationPhaseManager 管理初始化流程，自动处理回滚
+     * 
+     * @param config 初始化配置对象
+     * @return bool 如果初始化成功返回 true，否则返回 false
+     */
     bool InitializeWithPhases(const AppInitializationConfig& config);
 
 private:
     // 初始化步骤（按依赖顺序）
+    /**
+     * 初始化控制台
+     * 
+     * 分配控制台窗口并重定向标准输入输出
+     * 
+     * @return bool 如果初始化成功返回 true
+     */
     bool InitializeConsole();
+    
+    /**
+     * 初始化日志系统
+     * 
+     * 初始化日志器，设置日志文件路径
+     * 
+     * @return InitializationResult 初始化结果
+     */
     InitializationResult InitializeLogger();
+    
+    /**
+     * 初始化窗口
+     * 
+     * 创建并初始化窗口管理器
+     * 
+     * @param hInstance Windows 实例句柄
+     * @return InitializationResult 初始化结果
+     */
     InitializationResult InitializeWindow(HINSTANCE hInstance);
+    
+    /**
+     * 初始化渲染器
+     * 
+     * 使用工厂创建渲染器并初始化，设置配置参数
+     * 
+     * @param rendererFactory 渲染器工厂（不拥有所有权）
+     * @param hInstance Windows 实例句柄
+     * @return InitializationResult 初始化结果
+     */
     InitializationResult InitializeRenderer(IRendererFactory* rendererFactory, HINSTANCE hInstance);
+    
+    /**
+     * 初始化输入处理器
+     * 
+     * 创建并初始化输入处理器
+     * 
+     * @return InitializationResult 初始化结果
+     */
     InitializationResult InitializeInputHandler();
+    
+    /**
+     * 初始化管理器
+     * 
+     * 创建所有管理器实例（SceneManager、UIManager、EventManager等）
+     * 
+     * @return bool 如果初始化成功返回 true
+     */
     bool InitializeManagers();
+    
+    /**
+     * 初始化UI
+     * 
+     * 创建文字渲染器、UI管理器并初始化
+     * 
+     * @return InitializationResult 初始化结果
+     */
     InitializationResult InitializeUI();
+    
+    /**
+     * 初始化事件系统
+     * 
+     * 初始化事件管理器，设置事件订阅
+     * 
+     * @return InitializationResult 初始化结果
+     */
     InitializationResult InitializeEventSystem();
+    
+    /**
+     * 初始化渲染调度器
+     * 
+     * 初始化渲染调度器，设置所有依赖
+     * 
+     * @return InitializationResult 初始化结果
+     */
     InitializationResult InitializeRenderScheduler();
     
     // 组件（使用接口类型减少依赖）
-    std::unique_ptr<WindowManager> m_windowManager;
-    std::unique_ptr<IRenderer> m_renderer;  // 使用 unique_ptr 管理渲染器生命周期
-    IRendererFactory* m_rendererFactory = nullptr;
-    std::unique_ptr<ITextRenderer> m_textRenderer;  // 使用 unique_ptr 管理文字渲染器生命周期
-    std::unique_ptr<class InputHandler> m_inputHandlerImpl;  // 使用 unique_ptr 管理 InputHandler 生命周期
-    IInputHandler* m_inputHandler = nullptr;  // 使用接口类型（用于 EventManager）
-    std::unique_ptr<class UIManager> m_uiManager;  // 前向声明，减少头文件依赖
-    std::unique_ptr<class UIRenderProviderAdapter> m_uiRenderProviderAdapter;  // UI渲染提供者适配器
-    std::unique_ptr<class UIWindowResizeAdapter> m_uiWindowResizeAdapter;  // UI窗口大小变化适配器
-    std::unique_ptr<EventManager> m_eventManager;
-    std::unique_ptr<class SceneManager> m_sceneManager;  // 前向声明，减少头文件依赖
-    std::unique_ptr<RenderScheduler> m_renderScheduler;
-    std::unique_ptr<WindowMessageHandler> m_messageHandler;
-    IConfigProvider* m_configProvider = nullptr;  // 配置提供者（依赖注入）
-    ILogger* m_logger = nullptr;  // 日志提供者（依赖注入）
-    IEventBus* m_eventBus = nullptr;  // 事件总线（依赖注入）
-    IWindowFactory* m_windowFactory = nullptr;  // 窗口工厂（依赖注入）
-    ITextRendererFactory* m_textRendererFactory = nullptr;  // 文字渲染器工厂（依赖注入）
+    std::unique_ptr<WindowManager> m_windowManager;  // 窗口管理器（拥有所有权）
+    std::unique_ptr<IRenderer> m_renderer;  // 渲染器（拥有所有权，使用 unique_ptr 管理生命周期）
+    IRendererFactory* m_rendererFactory = nullptr;  // 渲染器工厂（不拥有所有权，依赖注入）
+    std::unique_ptr<ITextRenderer> m_textRenderer;  // 文字渲染器（拥有所有权，使用 unique_ptr 管理生命周期）
+    std::unique_ptr<class InputHandler> m_inputHandlerImpl;  // 输入处理器实现（拥有所有权，使用 unique_ptr 管理生命周期）
+    IInputHandler* m_inputHandler = nullptr;  // 输入处理器接口（不拥有所有权，用于 EventManager）
+    std::unique_ptr<class UIManager> m_uiManager;  // UI管理器（拥有所有权，前向声明，减少头文件依赖）
+    std::unique_ptr<class UIRenderProviderAdapter> m_uiRenderProviderAdapter;  // UI渲染提供者适配器（拥有所有权）
+    std::unique_ptr<class UIWindowResizeAdapter> m_uiWindowResizeAdapter;  // UI窗口大小变化适配器（拥有所有权）
+    std::unique_ptr<EventManager> m_eventManager;  // 事件管理器（拥有所有权）
+    std::unique_ptr<class SceneManager> m_sceneManager;  // 场景管理器（拥有所有权，前向声明，减少头文件依赖）
+    std::unique_ptr<RenderScheduler> m_renderScheduler;  // 渲染调度器（拥有所有权）
+    std::unique_ptr<WindowMessageHandler> m_messageHandler;  // 窗口消息处理器（拥有所有权）
+    IConfigProvider* m_configProvider = nullptr;  // 配置提供者（不拥有所有权，依赖注入）
+    ILogger* m_logger = nullptr;  // 日志提供者（不拥有所有权，依赖注入）
+    IEventBus* m_eventBus = nullptr;  // 事件总线（不拥有所有权，依赖注入）
+    IWindowFactory* m_windowFactory = nullptr;  // 窗口工厂（不拥有所有权，依赖注入）
+    ITextRendererFactory* m_textRendererFactory = nullptr;  // 文字渲染器工厂（不拥有所有权，依赖注入）
     
     // 控制台文件指针
-    FILE* m_pCout = nullptr;
-    FILE* m_pCin = nullptr;
-    FILE* m_pCerr = nullptr;
+    FILE* m_pCout = nullptr;  // 标准输出文件指针
+    FILE* m_pCin = nullptr;  // 标准输入文件指针
+    FILE* m_pCerr = nullptr;  // 标准错误文件指针
     
     // 事件订阅ID（用于在 Cleanup() 时取消订阅）
-    size_t m_mouseMovedSubscriptionId = 0;
-    size_t m_keyPressedSubscriptionId = 0;
-    size_t m_buttonClickedSubscriptionId = 0;
+    size_t m_mouseMovedSubscriptionId = 0;  // 鼠标移动事件订阅ID
+    size_t m_keyPressedSubscriptionId = 0;  // 按键事件订阅ID
+    size_t m_buttonClickedSubscriptionId = 0;  // 按钮点击事件订阅ID
     
-    bool m_initialized = false;
+    bool m_initialized = false;  // 初始化状态标志，防止重复初始化
 };
 

@@ -4,6 +4,8 @@
 #include <fstream>  // 2. 系统头文件
 #include <string>   // 2. 系统头文件
 
+#include <vulkan/vulkan.h>  // 3. 第三方库头文件
+
 // Shaderc库包含（如果可用）
 #ifdef USE_SHADERC
 #include <shaderc/shaderc.hpp>  // 3. 第三方库头文件
@@ -45,34 +47,38 @@ std::vector<char> ShaderLoader::LoadSPIRV(const std::string& filename) {
     return buffer;
 }
 
-VkShaderModule ShaderLoader::CreateShaderModuleFromSPIRV(VkDevice device, const std::vector<char>& spirvCode) {
+ShaderModuleHandle ShaderLoader::CreateShaderModuleFromSPIRV(DeviceHandle device, const std::vector<char>& spirvCode) {
     if (spirvCode.empty()) {
         Window::ShowError("Cannot create shader module: SPIR-V code is empty");
-        return VK_NULL_HANDLE;
+        return nullptr;
     }
     
     if (!ValidateSPIRV(spirvCode)) {
         Window::ShowError("Cannot create shader module: Invalid SPIR-V format");
-        return VK_NULL_HANDLE;
+        return nullptr;
     }
+    
+    // 将抽象句柄转换为Vulkan类型
+    VkDevice vkDevice = static_cast<VkDevice>(device);
     
     VkShaderModuleCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     createInfo.codeSize = spirvCode.size();
     createInfo.pCode = reinterpret_cast<const uint32_t*>(spirvCode.data());
     
-    VkShaderModule shaderModule = VK_NULL_HANDLE;
-    VkResult result = vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule);
+    VkShaderModule vkShaderModule = VK_NULL_HANDLE;
+    VkResult result = vkCreateShaderModule(vkDevice, &createInfo, nullptr, &vkShaderModule);
     
     if (result != VK_SUCCESS) {
         Window::ShowError("Failed to create shader module");
-        return VK_NULL_HANDLE;
+        return nullptr;
     }
     
-    return shaderModule;
+    // 返回抽象句柄
+    return static_cast<ShaderModuleHandle>(vkShaderModule);
 }
 
-std::vector<char> ShaderLoader::CompileGLSLFromFile(const std::string& filename, VkShaderStageFlagBits stage) {
+std::vector<char> ShaderLoader::CompileGLSLFromFile(const std::string& filename, ShaderStage stage) {
     // 读取GLSL源码
     std::ifstream file(filename);
     if (!file.is_open()) {
@@ -86,7 +92,7 @@ std::vector<char> ShaderLoader::CompileGLSLFromFile(const std::string& filename,
     return CompileGLSLFromSource(glslSource, stage, filename);
 }
 
-std::vector<char> ShaderLoader::CompileGLSLFromSource(const std::string& glslSource, VkShaderStageFlagBits stage, const std::string& filename) {
+std::vector<char> ShaderLoader::CompileGLSLFromSource(const std::string& glslSource, ShaderStage stage, const std::string& filename) {
 #ifdef USE_SHADERC
     // 使用Shaderc库进行运行时编译
     shaderc::Compiler compiler;
@@ -96,16 +102,16 @@ std::vector<char> ShaderLoader::CompileGLSLFromSource(const std::string& glslSou
     options.SetTargetEnvironment(shaderc_target_env_vulkan, shaderc_env_version_vulkan_1_0);
     options.SetOptimizationLevel(shaderc_optimization_level_performance);
     
-    // 转换为shaderc的shader类型
+    // 将抽象类型转换为shaderc的shader类型
     shaderc_shader_kind kind;
     switch (stage) {
-        case VK_SHADER_STAGE_VERTEX_BIT:
+        case ShaderStage::Vertex:
             kind = shaderc_vertex_shader;
             break;
-        case VK_SHADER_STAGE_FRAGMENT_BIT:
+        case ShaderStage::Fragment:
             kind = shaderc_fragment_shader;
             break;
-        case VK_SHADER_STAGE_COMPUTE_BIT:
+        case ShaderStage::Compute:
             kind = shaderc_compute_shader;
             break;
         default:
@@ -146,12 +152,12 @@ std::vector<char> ShaderLoader::CompileGLSLFromSource(const std::string& glslSou
 #endif
 }
 
-VkShaderModule ShaderLoader::CreateShaderModuleFromSource(VkDevice device, const std::string& glslSource, VkShaderStageFlagBits stage, const std::string& filename) {
+ShaderModuleHandle ShaderLoader::CreateShaderModuleFromSource(DeviceHandle device, const std::string& glslSource, ShaderStage stage, const std::string& filename) {
     // 先编译GLSL为SPIR-V
     std::vector<char> spirvCode = CompileGLSLFromSource(glslSource, stage, filename);
     
     if (spirvCode.empty()) {
-        return VK_NULL_HANDLE;
+        return nullptr;
     }
     
     // 然后创建shader模块

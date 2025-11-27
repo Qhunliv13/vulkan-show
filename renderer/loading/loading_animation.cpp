@@ -21,8 +21,9 @@ LoadingAnimation::~LoadingAnimation() {
     Cleanup();
 }
 
-bool LoadingAnimation::Initialize(VkDevice device, VkPhysicalDevice physicalDevice, VkCommandPool commandPool, 
-                                  VkQueue graphicsQueue, VkRenderPass renderPass, VkExtent2D swapchainExtent) {
+bool LoadingAnimation::Initialize(DeviceHandle device, PhysicalDeviceHandle physicalDevice, CommandPoolHandle commandPool, 
+                                  QueueHandle graphicsQueue, RenderPassHandle renderPass, Extent2D swapchainExtent) {
+    // 存储抽象句柄（在实现层转换为Vulkan类型使用）
     m_device = device;
     m_physicalDevice = physicalDevice;
     m_commandPool = commandPool;
@@ -47,25 +48,28 @@ bool LoadingAnimation::Initialize(VkDevice device, VkPhysicalDevice physicalDevi
 void LoadingAnimation::Cleanup() {
     if (!m_initialized) return;
     
-    if (m_graphicsPipeline != VK_NULL_HANDLE) {
-        vkDestroyPipeline(m_device, m_graphicsPipeline, nullptr);
-        m_graphicsPipeline = VK_NULL_HANDLE;
+    // 将抽象句柄转换为Vulkan类型
+    VkDevice vkDevice = static_cast<VkDevice>(m_device);
+    
+    if (m_graphicsPipeline != nullptr) {
+        vkDestroyPipeline(vkDevice, static_cast<VkPipeline>(m_graphicsPipeline), nullptr);
+        m_graphicsPipeline = nullptr;
     }
     
-    if (m_pipelineLayout != VK_NULL_HANDLE) {
-        vkDestroyPipelineLayout(m_device, m_pipelineLayout, nullptr);
-        m_pipelineLayout = VK_NULL_HANDLE;
+    if (m_pipelineLayout != nullptr) {
+        vkDestroyPipelineLayout(vkDevice, static_cast<VkPipelineLayout>(m_pipelineLayout), nullptr);
+        m_pipelineLayout = nullptr;
     }
     
     // 清理所有方块的顶点缓冲区
     for (size_t i = 0; i < m_vertexBuffers.size(); i++) {
-        if (m_vertexBuffers[i] != VK_NULL_HANDLE) {
-            vkDestroyBuffer(m_device, m_vertexBuffers[i], nullptr);
-            m_vertexBuffers[i] = VK_NULL_HANDLE;
+        if (m_vertexBuffers[i] != nullptr) {
+            vkDestroyBuffer(vkDevice, static_cast<VkBuffer>(m_vertexBuffers[i]), nullptr);
+            m_vertexBuffers[i] = nullptr;
         }
-        if (m_vertexBufferMemories[i] != VK_NULL_HANDLE) {
-            vkFreeMemory(m_device, m_vertexBufferMemories[i], nullptr);
-            m_vertexBufferMemories[i] = VK_NULL_HANDLE;
+        if (m_vertexBufferMemories[i] != nullptr) {
+            vkFreeMemory(vkDevice, static_cast<VkDeviceMemory>(m_vertexBufferMemories[i]), nullptr);
+            m_vertexBufferMemories[i] = nullptr;
         }
     }
     m_vertexBuffers.clear();
@@ -265,6 +269,9 @@ void LoadingAnimation::Update(float time) {
 }
 
 bool LoadingAnimation::CreateBuffers() {
+    // 将抽象句柄转换为Vulkan类型
+    VkDevice vkDevice = static_cast<VkDevice>(m_device);
+    
     // 为每个方块创建独立的顶点缓冲区
     // 每个方块需要6个顶点（2个三角形组成矩形）
     struct Vertex {
@@ -298,38 +305,56 @@ bool LoadingAnimation::CreateBuffers() {
         bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
         bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
         
-        if (vkCreateBuffer(m_device, &bufferInfo, nullptr, &m_vertexBuffers[i]) != VK_SUCCESS) {
+        VkBuffer vkBuffer;
+        if (vkCreateBuffer(vkDevice, &bufferInfo, nullptr, &vkBuffer) != VK_SUCCESS) {
             Window::ShowError("Failed to create vertex buffer for loading animation!");
             // 清理已创建的缓冲区
             for (int j = 0; j < i; j++) {
-                vkDestroyBuffer(m_device, m_vertexBuffers[j], nullptr);
-                vkFreeMemory(m_device, m_vertexBufferMemories[j], nullptr);
+                vkDestroyBuffer(vkDevice, static_cast<VkBuffer>(m_vertexBuffers[j]), nullptr);
+                vkFreeMemory(vkDevice, static_cast<VkDeviceMemory>(m_vertexBufferMemories[j]), nullptr);
             }
             return false;
         }
+        m_vertexBuffers[i] = vkBuffer;
         
         // 分配内存
         VkMemoryRequirements memRequirements;
-        vkGetBufferMemoryRequirements(m_device, m_vertexBuffers[i], &memRequirements);
+        vkGetBufferMemoryRequirements(vkDevice, vkBuffer, &memRequirements);
         
         VkMemoryAllocateInfo allocInfo = {};
         allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
         allocInfo.allocationSize = memRequirements.size;
-        allocInfo.memoryTypeIndex = FindMemoryType(memRequirements.memoryTypeBits, 
-                                                    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        // 将抽象类型转换为Vulkan类型
+        MemoryPropertyFlag properties = MemoryPropertyFlag::HostVisible | MemoryPropertyFlag::HostCoherent;
+        uint32_t memoryTypeIndex = FindMemoryType(memRequirements.memoryTypeBits, properties);
         
-        if (vkAllocateMemory(m_device, &allocInfo, nullptr, &m_vertexBufferMemories[i]) != VK_SUCCESS) {
-            Window::ShowError("Failed to allocate vertex buffer memory for loading animation!");
+        // 检查内存类型查找是否成功
+        if (memoryTypeIndex == UINT32_MAX) {
+            Window::ShowError("Failed to find suitable memory type for loading animation!");
+            vkDestroyBuffer(vkDevice, vkBuffer, nullptr);
             // 清理已创建的缓冲区
-            vkDestroyBuffer(m_device, m_vertexBuffers[i], nullptr);
             for (int j = 0; j < i; j++) {
-                vkDestroyBuffer(m_device, m_vertexBuffers[j], nullptr);
-                vkFreeMemory(m_device, m_vertexBufferMemories[j], nullptr);
+                vkDestroyBuffer(vkDevice, static_cast<VkBuffer>(m_vertexBuffers[j]), nullptr);
+                vkFreeMemory(vkDevice, static_cast<VkDeviceMemory>(m_vertexBufferMemories[j]), nullptr);
             }
             return false;
         }
         
-        vkBindBufferMemory(m_device, m_vertexBuffers[i], m_vertexBufferMemories[i], 0);
+        allocInfo.memoryTypeIndex = memoryTypeIndex;
+        VkDeviceMemory vkMemory;
+        if (vkAllocateMemory(vkDevice, &allocInfo, nullptr, &vkMemory) != VK_SUCCESS) {
+            Window::ShowError("Failed to allocate vertex buffer memory for loading animation!");
+            // 清理已创建的缓冲区
+            vkDestroyBuffer(vkDevice, vkBuffer, nullptr);
+            for (int j = 0; j < i; j++) {
+                vkDestroyBuffer(vkDevice, static_cast<VkBuffer>(m_vertexBuffers[j]), nullptr);
+                vkFreeMemory(vkDevice, static_cast<VkDeviceMemory>(m_vertexBufferMemories[j]), nullptr);
+            }
+            return false;
+        }
+        m_vertexBufferMemories[i] = vkMemory;
+        
+        vkBindBufferMemory(vkDevice, vkBuffer, vkMemory, 0);
         
         // 使用当前方块的颜色填充数据
         Vertex vertices[6];
@@ -343,30 +368,53 @@ bool LoadingAnimation::CreateBuffers() {
         
         // 填充数据
         void* data;
-        vkMapMemory(m_device, m_vertexBufferMemories[i], 0, bufferSize, 0, &data);
+        vkMapMemory(vkDevice, vkMemory, 0, bufferSize, 0, &data);
         memcpy(data, vertices, (size_t)bufferSize);
-        vkUnmapMemory(m_device, m_vertexBufferMemories[i]);
+        vkUnmapMemory(vkDevice, vkMemory);
     }
     
     return true;
 }
 
-uint32_t LoadingAnimation::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
+uint32_t LoadingAnimation::FindMemoryType(uint32_t typeFilter, MemoryPropertyFlag properties) {
+    // 将抽象句柄转换为Vulkan类型
+    VkPhysicalDevice vkPhysicalDevice = static_cast<VkPhysicalDevice>(m_physicalDevice);
+    
+    // 将抽象类型转换为Vulkan类型
+    VkMemoryPropertyFlags vkProperties = 0;
+    if ((properties & MemoryPropertyFlag::DeviceLocal) != MemoryPropertyFlag::None) {
+        vkProperties |= VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    }
+    if ((properties & MemoryPropertyFlag::HostVisible) != MemoryPropertyFlag::None) {
+        vkProperties |= VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+    }
+    if ((properties & MemoryPropertyFlag::HostCoherent) != MemoryPropertyFlag::None) {
+        vkProperties |= VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+    }
+    if ((properties & MemoryPropertyFlag::HostCached) != MemoryPropertyFlag::None) {
+        vkProperties |= VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
+    }
+    
     VkPhysicalDeviceMemoryProperties memProperties;
-    vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &memProperties);
+    vkGetPhysicalDeviceMemoryProperties(vkPhysicalDevice, &memProperties);
     
     for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
         if ((typeFilter & (1 << i)) && 
-            (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+            (memProperties.memoryTypes[i].propertyFlags & vkProperties) == vkProperties) {
             return i;
         }
     }
     
+    // 未找到匹配的内存类型
     Window::ShowError("Failed to find suitable memory type for loading animation!");
-    return 0;
+    // 返回无效值，调用者应该检查此值
+    return UINT32_MAX;
 }
 
-bool LoadingAnimation::CreatePipeline(VkRenderPass renderPass) {
+bool LoadingAnimation::CreatePipeline(RenderPassHandle renderPass) {
+    // 将抽象句柄转换为Vulkan类型
+    VkDevice vkDevice = static_cast<VkDevice>(m_device);
+    VkRenderPass vkRenderPass = static_cast<VkRenderPass>(renderPass);
     // 加载shader
     std::vector<char> vertCode = renderer::shader::ShaderLoader::LoadSPIRV("renderer/loading/loading.vert.spv");
     std::vector<char> fragCode = renderer::shader::ShaderLoader::LoadSPIRV("renderer/loading/loading.frag.spv");
@@ -379,8 +427,9 @@ bool LoadingAnimation::CreatePipeline(VkRenderPass renderPass) {
         if (vertFile.is_open() && fragFile.is_open()) {
             std::string vertSource((std::istreambuf_iterator<char>(vertFile)), std::istreambuf_iterator<char>());
             std::string fragSource((std::istreambuf_iterator<char>(fragFile)), std::istreambuf_iterator<char>());
-            vertCode = renderer::shader::ShaderLoader::CompileGLSLFromSource(vertSource, VK_SHADER_STAGE_VERTEX_BIT, "loading.vert");
-            fragCode = renderer::shader::ShaderLoader::CompileGLSLFromSource(fragSource, VK_SHADER_STAGE_FRAGMENT_BIT, "loading.frag");
+            // 将抽象类型传递给ShaderLoader
+            vertCode = renderer::shader::ShaderLoader::CompileGLSLFromSource(vertSource, ShaderStage::Vertex, "loading.vert");
+            fragCode = renderer::shader::ShaderLoader::CompileGLSLFromSource(fragSource, ShaderStage::Fragment, "loading.frag");
         }
         #endif
     }
@@ -390,13 +439,17 @@ bool LoadingAnimation::CreatePipeline(VkRenderPass renderPass) {
         return false;
     }
     
-    VkShaderModule vertShaderModule = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(m_device, vertCode);
-    VkShaderModule fragShaderModule = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(m_device, fragCode);
+    ShaderModuleHandle vertShaderModuleHandle = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(m_device, vertCode);
+    ShaderModuleHandle fragShaderModuleHandle = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(m_device, fragCode);
     
-    if (vertShaderModule == VK_NULL_HANDLE || fragShaderModule == VK_NULL_HANDLE) {
+    if (vertShaderModuleHandle == nullptr || fragShaderModuleHandle == nullptr) {
         Window::ShowError("Failed to create shader modules for loading animation!");
         return false;
     }
+    
+    // 将抽象句柄转换为Vulkan类型用于创建管线
+    VkShaderModule vertShaderModule = static_cast<VkShaderModule>(vertShaderModuleHandle);
+    VkShaderModule fragShaderModule = static_cast<VkShaderModule>(fragShaderModuleHandle);
     
     // Shader阶段
     VkPipelineShaderStageCreateInfo vertShaderStageInfo = {};
@@ -510,12 +563,14 @@ bool LoadingAnimation::CreatePipeline(VkRenderPass renderPass) {
     pipelineLayoutInfo.pushConstantRangeCount = 1;
     pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
     
-    if (vkCreatePipelineLayout(m_device, &pipelineLayoutInfo, nullptr, &m_pipelineLayout) != VK_SUCCESS) {
-        vkDestroyShaderModule(m_device, vertShaderModule, nullptr);
-        vkDestroyShaderModule(m_device, fragShaderModule, nullptr);
+    VkPipelineLayout vkPipelineLayout;
+    if (vkCreatePipelineLayout(vkDevice, &pipelineLayoutInfo, nullptr, &vkPipelineLayout) != VK_SUCCESS) {
+        vkDestroyShaderModule(vkDevice, vertShaderModule, nullptr);
+        vkDestroyShaderModule(vkDevice, fragShaderModule, nullptr);
         Window::ShowError("Failed to create pipeline layout for loading animation!");
         return false;
     }
+    m_pipelineLayout = vkPipelineLayout;
     
     // 创建管线
     VkGraphicsPipelineCreateInfo pipelineInfo = {};
@@ -529,37 +584,46 @@ bool LoadingAnimation::CreatePipeline(VkRenderPass renderPass) {
     pipelineInfo.pMultisampleState = &multisampling;
     pipelineInfo.pColorBlendState = &colorBlending;
     pipelineInfo.pDynamicState = &dynamicState;
-    pipelineInfo.layout = m_pipelineLayout;
-    pipelineInfo.renderPass = renderPass;
+    pipelineInfo.layout = vkPipelineLayout;
+    pipelineInfo.renderPass = vkRenderPass;
     pipelineInfo.subpass = 0;
     
-    VkResult result = vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_graphicsPipeline);
+    VkPipeline vkGraphicsPipeline;
+    VkResult result = vkCreateGraphicsPipelines(vkDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &vkGraphicsPipeline);
     
-    vkDestroyShaderModule(m_device, vertShaderModule, nullptr);
-    vkDestroyShaderModule(m_device, fragShaderModule, nullptr);
+    vkDestroyShaderModule(vkDevice, vertShaderModule, nullptr);
+    vkDestroyShaderModule(vkDevice, fragShaderModule, nullptr);
     
     if (result != VK_SUCCESS) {
+        vkDestroyPipelineLayout(vkDevice, vkPipelineLayout, nullptr);
         Window::ShowError("Failed to create graphics pipeline for loading animation!");
         return false;
     }
+    m_graphicsPipeline = vkGraphicsPipeline;
     
     return true;
 }
 
-void LoadingAnimation::Render(VkCommandBuffer commandBuffer, VkExtent2D extent) {
-    if (!m_initialized || m_graphicsPipeline == VK_NULL_HANDLE) return;
+void LoadingAnimation::Render(CommandBufferHandle commandBuffer, Extent2D extent) {
+    if (!m_initialized || m_graphicsPipeline == nullptr) return;
+    
+    // 将抽象句柄转换为Vulkan类型
+    VkCommandBuffer vkCommandBuffer = static_cast<VkCommandBuffer>(commandBuffer);
+    VkPipeline vkGraphicsPipeline = static_cast<VkPipeline>(m_graphicsPipeline);
+    VkPipelineLayout vkPipelineLayout = static_cast<VkPipelineLayout>(m_pipelineLayout);
     
     // 绑定管线
-    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
+    vkCmdBindPipeline(vkCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vkGraphicsPipeline);
     
     // 渲染每个方块
     for (size_t i = 0; i < m_boxes.size(); i++) {
         const auto& box = m_boxes[i];
         
         // 绑定该方块的顶点缓冲区
-        VkBuffer vertexBuffers[] = {m_vertexBuffers[i]};
+        VkBuffer vkVertexBuffer = static_cast<VkBuffer>(m_vertexBuffers[i]);
+        VkBuffer vertexBuffers[] = {vkVertexBuffer};
         VkDeviceSize offsets[] = {0};
-        vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+        vkCmdBindVertexBuffers(vkCommandBuffer, 0, 1, vertexBuffers, offsets);
         
         // Push constants: position, size, screenSize
         // Position in window coordinates (Y down, origin at top-left)
@@ -573,11 +637,11 @@ void LoadingAnimation::Render(VkCommandBuffer commandBuffer, VkExtent2D extent) 
             (float)extent.height      // screenSize.y
         };
         
-        vkCmdPushConstants(commandBuffer, m_pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 
+        vkCmdPushConstants(vkCommandBuffer, vkPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 
                           0, sizeof(pushConstants), pushConstants);
         
         // 绘制方块（6个顶点）
-        vkCmdDraw(commandBuffer, 6, 1, 0, 0);
+        vkCmdDraw(vkCommandBuffer, 6, 1, 0, 0);
     }
 }
 
@@ -610,7 +674,11 @@ void LoadingAnimation::UpdateBoxColorBuffer() {
 
 void LoadingAnimation::UpdateBoxColorBuffer(int boxIndex) {
     if (!m_initialized || boxIndex < 0 || boxIndex >= BOX_COUNT) return;
-    if (m_vertexBufferMemories[boxIndex] == VK_NULL_HANDLE) return;
+    if (m_vertexBufferMemories[boxIndex] == nullptr) return;
+    
+    // 将抽象句柄转换为Vulkan类型
+    VkDevice vkDevice = static_cast<VkDevice>(m_device);
+    VkDeviceMemory vkMemory = static_cast<VkDeviceMemory>(m_vertexBufferMemories[boxIndex]);
     
     struct Vertex {
         float x, y;
@@ -631,10 +699,10 @@ void LoadingAnimation::UpdateBoxColorBuffer(int boxIndex) {
     
     VkDeviceSize bufferSize = sizeof(vertices);
     
-    // 更新缓冲区数据
+    // 更新缓冲区数据（使用已转换的Vulkan类型）
     void* data;
-    vkMapMemory(m_device, m_vertexBufferMemories[boxIndex], 0, bufferSize, 0, &data);
+    vkMapMemory(vkDevice, vkMemory, 0, bufferSize, 0, &data);
     memcpy(data, vertices, (size_t)bufferSize);
-    vkUnmapMemory(m_device, m_vertexBufferMemories[boxIndex]);
+    vkUnmapMemory(vkDevice, vkMemory);
 }
 

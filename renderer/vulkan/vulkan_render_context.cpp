@@ -35,6 +35,8 @@ uint32_t VulkanRenderContext::FindMemoryType(uint32_t typeFilter, MemoryProperty
         }
     }
     
-    return 0;
+    // 未找到匹配的内存类型，返回无效值
+    // 注意：调用者应该检查返回值是否为 UINT32_MAX，这表示失败
+    return UINT32_MAX;
 }
 

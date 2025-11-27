@@ -1,13 +1,8 @@
 #pragma once
 
-#include <string>  // 2. 系统头文件
-#include <cstdint>  // 2. 系统头文件
-
-// 前向声明（避免包含平台特定头文件，减少编译依赖）
-struct HWND__;
-typedef HWND__* HWND;
-struct HINSTANCE__;
-typedef HINSTANCE__* HINSTANCE;
+#include <windows.h>  // 2. 系统头文件
+#include <string>     // 2. 系统头文件
+#include <cstdint>    // 2. 系统头文件
 
 /**
  * 窗口接口 - 抽象窗口操作，解耦组件与具体窗口实现

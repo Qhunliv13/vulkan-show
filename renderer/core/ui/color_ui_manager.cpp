@@ -5,9 +5,11 @@
 
 #include <vulkan/vulkan.h>  // 3. 第三方库头文件
 
+#include "core/interfaces/ibutton.h"  // 4. 项目头文件（接口）
 #include "core/interfaces/irender_context.h"  // 4. 项目头文件（接口）
 #include "core/interfaces/irender_device.h"  // 4. 项目头文件（接口）
 #include "core/interfaces/irenderer.h"  // 4. 项目头文件（接口）
+#include "core/interfaces/islider.h"  // 4. 项目头文件（接口）
 #include "core/interfaces/itext_renderer.h"  // 4. 项目头文件（接口）
 #include "core/types/render_types.h"  // 4. 项目头文件（类型）
 #include "renderer/vulkan/vulkan_render_context_factory.h"  // 4. 项目头文件（工厂函数）
@@ -16,16 +18,7 @@
 #include "ui/color_controller/color_controller.h"  // 4. 项目头文件（UI组件）
 #include "window/window.h"  // 4. 项目头文件（窗口）
 
-/**
- * 辅助函数：将 ITextRenderer* 转换为 TextRenderer*（用于向后兼容）
- * 
- * 注意：此函数违反接口隔离原则（第15.1节），应修改 ColorController 组件使用 ITextRenderer 接口
- * 当前保留此函数的原因：ColorController 组件尚未支持接口，需要后续重构
- * 建议：修改 ColorController::Initialize() 方法接受 ITextRenderer* 参数，移除此转换函数
- */
-static TextRenderer* ToTextRenderer(ITextRenderer* tr) {
-    return tr ? static_cast<TextRenderer*>(tr) : nullptr;
-}
+// ToTextRenderer() 函数已移除 - ColorController 现在直接使用 ITextRenderer* 接口
 
 ColorUIManager::ColorUIManager() {
 }
@@ -135,14 +128,12 @@ void ColorUIManager::HandleWindowResize(StretchMode stretchMode, IRenderer* rend
 bool ColorUIManager::InitializeColorController(IRenderer* renderer, IRenderContext& renderContext,
                                                StretchMode stretchMode, float screenWidth, float screenHeight) {
     Extent2D extent = renderContext.GetSwapchainExtent();
-    // 将抽象类型转换为Vulkan类型（仅在实现层进行转换）
-    VkExtent2D uiExtent = { extent.width, extent.height };
     
     m_colorController = std::make_unique<ColorController>();
     ColorControllerConfig colorControllerConfig;
     colorControllerConfig.relativeX = 0.1f;
     colorControllerConfig.relativeY = 0.3f + 80.0f / ((stretchMode == StretchMode::Fit || stretchMode == StretchMode::Disabled) ? 
-                                                      (float)uiExtent.height : screenHeight);
+                                                      (float)extent.height : screenHeight);
     colorControllerConfig.sliderWidth = 200.0f;
     colorControllerConfig.sliderHeight = 6.0f;
     colorControllerConfig.sliderSpacing = 50.0f;
@@ -156,9 +147,9 @@ bool ColorUIManager::InitializeColorController(IRenderer* renderer, IRenderConte
     colorControllerConfig.zIndex = 19;
     colorControllerConfig.visible = false;
     colorControllerConfig.screenWidth = (stretchMode == StretchMode::Fit || stretchMode == StretchMode::Disabled) ? 
-                                       (float)uiExtent.width : screenWidth;
+                                       (float)extent.width : screenWidth;
     colorControllerConfig.screenHeight = (stretchMode == StretchMode::Fit || stretchMode == StretchMode::Disabled) ? 
-                                        (float)uiExtent.height : screenHeight;
+                                        (float)extent.height : screenHeight;
     
     // 通过 IRenderDevice 接口获取设备信息（遵循接口隔离原则）
     IRenderDevice* renderDevice = renderer->GetRenderDevice();
@@ -167,14 +158,14 @@ bool ColorUIManager::InitializeColorController(IRenderer* renderer, IRenderConte
     }
     
     if (m_colorController->Initialize(
-            static_cast<VkDevice>(renderDevice->GetDevice()),
-            static_cast<VkPhysicalDevice>(renderDevice->GetPhysicalDevice()),
-            static_cast<VkCommandPool>(renderDevice->GetCommandPool()),
-            static_cast<VkQueue>(renderDevice->GetGraphicsQueue()),
-            static_cast<VkRenderPass>(renderDevice->GetRenderPass()),
-            uiExtent,
+            renderDevice->GetDevice(),
+            renderDevice->GetPhysicalDevice(),
+            renderDevice->GetCommandPool(),
+            renderDevice->GetGraphicsQueue(),
+            renderDevice->GetRenderPass(),
+            extent,
             colorControllerConfig,
-            nullptr)) {  // TextRenderer will be set later if needed
+            nullptr)) {  // ITextRenderer will be set later if needed
         if (stretchMode == StretchMode::Fit || stretchMode == StretchMode::Disabled) {
             m_colorController->SetFixedScreenSize(true);
         }
@@ -200,8 +191,6 @@ bool ColorUIManager::InitializeColorController(IRenderer* renderer, IRenderConte
 bool ColorUIManager::InitializeBoxColorControllers(IRenderer* renderer, IRenderContext& renderContext,
                                                    StretchMode stretchMode, float screenWidth, float screenHeight) {
     Extent2D extent = renderContext.GetSwapchainExtent();
-    // 将抽象类型转换为Vulkan类型（仅在实现层进行转换）
-    VkExtent2D uiExtent = { extent.width, extent.height };
     
     // 计算方块按钮矩阵的位置（与InitializeBoxColorButtons中的计算保持一致）
     float boxBtnMatrixCenterX = 0.85f;
@@ -210,13 +199,13 @@ bool ColorUIManager::InitializeBoxColorControllers(IRenderer* renderer, IRenderC
     float boxBtnSpacing = 8.0f;
     
     float boxBtnButtonSizeRel = boxBtnButtonSize / ((stretchMode == StretchMode::Fit || stretchMode == StretchMode::Disabled) ? 
-                                                     (float)uiExtent.width : screenWidth);
+                                                     (float)extent.width : screenWidth);
     float boxBtnSpacingRelX = boxBtnSpacing / ((stretchMode == StretchMode::Fit || stretchMode == StretchMode::Disabled) ? 
-                                                (float)uiExtent.width : screenWidth);
+                                                (float)extent.width : screenWidth);
     float boxBtnMatrixWidth = 3.0f * boxBtnButtonSizeRel + 2.0f * boxBtnSpacingRelX;
     
     float controllerBaseX = boxBtnMatrixCenterX + boxBtnMatrixWidth / 2.0f + 20.0f / ((stretchMode == StretchMode::Fit || stretchMode == StretchMode::Disabled) ? 
-                                                                                      (float)uiExtent.width : screenWidth);
+                                                                                      (float)extent.width : screenWidth);
     float controllerBaseY = boxBtnMatrixCenterY;
     
     for (int i = 0; i < 9; i++) {
@@ -237,9 +226,9 @@ bool ColorUIManager::InitializeBoxColorControllers(IRenderer* renderer, IRenderC
         boxControllerConfig.zIndex = 30;
         boxControllerConfig.visible = false;
         boxControllerConfig.screenWidth = (stretchMode == StretchMode::Fit || stretchMode == StretchMode::Disabled) ? 
-                                          (float)uiExtent.width : screenWidth;
+                                          (float)extent.width : screenWidth;
         boxControllerConfig.screenHeight = (stretchMode == StretchMode::Fit || stretchMode == StretchMode::Disabled) ? 
-                                           (float)uiExtent.height : screenHeight;
+                                           (float)extent.height : screenHeight;
         
         // 通过 IRenderDevice 接口获取设备信息（遵循接口隔离原则）
         IRenderDevice* renderDevice = renderer->GetRenderDevice();
@@ -248,14 +237,14 @@ bool ColorUIManager::InitializeBoxColorControllers(IRenderer* renderer, IRenderC
         }
         
         if (m_boxColorControllers[i]->Initialize(
-                static_cast<VkDevice>(renderDevice->GetDevice()),
-                static_cast<VkPhysicalDevice>(renderDevice->GetPhysicalDevice()),
-                static_cast<VkCommandPool>(renderDevice->GetCommandPool()),
-                static_cast<VkQueue>(renderDevice->GetGraphicsQueue()),
-                static_cast<VkRenderPass>(renderDevice->GetRenderPass()),
-                uiExtent,
+                renderDevice->GetDevice(),
+                renderDevice->GetPhysicalDevice(),
+                renderDevice->GetCommandPool(),
+                renderDevice->GetGraphicsQueue(),
+                renderDevice->GetRenderPass(),
+                extent,
                 boxControllerConfig,
-                nullptr)) {  // TextRenderer will be set later if needed
+                nullptr)) {  // ITextRenderer will be set later if needed
             if (stretchMode == StretchMode::Fit || stretchMode == StretchMode::Disabled) {
                 m_boxColorControllers[i]->SetFixedScreenSize(true);
             }

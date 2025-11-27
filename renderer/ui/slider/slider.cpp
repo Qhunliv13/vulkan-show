@@ -6,10 +6,11 @@
 
 #include <vulkan/vulkan.h>     // 3. 第三方库头文件
 
+#include "core/types/render_types.h"  // 4. 项目头文件（抽象类型）
+
 #include "core/interfaces/irender_context.h"  // 4. 项目头文件（接口）
 #include "core/config/stretch_params.h"                    // 4. 项目头文件
 #include "renderer/vulkan/vulkan_render_context_factory.h"  // 4. 项目头文件（工厂函数）
-#include "core/types/render_types.h"                       // 4. 项目头文件
 #include "shader/shader_loader.h"                          // 4. 项目头文件
 #include "ui/button/button.h"                              // 4. 项目头文件
 #include "window/window.h"                                 // 4. 项目头文件
@@ -29,15 +30,13 @@ bool Slider::Initialize(IRenderContext* renderContext,
     }
     
     m_renderContext = renderContext;
-    // 将抽象句柄转换为 Vulkan 类型
-    m_device = static_cast<VkDevice>(renderContext->GetDevice());
-    m_physicalDevice = static_cast<VkPhysicalDevice>(renderContext->GetPhysicalDevice());
-    m_commandPool = static_cast<VkCommandPool>(renderContext->GetCommandPool());
-    m_graphicsQueue = static_cast<VkQueue>(renderContext->GetGraphicsQueue());
-    m_renderPass = static_cast<VkRenderPass>(renderContext->GetRenderPass());
-    // 将 Extent2D 转换为 VkExtent2D
-    Extent2D extent = renderContext->GetSwapchainExtent();
-    m_swapchainExtent = { extent.width, extent.height };
+    // 存储抽象类型（在需要时转换为 Vulkan 类型）
+    m_device = renderContext->GetDevice();
+    m_physicalDevice = renderContext->GetPhysicalDevice();
+    m_commandPool = renderContext->GetCommandPool();
+    m_graphicsQueue = renderContext->GetGraphicsQueue();
+    m_renderPass = renderContext->GetRenderPass();
+    m_swapchainExtent = renderContext->GetSwapchainExtent();
     m_usePureShader = usePureShader;
     
     // 从配置中设置滑块属性
@@ -103,7 +102,7 @@ bool Slider::Initialize(IRenderContext* renderContext,
         if (!CreateFullscreenQuadBuffer()) {
             return false;
         }
-        if (!CreatePureShaderPipeline(m_renderPass)) {
+        if (!CreatePureShaderPipeline(static_cast<RenderPassHandle>(m_renderPass))) {
             return false;
         }
     } else {
@@ -114,7 +113,7 @@ bool Slider::Initialize(IRenderContext* renderContext,
         if (!CreateFillBuffer()) {
             return false;
         }
-        if (!CreatePipeline(m_renderPass)) {
+        if (!CreatePipeline(static_cast<RenderPassHandle>(m_renderPass))) {
             return false;
         }
     }
@@ -126,20 +125,20 @@ bool Slider::Initialize(IRenderContext* renderContext,
 }
 
 // 兼容旧接口的初始化方法（已废弃）
-bool Slider::Initialize(VkDevice device, VkPhysicalDevice physicalDevice, 
-                       VkCommandPool commandPool, VkQueue graphicsQueue, 
-                       VkRenderPass renderPass, VkExtent2D swapchainExtent,
+bool Slider::Initialize(DeviceHandle device, PhysicalDeviceHandle physicalDevice, 
+                       CommandPoolHandle commandPool, QueueHandle graphicsQueue, 
+                       RenderPassHandle renderPass, Extent2D swapchainExtent,
                        const SliderConfig& config,
                        bool usePureShader) {
     // 创建临时渲染上下文（仅用于向后兼容）
     // 使用工厂函数创建 IRenderContext
     std::unique_ptr<IRenderContext> tempContext(CreateVulkanRenderContext(
-        static_cast<DeviceHandle>(device),
-        static_cast<PhysicalDeviceHandle>(physicalDevice),
-        static_cast<CommandPoolHandle>(commandPool),
-        static_cast<QueueHandle>(graphicsQueue),
-        static_cast<RenderPassHandle>(renderPass),
-        Extent2D{ swapchainExtent.width, swapchainExtent.height }));
+        device,
+        physicalDevice,
+        commandPool,
+        graphicsQueue,
+        renderPass,
+        swapchainExtent));
     return Initialize(tempContext.get(), config, usePureShader);
 }
 
@@ -158,62 +157,68 @@ void Slider::Cleanup() {
         m_thumbButton.reset();
     }
     
+    // 将抽象类型转换为 Vulkan 类型用于清理
+    VkDevice vkDevice = static_cast<VkDevice>(m_device);
+    
     // 清理传统渲染资源
-    if (m_graphicsPipeline != VK_NULL_HANDLE) {
-        vkDestroyPipeline(m_device, m_graphicsPipeline, nullptr);
-        m_graphicsPipeline = VK_NULL_HANDLE;
+    if (m_graphicsPipeline != nullptr) {
+        vkDestroyPipeline(vkDevice, static_cast<VkPipeline>(m_graphicsPipeline), nullptr);
+        m_graphicsPipeline = nullptr;
     }
     
-    if (m_pipelineLayout != VK_NULL_HANDLE) {
-        vkDestroyPipelineLayout(m_device, m_pipelineLayout, nullptr);
-        m_pipelineLayout = VK_NULL_HANDLE;
+    if (m_pipelineLayout != nullptr) {
+        vkDestroyPipelineLayout(vkDevice, static_cast<VkPipelineLayout>(m_pipelineLayout), nullptr);
+        m_pipelineLayout = nullptr;
     }
     
-    if (m_trackVertexBuffer != VK_NULL_HANDLE) {
-        vkDestroyBuffer(m_device, m_trackVertexBuffer, nullptr);
-        m_trackVertexBuffer = VK_NULL_HANDLE;
+    if (m_trackVertexBuffer != nullptr) {
+        vkDestroyBuffer(vkDevice, static_cast<VkBuffer>(m_trackVertexBuffer), nullptr);
+        m_trackVertexBuffer = nullptr;
     }
     
-    if (m_trackVertexBufferMemory != VK_NULL_HANDLE) {
-        vkFreeMemory(m_device, m_trackVertexBufferMemory, nullptr);
-        m_trackVertexBufferMemory = VK_NULL_HANDLE;
+    if (m_trackVertexBufferMemory != nullptr) {
+        vkFreeMemory(vkDevice, static_cast<VkDeviceMemory>(m_trackVertexBufferMemory), nullptr);
+        m_trackVertexBufferMemory = nullptr;
     }
     
-    if (m_fillVertexBuffer != VK_NULL_HANDLE) {
-        vkDestroyBuffer(m_device, m_fillVertexBuffer, nullptr);
-        m_fillVertexBuffer = VK_NULL_HANDLE;
+    if (m_fillVertexBuffer != nullptr) {
+        vkDestroyBuffer(vkDevice, static_cast<VkBuffer>(m_fillVertexBuffer), nullptr);
+        m_fillVertexBuffer = nullptr;
     }
     
-    if (m_fillVertexBufferMemory != VK_NULL_HANDLE) {
-        vkFreeMemory(m_device, m_fillVertexBufferMemory, nullptr);
-        m_fillVertexBufferMemory = VK_NULL_HANDLE;
+    if (m_fillVertexBufferMemory != nullptr) {
+        vkFreeMemory(vkDevice, static_cast<VkDeviceMemory>(m_fillVertexBufferMemory), nullptr);
+        m_fillVertexBufferMemory = nullptr;
     }
     
     // 清理纯shader渲染资源
-    if (m_pureShaderPipeline != VK_NULL_HANDLE) {
-        vkDestroyPipeline(m_device, m_pureShaderPipeline, nullptr);
-        m_pureShaderPipeline = VK_NULL_HANDLE;
+    if (m_pureShaderPipeline != nullptr) {
+        vkDestroyPipeline(vkDevice, static_cast<VkPipeline>(m_pureShaderPipeline), nullptr);
+        m_pureShaderPipeline = nullptr;
     }
     
-    if (m_pureShaderPipelineLayout != VK_NULL_HANDLE) {
-        vkDestroyPipelineLayout(m_device, m_pureShaderPipelineLayout, nullptr);
-        m_pureShaderPipelineLayout = VK_NULL_HANDLE;
+    if (m_pureShaderPipelineLayout != nullptr) {
+        vkDestroyPipelineLayout(vkDevice, static_cast<VkPipelineLayout>(m_pureShaderPipelineLayout), nullptr);
+        m_pureShaderPipelineLayout = nullptr;
     }
     
-    if (m_fullscreenQuadBuffer != VK_NULL_HANDLE) {
-        vkDestroyBuffer(m_device, m_fullscreenQuadBuffer, nullptr);
-        m_fullscreenQuadBuffer = VK_NULL_HANDLE;
+    if (m_fullscreenQuadBuffer != nullptr) {
+        vkDestroyBuffer(vkDevice, static_cast<VkBuffer>(m_fullscreenQuadBuffer), nullptr);
+        m_fullscreenQuadBuffer = nullptr;
     }
     
-    if (m_fullscreenQuadBufferMemory != VK_NULL_HANDLE) {
-        vkFreeMemory(m_device, m_fullscreenQuadBufferMemory, nullptr);
-        m_fullscreenQuadBufferMemory = VK_NULL_HANDLE;
+    if (m_fullscreenQuadBufferMemory != nullptr) {
+        vkFreeMemory(vkDevice, static_cast<VkDeviceMemory>(m_fullscreenQuadBufferMemory), nullptr);
+        m_fullscreenQuadBufferMemory = nullptr;
     }
     
     m_initialized = false;
 }
 
 bool Slider::CreateTrackBuffer() {
+    // 将抽象类型转换为 Vulkan 类型
+    VkDevice vkDevice = static_cast<VkDevice>(m_device);
+    
     // 创建轨道顶点缓冲区
     struct Vertex {
         float x, y;
@@ -240,38 +245,45 @@ bool Slider::CreateTrackBuffer() {
     bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     
-    if (vkCreateBuffer(m_device, &bufferInfo, nullptr, &m_trackVertexBuffer) != VK_SUCCESS) {
+    VkBuffer vkBuffer = VK_NULL_HANDLE;
+    if (vkCreateBuffer(vkDevice, &bufferInfo, nullptr, &vkBuffer) != VK_SUCCESS) {
         Window::ShowError("Failed to create slider track vertex buffer!");
         return false;
     }
+    m_trackVertexBuffer = vkBuffer;
     
     // 分配内存
     VkMemoryRequirements memRequirements;
-    vkGetBufferMemoryRequirements(m_device, m_trackVertexBuffer, &memRequirements);
+    vkGetBufferMemoryRequirements(vkDevice, vkBuffer, &memRequirements);
     
     VkMemoryAllocateInfo allocInfo = {};
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocInfo.allocationSize = memRequirements.size;
     allocInfo.memoryTypeIndex = FindMemoryType(memRequirements.memoryTypeBits, 
-                                                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+                                                MemoryPropertyFlag::HostVisible | MemoryPropertyFlag::HostCoherent);
     
-    if (vkAllocateMemory(m_device, &allocInfo, nullptr, &m_trackVertexBufferMemory) != VK_SUCCESS) {
+    VkDeviceMemory vkMemory = VK_NULL_HANDLE;
+    if (vkAllocateMemory(vkDevice, &allocInfo, nullptr, &vkMemory) != VK_SUCCESS) {
         Window::ShowError("Failed to allocate slider track vertex buffer memory!");
         return false;
     }
+    m_trackVertexBufferMemory = vkMemory;
     
-    vkBindBufferMemory(m_device, m_trackVertexBuffer, m_trackVertexBufferMemory, 0);
+    vkBindBufferMemory(vkDevice, vkBuffer, vkMemory, 0);
     
     // 填充数据
     void* data;
-    vkMapMemory(m_device, m_trackVertexBufferMemory, 0, bufferSize, 0, &data);
+    vkMapMemory(vkDevice, vkMemory, 0, bufferSize, 0, &data);
     memcpy(data, trackVertices, (size_t)bufferSize);
-    vkUnmapMemory(m_device, m_trackVertexBufferMemory);
+    vkUnmapMemory(vkDevice, vkMemory);
     
     return true;
 }
 
 bool Slider::CreateFillBuffer() {
+    // 将抽象类型转换为 Vulkan 类型
+    VkDevice vkDevice = static_cast<VkDevice>(m_device);
+    
     // 创建填充区域顶点缓冲区
     // 注意：填充区域的顶点缓冲区应该始终使用完整的归一化宽度（1.0）
     // 因为 push constants 中的 size.x 已经是 fillWidth（实际像素宽度）
@@ -302,39 +314,47 @@ bool Slider::CreateFillBuffer() {
     bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     
-    if (vkCreateBuffer(m_device, &bufferInfo, nullptr, &m_fillVertexBuffer) != VK_SUCCESS) {
+    VkBuffer vkBuffer = VK_NULL_HANDLE;
+    if (vkCreateBuffer(vkDevice, &bufferInfo, nullptr, &vkBuffer) != VK_SUCCESS) {
         Window::ShowError("Failed to create slider fill vertex buffer!");
         return false;
     }
+    m_fillVertexBuffer = vkBuffer;
     
     // 分配内存
     VkMemoryRequirements memRequirements;
-    vkGetBufferMemoryRequirements(m_device, m_fillVertexBuffer, &memRequirements);
+    vkGetBufferMemoryRequirements(vkDevice, vkBuffer, &memRequirements);
     
     VkMemoryAllocateInfo allocInfo = {};
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocInfo.allocationSize = memRequirements.size;
     allocInfo.memoryTypeIndex = FindMemoryType(memRequirements.memoryTypeBits, 
-                                                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+                                                MemoryPropertyFlag::HostVisible | MemoryPropertyFlag::HostCoherent);
     
-    if (vkAllocateMemory(m_device, &allocInfo, nullptr, &m_fillVertexBufferMemory) != VK_SUCCESS) {
+    VkDeviceMemory vkMemory = VK_NULL_HANDLE;
+    if (vkAllocateMemory(vkDevice, &allocInfo, nullptr, &vkMemory) != VK_SUCCESS) {
         Window::ShowError("Failed to allocate slider fill vertex buffer memory!");
         return false;
     }
+    m_fillVertexBufferMemory = vkMemory;
     
-    vkBindBufferMemory(m_device, m_fillVertexBuffer, m_fillVertexBufferMemory, 0);
+    vkBindBufferMemory(vkDevice, vkBuffer, vkMemory, 0);
     
     // 填充数据
     void* data;
-    vkMapMemory(m_device, m_fillVertexBufferMemory, 0, bufferSize, 0, &data);
+    vkMapMemory(vkDevice, vkMemory, 0, bufferSize, 0, &data);
     memcpy(data, fillVertices, (size_t)bufferSize);
-    vkUnmapMemory(m_device, m_fillVertexBufferMemory);
+    vkUnmapMemory(vkDevice, vkMemory);
     
     return true;
 }
 
 void Slider::UpdateTrackBuffer() {
-    if (!m_initialized || m_trackVertexBufferMemory == VK_NULL_HANDLE) return;
+    if (!m_initialized || m_trackVertexBufferMemory == nullptr) return;
+    
+    // 将抽象类型转换为 Vulkan 类型
+    VkDevice vkDevice = static_cast<VkDevice>(m_device);
+    VkDeviceMemory vkMemory = static_cast<VkDeviceMemory>(m_trackVertexBufferMemory);
     
     struct Vertex {
         float x, y;
@@ -352,13 +372,17 @@ void Slider::UpdateTrackBuffer() {
     
     VkDeviceSize bufferSize = sizeof(trackVertices);
     void* data;
-    vkMapMemory(m_device, m_trackVertexBufferMemory, 0, bufferSize, 0, &data);
+    vkMapMemory(vkDevice, vkMemory, 0, bufferSize, 0, &data);
     memcpy(data, trackVertices, (size_t)bufferSize);
-    vkUnmapMemory(m_device, m_trackVertexBufferMemory);
+    vkUnmapMemory(vkDevice, vkMemory);
 }
 
 void Slider::UpdateFillBuffer() {
-    if (!m_initialized || m_fillVertexBufferMemory == VK_NULL_HANDLE) return;
+    if (!m_initialized || m_fillVertexBufferMemory == nullptr) return;
+    
+    // 将抽象类型转换为 Vulkan 类型
+    VkDevice vkDevice = static_cast<VkDevice>(m_device);
+    VkDeviceMemory vkMemory = static_cast<VkDeviceMemory>(m_fillVertexBufferMemory);
     
     struct Vertex {
         float x, y;
@@ -380,37 +404,39 @@ void Slider::UpdateFillBuffer() {
     
     VkDeviceSize bufferSize = sizeof(fillVertices);
     void* data;
-    vkMapMemory(m_device, m_fillVertexBufferMemory, 0, bufferSize, 0, &data);
+    vkMapMemory(vkDevice, vkMemory, 0, bufferSize, 0, &data);
     memcpy(data, fillVertices, (size_t)bufferSize);
-    vkUnmapMemory(m_device, m_fillVertexBufferMemory);
+    vkUnmapMemory(vkDevice, vkMemory);
 }
 
-uint32_t Slider::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
+uint32_t Slider::FindMemoryType(uint32_t typeFilter, MemoryPropertyFlag properties) {
     if (m_renderContext) {
-        // 将 VkMemoryPropertyFlags 转换为 MemoryPropertyFlag
-        MemoryPropertyFlag memFlags = MemoryPropertyFlag::None;
-        if (properties & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) {
-            memFlags = memFlags | MemoryPropertyFlag::DeviceLocal;
-        }
-        if (properties & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
-            memFlags = memFlags | MemoryPropertyFlag::HostVisible;
-        }
-        if (properties & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) {
-            memFlags = memFlags | MemoryPropertyFlag::HostCoherent;
-        }
-        if (properties & VK_MEMORY_PROPERTY_HOST_CACHED_BIT) {
-            memFlags = memFlags | MemoryPropertyFlag::HostCached;
-        }
-        return m_renderContext->FindMemoryType(typeFilter, memFlags);
+        return m_renderContext->FindMemoryType(typeFilter, properties);
     }
     
     // 向后兼容：如果没有渲染上下文，使用旧方法
+    // 将 MemoryPropertyFlag 转换为 VkMemoryPropertyFlags
+    VkMemoryPropertyFlags vkProperties = 0;
+    if ((properties & MemoryPropertyFlag::DeviceLocal) != MemoryPropertyFlag::None) {
+        vkProperties |= VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    }
+    if ((properties & MemoryPropertyFlag::HostVisible) != MemoryPropertyFlag::None) {
+        vkProperties |= VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+    }
+    if ((properties & MemoryPropertyFlag::HostCoherent) != MemoryPropertyFlag::None) {
+        vkProperties |= VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+    }
+    if ((properties & MemoryPropertyFlag::HostCached) != MemoryPropertyFlag::None) {
+        vkProperties |= VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
+    }
+    
+    VkPhysicalDevice vkPhysicalDevice = static_cast<VkPhysicalDevice>(m_physicalDevice);
     VkPhysicalDeviceMemoryProperties memProperties;
-    vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &memProperties);
+    vkGetPhysicalDeviceMemoryProperties(vkPhysicalDevice, &memProperties);
     
     for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
         if ((typeFilter & (1 << i)) && 
-            (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+            (memProperties.memoryTypes[i].propertyFlags & vkProperties) == vkProperties) {
             return i;
         }
     }
@@ -419,7 +445,10 @@ uint32_t Slider::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags prope
     return 0;
 }
 
-bool Slider::CreatePipeline(VkRenderPass renderPass) {
+bool Slider::CreatePipeline(RenderPassHandle renderPass) {
+    // 将抽象类型转换为 Vulkan 类型
+    VkDevice vkDevice = static_cast<VkDevice>(m_device);
+    VkRenderPass vkRenderPass = static_cast<VkRenderPass>(renderPass);
     // 加载shader（复用按钮的shader）
     std::vector<char> vertCode = renderer::shader::ShaderLoader::LoadSPIRV("renderer/ui/button/button.vert.spv");
     std::vector<char> fragCode = renderer::shader::ShaderLoader::LoadSPIRV("renderer/ui/button/button.frag.spv");
@@ -432,8 +461,8 @@ bool Slider::CreatePipeline(VkRenderPass renderPass) {
         if (vertFile.is_open() && fragFile.is_open()) {
             std::string vertSource((std::istreambuf_iterator<char>(vertFile)), std::istreambuf_iterator<char>());
             std::string fragSource((std::istreambuf_iterator<char>(fragFile)), std::istreambuf_iterator<char>());
-            vertCode = renderer::shader::ShaderLoader::CompileGLSLFromSource(vertSource, VK_SHADER_STAGE_VERTEX_BIT, "button.vert");
-            fragCode = renderer::shader::ShaderLoader::CompileGLSLFromSource(fragSource, VK_SHADER_STAGE_FRAGMENT_BIT, "button.frag");
+            vertCode = renderer::shader::ShaderLoader::CompileGLSLFromSource(vertSource, ShaderStage::Vertex, "button.vert");
+            fragCode = renderer::shader::ShaderLoader::CompileGLSLFromSource(fragSource, ShaderStage::Fragment, "button.frag");
         }
         #endif
     }
@@ -443,8 +472,18 @@ bool Slider::CreatePipeline(VkRenderPass renderPass) {
         return false;
     }
     
-    VkShaderModule vertShaderModule = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(m_device, vertCode);
-    VkShaderModule fragShaderModule = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(m_device, fragCode);
+    // 使用抽象类型，然后在需要时转换为Vulkan类型
+    ShaderModuleHandle vertShaderModuleHandle = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(static_cast<DeviceHandle>(m_device), vertCode);
+    ShaderModuleHandle fragShaderModuleHandle = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(static_cast<DeviceHandle>(m_device), fragCode);
+    
+    if (vertShaderModuleHandle == nullptr || fragShaderModuleHandle == nullptr) {
+        Window::ShowError("Failed to create shader modules for slider!");
+        return false;
+    }
+    
+    // 将抽象句柄转换为Vulkan类型用于创建管线
+    VkShaderModule vertShaderModule = static_cast<VkShaderModule>(vertShaderModuleHandle);
+    VkShaderModule fragShaderModule = static_cast<VkShaderModule>(fragShaderModuleHandle);
     
     if (vertShaderModule == VK_NULL_HANDLE || fragShaderModule == VK_NULL_HANDLE) {
         Window::ShowError("Failed to create shader modules for slider!");
@@ -572,12 +611,14 @@ bool Slider::CreatePipeline(VkRenderPass renderPass) {
     pipelineLayoutInfo.pushConstantRangeCount = 1;
     pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
     
-    if (vkCreatePipelineLayout(m_device, &pipelineLayoutInfo, nullptr, &m_pipelineLayout) != VK_SUCCESS) {
-        vkDestroyShaderModule(m_device, vertShaderModule, nullptr);
-        vkDestroyShaderModule(m_device, fragShaderModule, nullptr);
+    VkPipelineLayout vkPipelineLayout = VK_NULL_HANDLE;
+    if (vkCreatePipelineLayout(vkDevice, &pipelineLayoutInfo, nullptr, &vkPipelineLayout) != VK_SUCCESS) {
+        vkDestroyShaderModule(vkDevice, vertShaderModule, nullptr);
+        vkDestroyShaderModule(vkDevice, fragShaderModule, nullptr);
         Window::ShowError("Failed to create pipeline layout for slider!");
         return false;
     }
+    m_pipelineLayout = vkPipelineLayout;
     
     // 创建管线
     VkGraphicsPipelineCreateInfo pipelineInfo = {};
@@ -592,24 +633,29 @@ bool Slider::CreatePipeline(VkRenderPass renderPass) {
     pipelineInfo.pDepthStencilState = &depthStencil;
     pipelineInfo.pColorBlendState = &colorBlending;
     pipelineInfo.pDynamicState = &dynamicState;
-    pipelineInfo.layout = m_pipelineLayout;
-    pipelineInfo.renderPass = renderPass;
+    pipelineInfo.layout = vkPipelineLayout;
+    pipelineInfo.renderPass = vkRenderPass;
     pipelineInfo.subpass = 0;
     
-    VkResult result = vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_graphicsPipeline);
+    VkPipeline vkPipeline = VK_NULL_HANDLE;
+    VkResult result = vkCreateGraphicsPipelines(vkDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &vkPipeline);
     
-    vkDestroyShaderModule(m_device, vertShaderModule, nullptr);
-    vkDestroyShaderModule(m_device, fragShaderModule, nullptr);
+    vkDestroyShaderModule(vkDevice, vertShaderModule, nullptr);
+    vkDestroyShaderModule(vkDevice, fragShaderModule, nullptr);
     
     if (result != VK_SUCCESS) {
         Window::ShowError("Failed to create graphics pipeline for slider!");
         return false;
     }
+    m_graphicsPipeline = vkPipeline;
     
     return true;
 }
 
 bool Slider::CreateFullscreenQuadBuffer() {
+    // 将抽象类型转换为 Vulkan 类型
+    VkDevice vkDevice = static_cast<VkDevice>(m_device);
+    
     // 创建全屏四边形的顶点缓冲区（用于纯shader渲染）
     struct Vertex {
         float x, y;
@@ -633,38 +679,45 @@ bool Slider::CreateFullscreenQuadBuffer() {
     bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     
-    if (vkCreateBuffer(m_device, &bufferInfo, nullptr, &m_fullscreenQuadBuffer) != VK_SUCCESS) {
+    VkBuffer vkBuffer = VK_NULL_HANDLE;
+    if (vkCreateBuffer(vkDevice, &bufferInfo, nullptr, &vkBuffer) != VK_SUCCESS) {
         Window::ShowError("Failed to create fullscreen quad vertex buffer!");
         return false;
     }
+    m_fullscreenQuadBuffer = vkBuffer;
     
     // 分配内存
     VkMemoryRequirements memRequirements;
-    vkGetBufferMemoryRequirements(m_device, m_fullscreenQuadBuffer, &memRequirements);
+    vkGetBufferMemoryRequirements(vkDevice, vkBuffer, &memRequirements);
     
     VkMemoryAllocateInfo allocInfo = {};
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocInfo.allocationSize = memRequirements.size;
     allocInfo.memoryTypeIndex = FindMemoryType(memRequirements.memoryTypeBits, 
-                                                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+                                                MemoryPropertyFlag::HostVisible | MemoryPropertyFlag::HostCoherent);
     
-    if (vkAllocateMemory(m_device, &allocInfo, nullptr, &m_fullscreenQuadBufferMemory) != VK_SUCCESS) {
+    VkDeviceMemory vkMemory = VK_NULL_HANDLE;
+    if (vkAllocateMemory(vkDevice, &allocInfo, nullptr, &vkMemory) != VK_SUCCESS) {
         Window::ShowError("Failed to allocate fullscreen quad vertex buffer memory!");
         return false;
     }
+    m_fullscreenQuadBufferMemory = vkMemory;
     
-    vkBindBufferMemory(m_device, m_fullscreenQuadBuffer, m_fullscreenQuadBufferMemory, 0);
+    vkBindBufferMemory(vkDevice, vkBuffer, vkMemory, 0);
     
     // 填充数据
     void* data;
-    vkMapMemory(m_device, m_fullscreenQuadBufferMemory, 0, bufferSize, 0, &data);
+    vkMapMemory(vkDevice, vkMemory, 0, bufferSize, 0, &data);
     memcpy(data, quadVertices, (size_t)bufferSize);
-    vkUnmapMemory(m_device, m_fullscreenQuadBufferMemory);
+    vkUnmapMemory(vkDevice, vkMemory);
     
     return true;
 }
 
-bool Slider::CreatePureShaderPipeline(VkRenderPass renderPass) {
+bool Slider::CreatePureShaderPipeline(RenderPassHandle renderPass) {
+    // 将抽象类型转换为 Vulkan 类型
+    VkDevice vkDevice = static_cast<VkDevice>(m_device);
+    VkRenderPass vkRenderPass = static_cast<VkRenderPass>(renderPass);
     // 加载纯shader（复用按钮的纯shader）
     std::vector<char> vertCode = renderer::shader::ShaderLoader::LoadSPIRV("renderer/ui/button/button_pure.vert.spv");
     std::vector<char> fragCode = renderer::shader::ShaderLoader::LoadSPIRV("renderer/ui/button/button_pure.frag.spv");
@@ -676,8 +729,8 @@ bool Slider::CreatePureShaderPipeline(VkRenderPass renderPass) {
         if (vertFile.is_open() && fragFile.is_open()) {
             std::string vertSource((std::istreambuf_iterator<char>(vertFile)), std::istreambuf_iterator<char>());
             std::string fragSource((std::istreambuf_iterator<char>(fragFile)), std::istreambuf_iterator<char>());
-            vertCode = renderer::shader::ShaderLoader::CompileGLSLFromSource(vertSource, VK_SHADER_STAGE_VERTEX_BIT, "button_pure.vert");
-            fragCode = renderer::shader::ShaderLoader::CompileGLSLFromSource(fragSource, VK_SHADER_STAGE_FRAGMENT_BIT, "button_pure.frag");
+            vertCode = renderer::shader::ShaderLoader::CompileGLSLFromSource(vertSource, ShaderStage::Vertex, "button_pure.vert");
+            fragCode = renderer::shader::ShaderLoader::CompileGLSLFromSource(fragSource, ShaderStage::Fragment, "button_pure.frag");
         }
         #endif
     }
@@ -687,8 +740,18 @@ bool Slider::CreatePureShaderPipeline(VkRenderPass renderPass) {
         return false;
     }
     
-    VkShaderModule vertShaderModule = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(m_device, vertCode);
-    VkShaderModule fragShaderModule = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(m_device, fragCode);
+    // 使用抽象类型，然后在需要时转换为Vulkan类型
+    ShaderModuleHandle vertShaderModuleHandle = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(static_cast<DeviceHandle>(m_device), vertCode);
+    ShaderModuleHandle fragShaderModuleHandle = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(static_cast<DeviceHandle>(m_device), fragCode);
+    
+    if (vertShaderModuleHandle == nullptr || fragShaderModuleHandle == nullptr) {
+        Window::ShowError("Failed to create shader modules for slider!");
+        return false;
+    }
+    
+    // 将抽象句柄转换为Vulkan类型用于创建管线
+    VkShaderModule vertShaderModule = static_cast<VkShaderModule>(vertShaderModuleHandle);
+    VkShaderModule fragShaderModule = static_cast<VkShaderModule>(fragShaderModuleHandle);
     
     if (vertShaderModule == VK_NULL_HANDLE || fragShaderModule == VK_NULL_HANDLE) {
         Window::ShowError("Failed to create pure shader modules for slider!");
@@ -811,12 +874,14 @@ bool Slider::CreatePureShaderPipeline(VkRenderPass renderPass) {
     pipelineLayoutInfo.pushConstantRangeCount = 1;
     pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
     
-    if (vkCreatePipelineLayout(m_device, &pipelineLayoutInfo, nullptr, &m_pureShaderPipelineLayout) != VK_SUCCESS) {
-        vkDestroyShaderModule(m_device, vertShaderModule, nullptr);
-        vkDestroyShaderModule(m_device, fragShaderModule, nullptr);
+    VkPipelineLayout vkPipelineLayout = VK_NULL_HANDLE;
+    if (vkCreatePipelineLayout(vkDevice, &pipelineLayoutInfo, nullptr, &vkPipelineLayout) != VK_SUCCESS) {
+        vkDestroyShaderModule(vkDevice, vertShaderModule, nullptr);
+        vkDestroyShaderModule(vkDevice, fragShaderModule, nullptr);
         Window::ShowError("Failed to create pure shader pipeline layout for slider!");
         return false;
     }
+    m_pureShaderPipelineLayout = vkPipelineLayout;
     
     // 创建管线
     VkGraphicsPipelineCreateInfo pipelineInfo = {};
@@ -831,19 +896,21 @@ bool Slider::CreatePureShaderPipeline(VkRenderPass renderPass) {
     pipelineInfo.pDepthStencilState = &depthStencil;
     pipelineInfo.pColorBlendState = &colorBlending;
     pipelineInfo.pDynamicState = &dynamicState;
-    pipelineInfo.layout = m_pureShaderPipelineLayout;
-    pipelineInfo.renderPass = renderPass;
+    pipelineInfo.layout = vkPipelineLayout;
+    pipelineInfo.renderPass = vkRenderPass;
     pipelineInfo.subpass = 0;
     
-    VkResult result = vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_pureShaderPipeline);
+    VkPipeline vkPipeline = VK_NULL_HANDLE;
+    VkResult result = vkCreateGraphicsPipelines(vkDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &vkPipeline);
     
-    vkDestroyShaderModule(m_device, vertShaderModule, nullptr);
-    vkDestroyShaderModule(m_device, fragShaderModule, nullptr);
+    vkDestroyShaderModule(vkDevice, vertShaderModule, nullptr);
+    vkDestroyShaderModule(vkDevice, fragShaderModule, nullptr);
     
     if (result != VK_SUCCESS) {
         Window::ShowError("Failed to create pure shader graphics pipeline for slider!");
         return false;
     }
+    m_pureShaderPipeline = vkPipeline;
     
     return true;
 }
@@ -868,8 +935,8 @@ void Slider::UpdateRelativePosition() {
     if (m_useRelativePosition) {
         // Scaled模式：使用逻辑坐标计算位置
         if (m_stretchParams) {
-            m_x = m_relativeX * m_stretchParams->logicalWidth - m_width / 2.0f;
-            m_y = m_relativeY * m_stretchParams->logicalHeight - m_height / 2.0f;
+            m_x = m_relativeX * m_stretchParams->m_logicalWidth - m_width / 2.0f;
+            m_y = m_relativeY * m_stretchParams->m_logicalHeight - m_height / 2.0f;
         } else if (m_screenWidth > 0.0f && m_screenHeight > 0.0f) {
             // 其他模式：使用屏幕坐标计算位置
             m_x = m_relativeX * m_screenWidth - m_width / 2.0f;
@@ -950,8 +1017,8 @@ bool Slider::IsPointInsideTrack(float px, float py) const {
     
     // Scaled模式：将屏幕坐标转换为逻辑坐标
     if (m_stretchParams) {
-        checkX = (px - m_stretchParams->marginX) / m_stretchParams->stretchScaleX;
-        checkY = (py - m_stretchParams->marginY) / m_stretchParams->stretchScaleY;
+        checkX = (px - m_stretchParams->m_marginX) / m_stretchParams->m_stretchScaleX;
+        checkY = (py - m_stretchParams->m_marginY) / m_stretchParams->m_stretchScaleY;
     }
     
     // 检查是否在轨道的矩形区域内（逻辑坐标）
@@ -969,7 +1036,7 @@ void Slider::SetValueFromPosition(float px, float py) {
     
     // Scaled模式：将屏幕坐标转换为逻辑坐标
     if (m_stretchParams) {
-        checkX = (px - m_stretchParams->marginX) / m_stretchParams->stretchScaleX;
+        checkX = (px - m_stretchParams->m_marginX) / m_stretchParams->m_stretchScaleX;
     }
     
     // 计算相对于轨道的位置（0.0-1.0）
@@ -1029,7 +1096,11 @@ void Slider::SetStretchParams(const struct StretchParams& params) {
     }
 }
 
-void Slider::Render(VkCommandBuffer commandBuffer, VkExtent2D extent) {
+void Slider::Render(CommandBufferHandle commandBuffer, Extent2D extent) {
+    // 将抽象类型转换为 Vulkan 类型
+    VkCommandBuffer vkCommandBuffer = static_cast<VkCommandBuffer>(commandBuffer);
+    VkExtent2D vkExtent = { extent.width, extent.height };
+    
     // 如果滑块不可见，不渲染
     if (!m_visible) {
         static int debugCount = 0;
@@ -1049,52 +1120,57 @@ void Slider::Render(VkCommandBuffer commandBuffer, VkExtent2D extent) {
     static int renderDebugCount = 0;
     if (renderDebugCount % 60 == 0) {
         printf("[SLIDER RENDER] Rendering slider: pos=(%.2f, %.2f), size=(%.2f, %.2f), extent=(%u, %u), value=%.2f\n",
-               m_x, m_y, m_width, m_height, extent.width, extent.height, m_value);
+               m_x, m_y, m_width, m_height, vkExtent.width, vkExtent.height, m_value);
     }
     renderDebugCount++;
     
     if (m_usePureShader) {
         // 纯shader方式渲染
-        if (m_pureShaderPipeline == VK_NULL_HANDLE || m_fullscreenQuadBuffer == VK_NULL_HANDLE) return;
+        if (m_pureShaderPipeline == nullptr || m_fullscreenQuadBuffer == nullptr) return;
+        
+        // 将抽象类型转换为 Vulkan 类型
+        VkPipeline vkPipeline = static_cast<VkPipeline>(m_pureShaderPipeline);
+        VkPipelineLayout vkPipelineLayout = static_cast<VkPipelineLayout>(m_pureShaderPipelineLayout);
+        VkBuffer vkBuffer = static_cast<VkBuffer>(m_fullscreenQuadBuffer);
         
         // 绑定管线
-        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pureShaderPipeline);
+        vkCmdBindPipeline(vkCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vkPipeline);
         
         // 绑定全屏四边形顶点缓冲区
-        VkBuffer vertexBuffers[] = {m_fullscreenQuadBuffer};
+        VkBuffer vertexBuffers[] = {vkBuffer};
         VkDeviceSize offsets[] = {0};
-        vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+        vkCmdBindVertexBuffers(vkCommandBuffer, 0, 1, vertexBuffers, offsets);
         
         // 设置视口和裁剪区域
         VkViewport viewport = {};
         viewport.x = 0.0f;
         viewport.y = 0.0f;
-        viewport.width = (float)extent.width;
-        viewport.height = (float)extent.height;
+        viewport.width = (float)vkExtent.width;
+        viewport.height = (float)vkExtent.height;
         viewport.minDepth = 0.0f;
         viewport.maxDepth = 1.0f;
-        vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+        vkCmdSetViewport(vkCommandBuffer, 0, 1, &viewport);
         
         VkRect2D scissor = {};
         scissor.offset = {0, 0};
-        scissor.extent = extent;
-        vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+        scissor.extent = vkExtent;
+        vkCmdSetScissor(vkCommandBuffer, 0, 1, &scissor);
         
         // 渲染轨道
         float renderX = m_x;
         float renderY = m_y;
         float renderWidth = m_width;
         float renderHeight = m_height;
-        float renderScreenWidth = (float)extent.width;
-        float renderScreenHeight = (float)extent.height;
+        float renderScreenWidth = (float)vkExtent.width;
+        float renderScreenHeight = (float)vkExtent.height;
         
         if (m_stretchParams) {
-            renderX = m_x * m_stretchParams->stretchScaleX + m_stretchParams->marginX;
-            renderY = m_y * m_stretchParams->stretchScaleY + m_stretchParams->marginY;
-            renderWidth = m_width * m_stretchParams->stretchScaleX;
-            renderHeight = m_height * m_stretchParams->stretchScaleY;
-            renderScreenWidth = m_stretchParams->screenWidth;
-            renderScreenHeight = m_stretchParams->screenHeight;
+            renderX = m_x * m_stretchParams->m_stretchScaleX + m_stretchParams->m_marginX;
+            renderY = m_y * m_stretchParams->m_stretchScaleY + m_stretchParams->m_marginY;
+            renderWidth = m_width * m_stretchParams->m_stretchScaleX;
+            renderHeight = m_height * m_stretchParams->m_stretchScaleY;
+            renderScreenWidth = m_stretchParams->m_screenWidth;
+            renderScreenHeight = m_stretchParams->m_screenHeight;
         }
         
         // 计算翻转的Y坐标
@@ -1106,9 +1182,9 @@ void Slider::Render(VkCommandBuffer commandBuffer, VkExtent2D extent) {
             renderScreenWidth, renderScreenHeight,
             m_trackColorR, m_trackColorG, m_trackColorB, m_trackColorA
         };
-        vkCmdPushConstants(commandBuffer, m_pureShaderPipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 
+        vkCmdPushConstants(vkCommandBuffer, vkPipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 
                           0, sizeof(pushConstants), pushConstants);
-        vkCmdDraw(commandBuffer, 6, 1, 0, 0);
+        vkCmdDraw(vkCommandBuffer, 6, 1, 0, 0);
         
         // 渲染填充区域
         float fillWidth = GetNormalizedValue() * renderWidth;
@@ -1117,33 +1193,39 @@ void Slider::Render(VkCommandBuffer commandBuffer, VkExtent2D extent) {
             renderScreenWidth, renderScreenHeight,
             m_fillColorR, m_fillColorG, m_fillColorB, m_fillColorA
         };
-        vkCmdPushConstants(commandBuffer, m_pureShaderPipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 
+        vkCmdPushConstants(vkCommandBuffer, vkPipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 
                           0, sizeof(fillPushConstants), fillPushConstants);
-        vkCmdDraw(commandBuffer, 6, 1, 0, 0);
+        vkCmdDraw(vkCommandBuffer, 6, 1, 0, 0);
     } else {
         // 传统方式渲染
-        if (m_graphicsPipeline == VK_NULL_HANDLE || 
-            m_trackVertexBuffer == VK_NULL_HANDLE || 
-            m_fillVertexBuffer == VK_NULL_HANDLE) return;
+        if (m_graphicsPipeline == nullptr || 
+            m_trackVertexBuffer == nullptr || 
+            m_fillVertexBuffer == nullptr) return;
+        
+        // 将抽象类型转换为 Vulkan 类型
+        VkPipeline vkPipeline = static_cast<VkPipeline>(m_graphicsPipeline);
+        VkPipelineLayout vkPipelineLayout = static_cast<VkPipelineLayout>(m_pipelineLayout);
+        VkBuffer vkTrackBuffer = static_cast<VkBuffer>(m_trackVertexBuffer);
+        VkBuffer vkFillBuffer = static_cast<VkBuffer>(m_fillVertexBuffer);
         
         // 绑定管线
-        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
+        vkCmdBindPipeline(vkCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vkPipeline);
         
         // Scaled模式：将逻辑坐标转换为屏幕坐标
         float renderX = m_x;
         float renderY = m_y;
         float renderWidth = m_width;
         float renderHeight = m_height;
-        float renderScreenWidth = (float)extent.width;
-        float renderScreenHeight = (float)extent.height;
+        float renderScreenWidth = (float)vkExtent.width;
+        float renderScreenHeight = (float)vkExtent.height;
         
         if (m_stretchParams) {
-            renderX = m_x * m_stretchParams->stretchScaleX + m_stretchParams->marginX;
-            renderY = m_y * m_stretchParams->stretchScaleY + m_stretchParams->marginY;
-            renderWidth = m_width * m_stretchParams->stretchScaleX;
-            renderHeight = m_height * m_stretchParams->stretchScaleY;
-            renderScreenWidth = m_stretchParams->screenWidth;
-            renderScreenHeight = m_stretchParams->screenHeight;
+            renderX = m_x * m_stretchParams->m_stretchScaleX + m_stretchParams->m_marginX;
+            renderY = m_y * m_stretchParams->m_stretchScaleY + m_stretchParams->m_marginY;
+            renderWidth = m_width * m_stretchParams->m_stretchScaleX;
+            renderHeight = m_height * m_stretchParams->m_stretchScaleY;
+            renderScreenWidth = m_stretchParams->m_screenWidth;
+            renderScreenHeight = m_stretchParams->m_screenHeight;
         }
         
         // 计算翻转的Y坐标
@@ -1165,15 +1247,15 @@ void Slider::Render(VkCommandBuffer commandBuffer, VkExtent2D extent) {
             renderScreenWidth, renderScreenHeight, useTexture,
             0.0f  // shapeType = 0 (矩形，轨道和填充区域都应该是矩形)
         };
-        vkCmdPushConstants(commandBuffer, m_pipelineLayout, 
+        vkCmdPushConstants(vkCommandBuffer, vkPipelineLayout, 
                           VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 
                           0, sizeof(pushConstants), pushConstants);
         
         // 渲染轨道
-        VkBuffer trackBuffers[] = {m_trackVertexBuffer};
+        VkBuffer trackBuffers[] = {vkTrackBuffer};
         VkDeviceSize trackOffsets[] = {0};
-        vkCmdBindVertexBuffers(commandBuffer, 0, 1, trackBuffers, trackOffsets);
-        vkCmdDraw(commandBuffer, 6, 1, 0, 0);
+        vkCmdBindVertexBuffers(vkCommandBuffer, 0, 1, trackBuffers, trackOffsets);
+        vkCmdDraw(vkCommandBuffer, 6, 1, 0, 0);
         
         // 渲染填充区域
         // 计算填充区域的宽度（根据归一化值）
@@ -1193,23 +1275,22 @@ void Slider::Render(VkCommandBuffer commandBuffer, VkExtent2D extent) {
             renderScreenWidth, renderScreenHeight, useTexture,
             0.0f  // shapeType = 0 (矩形，填充区域应该是矩形)
         };
-        vkCmdPushConstants(commandBuffer, m_pipelineLayout, 
+        vkCmdPushConstants(vkCommandBuffer, vkPipelineLayout, 
                           VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 
                           0, sizeof(fillPushConstants), fillPushConstants);
         
         // 绑定填充区域顶点缓冲区并绘制
         // 注意：填充区域的顶点缓冲区应该使用完整的归一化宽度（1.0），而不是 normalizedValue
         // 因为 push constants 中的 size.x 已经是 fillWidth
-        VkBuffer fillBuffers[] = {m_fillVertexBuffer};
+        VkBuffer fillBuffers[] = {vkFillBuffer};
         VkDeviceSize fillOffsets[] = {0};
-        vkCmdBindVertexBuffers(commandBuffer, 0, 1, fillBuffers, fillOffsets);
-        vkCmdDraw(commandBuffer, 6, 1, 0, 0);
+        vkCmdBindVertexBuffers(vkCommandBuffer, 0, 1, fillBuffers, fillOffsets);
+        vkCmdDraw(vkCommandBuffer, 6, 1, 0, 0);
     }
     
     // 渲染拖动点按钮（在所有模式下都需要）
     if (m_thumbButton) {
-        // 将 Vulkan 类型转换为抽象类型
-        Extent2D abstractExtent = { extent.width, extent.height };
-        m_thumbButton->Render(static_cast<CommandBufferHandle>(commandBuffer), abstractExtent);
+        // 使用抽象类型调用Button的Render方法
+        m_thumbButton->Render(commandBuffer, extent);
     }
 }

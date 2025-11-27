@@ -674,11 +674,11 @@ bool TextRenderer::CreatePipeline(void* renderPass) {
     // 如果 SPIR-V 文件不存在，尝试编译 GLSL
     if (vertShaderCode.empty()) {
         vertShaderCode = renderer::shader::ShaderLoader::CompileGLSLFromFile(
-            "renderer/text/text.vert", VK_SHADER_STAGE_VERTEX_BIT);
+            "renderer/text/text.vert", ShaderStage::Vertex);
     }
     if (fragShaderCode.empty()) {
         fragShaderCode = renderer::shader::ShaderLoader::CompileGLSLFromFile(
-            "renderer/text/text.frag", VK_SHADER_STAGE_FRAGMENT_BIT);
+            "renderer/text/text.frag", ShaderStage::Fragment);
     }
     
     if (vertShaderCode.empty() || fragShaderCode.empty()) {
@@ -686,13 +686,18 @@ bool TextRenderer::CreatePipeline(void* renderPass) {
         return false;
     }
     
-    VkShaderModule vertShaderModule = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(vkDevice, vertShaderCode);
-    VkShaderModule fragShaderModule = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(vkDevice, fragShaderCode);
+    // 使用抽象类型，然后在需要时转换为Vulkan类型
+    ShaderModuleHandle vertShaderModuleHandle = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(static_cast<DeviceHandle>(vkDevice), vertShaderCode);
+    ShaderModuleHandle fragShaderModuleHandle = renderer::shader::ShaderLoader::CreateShaderModuleFromSPIRV(static_cast<DeviceHandle>(vkDevice), fragShaderCode);
     
-    if (vertShaderModule == VK_NULL_HANDLE || fragShaderModule == VK_NULL_HANDLE) {
+    if (vertShaderModuleHandle == nullptr || fragShaderModuleHandle == nullptr) {
         Window::ShowError("Failed to create shader modules!");
         return false;
     }
+    
+    // 将抽象句柄转换为Vulkan类型用于创建管线
+    VkShaderModule vertShaderModule = static_cast<VkShaderModule>(vertShaderModuleHandle);
+    VkShaderModule fragShaderModule = static_cast<VkShaderModule>(fragShaderModuleHandle);
     
     // 创建 shader 阶段
     VkPipelineShaderStageCreateInfo vertShaderStageInfo = {};

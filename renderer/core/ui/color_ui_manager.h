@@ -4,8 +4,9 @@
 #include <vector>  // 2. 系统头文件
 
 #include "core/config/constants.h"  // 4. 项目头文件（配置）
+#include "core/interfaces/icolor_controller.h"  // 4. 项目头文件（接口）
 #include "core/interfaces/iwindow_resize_handler.h"  // 4. 项目头文件（接口）
-#include "ui/color_controller/color_controller.h"  // 4. 项目头文件（UI组件）
+#include "ui/color_controller/color_controller.h"  // 4. 项目头文件（UI组件实现）
 // 注意：必须包含完整定义，因为 std::unique_ptr<ColorController> 作为成员变量需要完整类型（析构函数需要知道如何删除）
 
 // 前向声明
@@ -78,7 +79,7 @@ public:
      * 
      * 所有权：[BORROW] 返回的指针不拥有所有权，由 ColorUIManager 管理生命周期
      */
-    ColorController* GetColorController() const { return m_colorController.get(); }
+    IColorController* GetColorController() const { return m_colorController.get(); }
     const std::vector<std::unique_ptr<ColorController>>& GetBoxColorControllers() const { return m_boxColorControllers; }
     
     /**

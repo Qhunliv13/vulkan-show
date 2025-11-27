@@ -3,8 +3,8 @@
 #include <algorithm>       // 2. 系统头文件
 #include <cmath>           // 2. 系统头文件
 
+#include "core/interfaces/irender_context.h"  // 4. 项目头文件（接口）
 #include "core/types/render_types.h"  // 4. 项目头文件
-#include "text/text_renderer.h"       // 4. 项目头文件
 #include "window/window.h"            // 4. 项目头文件
 
 Text::Text() {
@@ -14,22 +14,21 @@ Text::~Text() {
     Cleanup();
 }
 
-bool Text::Initialize(VkDevice device, VkPhysicalDevice physicalDevice, 
-                     VkCommandPool commandPool, VkQueue graphicsQueue, 
-                     VkRenderPass renderPass, VkExtent2D swapchainExtent,
+bool Text::Initialize(IRenderContext* renderContext,
                      const TextConfig& config,
-                     TextRenderer* textRenderer) {
-    if (!textRenderer) {
-        Window::ShowError("TextRenderer is required for Text UI component!");
+                     ITextRenderer* textRenderer) {
+    if (!renderContext) {
+        Window::ShowError("IRenderContext is required for Text UI component!");
         return false;
     }
     
-    m_device = device;
-    m_physicalDevice = physicalDevice;
-    m_commandPool = commandPool;
-    m_graphicsQueue = graphicsQueue;
-    m_renderPass = renderPass;
-    m_swapchainExtent = swapchainExtent;
+    if (!textRenderer) {
+        Window::ShowError("ITextRenderer is required for Text UI component!");
+        return false;
+    }
+    
+    m_renderContext = renderContext;
+    m_swapchainExtent = renderContext->GetSwapchainExtent();
     
     // 从配置中设置文本属性
     m_text = config.text;
@@ -41,8 +40,8 @@ bool Text::Initialize(VkDevice device, VkPhysicalDevice physicalDevice,
     m_relativeX = config.relativeX;
     m_relativeY = config.relativeY;
     m_useCenterPosition = config.useCenterPosition;
-    m_screenWidth = (float)swapchainExtent.width;
-    m_screenHeight = (float)swapchainExtent.height;
+    m_screenWidth = (float)m_swapchainExtent.width;
+    m_screenHeight = (float)m_swapchainExtent.height;
     m_textRenderer = textRenderer;
     
     // 根据配置设置位置
@@ -99,7 +98,7 @@ void Text::UpdateRelativePosition() {
     }
 }
 
-void Text::Render(VkCommandBuffer commandBuffer, VkExtent2D extent) {
+void Text::Render(CommandBufferHandle commandBuffer, Extent2D extent) {
     if (!m_initialized || !m_textRenderer || m_text.empty()) return;
     
     float screenWidth = (float)extent.width;
@@ -107,13 +106,13 @@ void Text::Render(VkCommandBuffer commandBuffer, VkExtent2D extent) {
     
     if (m_useCenterPosition) {
         // 使用中心坐标渲染
-        m_textRenderer->RenderTextCentered(static_cast<CommandBufferHandle>(commandBuffer), m_text,
+        m_textRenderer->RenderTextCentered(commandBuffer, m_text,
                                           m_x, m_y,
                                           screenWidth, screenHeight,
                                           m_colorR, m_colorG, m_colorB, m_colorA);
     } else {
         // 使用左上角坐标渲染
-        m_textRenderer->RenderText(static_cast<CommandBufferHandle>(commandBuffer), m_text,
+        m_textRenderer->RenderText(commandBuffer, m_text,
                                   m_x, m_y,
                                   screenWidth, screenHeight,
                                   m_colorR, m_colorG, m_colorB, m_colorA);

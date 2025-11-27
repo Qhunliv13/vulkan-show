@@ -3,19 +3,21 @@
 #include <string>  // 2. 系统头文件
 #include <vector>  // 2. 系统头文件
 
-#include <vulkan/vulkan.h>  // 3. 第三方库头文件
+#include "core/types/render_types.h"  // 4. 项目头文件（抽象类型）
 
 // 加载动画类 - 将CSS动画转换为Vulkan渲染
 // 职责：实现加载动画效果，将CSS动画转换为Vulkan渲染管线
 // 设计：使用9个方块（3x3网格）实现动画效果，每个方块独立移动和着色
+// 使用抽象类型以支持多种渲染后端，在实现层进行类型转换
 class LoadingAnimation {
 public:
     LoadingAnimation();
     ~LoadingAnimation();
     
-    // 初始化（需要Vulkan设备和命令缓冲区）
-    bool Initialize(VkDevice device, VkPhysicalDevice physicalDevice, VkCommandPool commandPool, 
-                    VkQueue graphicsQueue, VkRenderPass renderPass, VkExtent2D swapchainExtent);
+    // 初始化（需要渲染设备和命令缓冲区）
+    // 使用抽象类型以支持多种渲染后端
+    bool Initialize(DeviceHandle device, PhysicalDeviceHandle physicalDevice, CommandPoolHandle commandPool, 
+                    QueueHandle graphicsQueue, RenderPassHandle renderPass, Extent2D swapchainExtent);
     
     // 清理资源
     void Cleanup();
@@ -24,7 +26,7 @@ public:
     void Update(float time);
     
     // 渲染到命令缓冲区
-    void Render(VkCommandBuffer commandBuffer, VkExtent2D extent);
+    void Render(CommandBufferHandle commandBuffer, Extent2D extent);
     
     // 设置位置和大小
     void SetPosition(float x, float y) { m_posX = x; m_posY = y; }
@@ -52,18 +54,19 @@ private:
     
     // 创建渲染资源
     bool CreateBuffers();
-    bool CreatePipeline(VkRenderPass renderPass);
+    bool CreatePipeline(RenderPassHandle renderPass);
     
-    // Vulkan对象
-    VkDevice m_device = VK_NULL_HANDLE;
-    VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
-    VkCommandPool m_commandPool = VK_NULL_HANDLE;
-    VkQueue m_graphicsQueue = VK_NULL_HANDLE;
-    VkRenderPass m_renderPass = VK_NULL_HANDLE;
-    VkExtent2D m_swapchainExtent = {};
+    // 渲染设备对象（使用抽象类型，在实现层转换为具体类型）
+    DeviceHandle m_device = nullptr;
+    PhysicalDeviceHandle m_physicalDevice = nullptr;
+    CommandPoolHandle m_commandPool = nullptr;
+    QueueHandle m_graphicsQueue = nullptr;
+    RenderPassHandle m_renderPass = nullptr;
+    Extent2D m_swapchainExtent = {};
     
     // 查找内存类型
-    uint32_t FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
+    // 注意：在实现层需要将MemoryPropertyFlag转换为VkMemoryPropertyFlags
+    uint32_t FindMemoryType(uint32_t typeFilter, MemoryPropertyFlag properties);
     
     // 方块动画数据
     std::vector<BoxAnimation> m_boxes;
@@ -91,12 +94,11 @@ private:
     void UpdateBoxColorBuffer();
     void UpdateBoxColorBuffer(int boxIndex);
     
-    // 渲染资源
-    std::vector<VkBuffer> m_vertexBuffers;  // 每个方块的顶点缓冲区
-    std::vector<VkDeviceMemory> m_vertexBufferMemories;  // 每个方块的顶点缓冲区内存
-    VkPipeline m_graphicsPipeline = VK_NULL_HANDLE;
-    VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
-    VkDescriptorSetLayout m_descriptorSetLayout = VK_NULL_HANDLE;
+    // 渲染资源（使用抽象类型，在实现层转换为具体类型）
+    std::vector<BufferHandle> m_vertexBuffers;  // 每个方块的顶点缓冲区
+    std::vector<DeviceMemoryHandle> m_vertexBufferMemories;  // 每个方块的顶点缓冲区内存
+    PipelineHandle m_graphicsPipeline = nullptr;
+    PipelineLayoutHandle m_pipelineLayout = nullptr;
     
     bool m_initialized = false;
 };

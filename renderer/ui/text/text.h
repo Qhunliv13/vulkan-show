@@ -2,10 +2,11 @@
 
 #include <string>         // 2. 系统头文件
 
-#include <vulkan/vulkan.h>  // 3. 第三方库头文件
+#include "core/interfaces/itext_renderer.h"  // 4. 项目头文件（接口）
+#include "core/types/render_types.h"  // 4. 项目头文件（类型）
 
 // 前向声明
-class TextRenderer;
+class IRenderContext;
 
 // 文本UI组件配置结构体
 struct TextConfig {
@@ -89,20 +90,30 @@ struct TextConfig {
     }
 };
 
-// 独立的文本UI组件 - 可快速插拔使用
+/**
+ * 独立的文本UI组件 - 可快速插拔使用
+ * 
+ * 提供文本渲染功能，支持绝对位置和相对位置，支持中心坐标和左上角坐标
+ * 通过依赖注入接收 ITextRenderer 接口，避免直接依赖具体实现类
+ */
 class Text {
 public:
     Text();
     ~Text();
     
-    // 初始化文本组件
-    // 参数：Vulkan设备、物理设备、命令池、图形队列、渲染通道、交换链范围、文本配置、文字渲染器
-    // 返回：是否初始化成功
-    bool Initialize(VkDevice device, VkPhysicalDevice physicalDevice, 
-                    VkCommandPool commandPool, VkQueue graphicsQueue, 
-                    VkRenderPass renderPass, VkExtent2D swapchainExtent,
+    /**
+     * 初始化文本组件
+     * 
+     * 通过依赖注入接收渲染上下文和文本渲染器接口
+     * 
+     * @param renderContext 渲染上下文接口（不拥有所有权，由外部管理生命周期）
+     * @param config 文本配置（位置、内容、颜色等）
+     * @param textRenderer 文字渲染器接口（不拥有所有权，由外部管理生命周期）
+     * @return 初始化成功返回true，失败返回false
+     */
+    bool Initialize(IRenderContext* renderContext,
                     const TextConfig& config,
-                    TextRenderer* textRenderer);
+                    ITextRenderer* textRenderer);
     
     // 清理资源
     void Cleanup();
@@ -142,8 +153,13 @@ public:
     // 获取文本内容
     const std::string& GetText() const { return m_text; }
     
-    // 渲染文本到命令缓冲区
-    void Render(VkCommandBuffer commandBuffer, VkExtent2D extent);
+    /**
+     * 渲染文本到命令缓冲区
+     * 
+     * @param commandBuffer 命令缓冲区句柄
+     * @param extent 渲染区域大小
+     */
+    void Render(CommandBufferHandle commandBuffer, Extent2D extent);
     
     // 更新文本位置以适应窗口大小变化（保持相对位置）
     void UpdateForWindowResize(float newWidth, float newHeight) {
@@ -154,13 +170,21 @@ private:
     // 更新相对位置
     void UpdateRelativePosition();
     
-    // Vulkan对象（用于存储屏幕尺寸等信息）
-    VkDevice m_device = VK_NULL_HANDLE;
-    VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
-    VkCommandPool m_commandPool = VK_NULL_HANDLE;
-    VkQueue m_graphicsQueue = VK_NULL_HANDLE;
-    VkRenderPass m_renderPass = VK_NULL_HANDLE;
-    VkExtent2D m_swapchainExtent = {};
+    /**
+     * 渲染上下文（新接口）
+     * 
+     * 通过依赖注入接收，不拥有所有权，由外部管理生命周期
+     * 提供渲染所需的设备、命令池、队列等资源
+     */
+    IRenderContext* m_renderContext = nullptr;
+    
+    /**
+     * 渲染设备对象（使用抽象类型，在实现层转换为Vulkan类型）
+     * 
+     * 注意：在 .cpp 文件中转换为 Vulkan 类型使用
+     * 使用抽象类型避免头文件直接依赖 Vulkan 实现
+     */
+    Extent2D m_swapchainExtent = {};
     
     // 文本属性
     float m_x = 0.0f;
@@ -181,8 +205,13 @@ private:
     // 是否使用中心坐标
     bool m_useCenterPosition = false;
     
-    // 文字渲染器
-    TextRenderer* m_textRenderer = nullptr;
+    /**
+     * 文字渲染器接口
+     * 
+     * 通过依赖注入接收，不拥有所有权，由外部管理生命周期
+     * 提供文本渲染功能
+     */
+    ITextRenderer* m_textRenderer = nullptr;
     
     bool m_initialized = false;
 };

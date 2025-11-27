@@ -4,9 +4,10 @@
 #include <vector>  // 2. 系统头文件
 
 #include "core/config/constants.h"  // 4. 项目头文件（配置）
+#include "core/interfaces/ibutton.h"  // 4. 项目头文件（接口）
 #include "core/interfaces/irender_context.h"  // 4. 项目头文件（接口）
 #include "core/interfaces/iwindow_resize_handler.h"  // 4. 项目头文件（接口）
-#include "ui/button/button.h"  // 4. 项目头文件（UI组件）
+#include "ui/button/button.h"  // 4. 项目头文件（UI组件实现）
 // 注意：必须包含完整定义，因为 std::unique_ptr<Button> 作为成员变量需要完整类型（析构函数需要知道如何删除）
 
 // 前向声明
@@ -73,10 +74,10 @@ public:
      * 
      * 所有权：[BORROW] 返回的指针不拥有所有权，由 ButtonUIManager 管理生命周期
      */
-    Button* GetEnterButton() const { return m_enterButton.get(); }
-    Button* GetColorButton() const { return m_colorButton.get(); }
-    Button* GetLeftButton() const { return m_leftButton.get(); }
-    Button* GetColorAdjustButton() const { return m_colorAdjustButton.get(); }
+    IButton* GetEnterButton() const { return m_enterButton.get(); }
+    IButton* GetColorButton() const { return m_colorButton.get(); }
+    IButton* GetLeftButton() const { return m_leftButton.get(); }
+    IButton* GetColorAdjustButton() const { return m_colorAdjustButton.get(); }
     const std::vector<std::unique_ptr<Button>>& GetColorButtons() const { return m_colorButtons; }
     const std::vector<std::unique_ptr<Button>>& GetBoxColorButtons() const { return m_boxColorButtons; }
     
@@ -85,9 +86,9 @@ public:
      * 
      * 收集所有按钮指针到向量中，用于批量渲染
      * 
-     * @param buttons 输出参数，存储所有按钮指针
+     * @param buttons 输出参数，存储所有按钮接口指针
      */
-    void GetAllButtons(std::vector<Button*>& buttons) const;
+    void GetAllButtons(std::vector<IButton*>& buttons) const;
     
     /**
      * 设置按钮颜色

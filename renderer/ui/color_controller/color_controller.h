@@ -1,20 +1,16 @@
 #pragma once
 
 #include <functional>    // 2. 系统头文件
+#include <memory>         // 2. 系统头文件
 #include <vector>         // 2. 系统头文件
 
-#include <vulkan/vulkan.h>  // 3. 第三方库头文件
+#include "core/interfaces/icolor_controller.h"  // 4. 项目头文件（接口）
+#include "core/types/render_types.h"  // 4. 项目头文件（类型）
 
 // 前向声明
+class ITextRenderer;
 class Button;
 class Slider;
-class TextRenderer;
-
-// 注意：根据开发标准第4.5节，高频渲染对象允许直接使用具体实现类
-// 但为减少头文件依赖，优先使用前向声明
-// 如果需要在头文件中使用类的完整定义，则包含头文件
-#include "ui/button/button.h"   // 4. 项目头文件
-#include "ui/slider/slider.h"   // 4. 项目头文件
 
 // 颜色控制器配置结构体
 struct ColorControllerConfig {
@@ -49,27 +45,32 @@ struct ColorControllerConfig {
     float screenHeight = 800.0f;
 };
 
-// 颜色控制器组件 - 封装4个RGBA滑块和颜色显示区域
-class ColorController {
+/**
+ * 颜色控制器组件 - 封装4个RGBA滑块和颜色显示区域
+ * 
+ * 实现IColorController接口，支持接口隔离原则
+ * 通过依赖注入接收渲染上下文和文本渲染器接口，避免直接依赖具体实现类
+ */
+class ColorController : public IColorController {
 public:
     ColorController();
     ~ColorController();
     
-    // 初始化颜色控制器
-    bool Initialize(VkDevice device, VkPhysicalDevice physicalDevice,
-                    VkCommandPool commandPool, VkQueue graphicsQueue,
-                    VkRenderPass renderPass, VkExtent2D swapchainExtent,
+    // 初始化颜色控制器（使用抽象类型）
+    bool Initialize(DeviceHandle device, PhysicalDeviceHandle physicalDevice,
+                    CommandPoolHandle commandPool, QueueHandle graphicsQueue,
+                    RenderPassHandle renderPass, Extent2D swapchainExtent,
                     const ColorControllerConfig& config,
-                    TextRenderer* textRenderer = nullptr);
+                    ITextRenderer* textRenderer = nullptr) override;
     
     // 清理资源
-    void Cleanup();
+    void Cleanup() override;
     
     // 设置颜色（RGBA，0.0-1.0）
-    void SetColor(float r, float g, float b, float a = 1.0f);
+    void SetColor(float r, float g, float b, float a = 1.0f) override;
     
     // 获取当前颜色（RGBA，0.0-1.0）
-    void GetColor(float& r, float& g, float& b, float& a) const {
+    void GetColor(float& r, float& g, float& b, float& a) const override {
         r = m_colorR;
         g = m_colorG;
         b = m_colorB;
@@ -77,35 +78,35 @@ public:
     }
     
     // 设置可见性
-    void SetVisible(bool visible);
+    void SetVisible(bool visible) override;
     
     // 获取可见性
-    bool IsVisible() const { return m_visible; }
+    bool IsVisible() const override { return m_visible; }
     
     // 更新窗口大小（用于相对位置计算）
-    void UpdateScreenSize(float screenWidth, float screenHeight);
+    void UpdateScreenSize(float screenWidth, float screenHeight) override;
     
     // 设置固定屏幕大小（用于FIT模式）
-    void SetFixedScreenSize(bool fixed);
+    void SetFixedScreenSize(bool fixed) override;
     
-    // 渲染所有组件
-    void Render(VkCommandBuffer commandBuffer, VkExtent2D extent);
+    // 渲染所有组件（使用抽象类型）
+    void Render(CommandBufferHandle commandBuffer, Extent2D extent) override;
     
     // 处理鼠标事件
-    bool HandleMouseDown(float clickX, float clickY);
-    bool HandleMouseMove(float mouseX, float mouseY);
-    void HandleMouseUp();
+    bool HandleMouseDown(float clickX, float clickY) override;
+    bool HandleMouseMove(float mouseX, float mouseY) override;
+    void HandleMouseUp() override;
     
     // 设置颜色变化回调函数
-    void SetOnColorChangedCallback(std::function<void(float, float, float, float)> callback) {
+    void SetOnColorChangedCallback(std::function<void(float, float, float, float)> callback) override {
         m_onColorChangedCallback = callback;
     }
     
     // 获取所有按钮指针（用于添加到渲染列表）
-    std::vector<Button*> GetButtons() const;
+    std::vector<IButton*> GetButtons() const override;
     
     // 获取所有滑块指针（用于添加到渲染列表）
-    std::vector<Slider*> GetSliders() const;
+    std::vector<ISlider*> GetSliders() const override;
 
 private:
     // 更新颜色显示区域
@@ -117,12 +118,12 @@ private:
     // 配置
     ColorControllerConfig m_config;
     
-    // 滑块
+    // 滑块（使用智能指针管理，通过接口访问）
     std::vector<std::unique_ptr<Slider>> m_sliders;
     std::vector<bool> m_slidersInitialized;
     
-    // 颜色显示按钮
-    Button m_colorDisplayButton;
+    // 颜色显示按钮（使用智能指针管理，通过接口访问）
+    std::unique_ptr<Button> m_colorDisplayButton;
     bool m_colorDisplayButtonInitialized;
     
     // 当前颜色（RGBA，0.0-1.0）
@@ -138,13 +139,14 @@ private:
     bool m_fixedScreenSize = false;
     
     // Vulkan对象
-    VkDevice m_device = VK_NULL_HANDLE;
-    VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
-    VkCommandPool m_commandPool = VK_NULL_HANDLE;
-    VkQueue m_graphicsQueue = VK_NULL_HANDLE;
-    VkRenderPass m_renderPass = VK_NULL_HANDLE;
-    VkExtent2D m_swapchainExtent = {};
-    TextRenderer* m_textRenderer = nullptr;
+    // 渲染设备对象（使用抽象类型，在实现层转换为Vulkan类型）
+    DeviceHandle m_device = nullptr;
+    PhysicalDeviceHandle m_physicalDevice = nullptr;
+    CommandPoolHandle m_commandPool = nullptr;
+    QueueHandle m_graphicsQueue = nullptr;
+    RenderPassHandle m_renderPass = nullptr;
+    Extent2D m_swapchainExtent = {};
+    ITextRenderer* m_textRenderer = nullptr;
     
     // 颜色变化回调
     std::function<void(float, float, float, float)> m_onColorChangedCallback;

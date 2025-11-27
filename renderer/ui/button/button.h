@@ -4,11 +4,12 @@
 #include <memory>         // 2. 系统头文件
 #include <string>         // 2. 系统头文件
 
+#include "core/interfaces/ibutton.h"  // 4. 项目头文件（接口）
 #include "core/types/render_types.h"  // 4. 项目头文件（抽象类型）
 
 // 前向声明
 class IRenderContext;
-class TextRenderer;
+class ITextRenderer;
 namespace renderer { namespace texture { class Texture; } }
 
 // Scaled 模式的拉伸参数（前向声明，实际定义在 core/stretch_params.h，已废弃）
@@ -150,18 +151,19 @@ struct ButtonConfig {
  * 提供完整的按钮功能，包括：
  * - 位置和大小管理（支持绝对位置和相对位置）
  * - 颜色和纹理渲染（支持纯颜色或纹理贴图）
- * - 文本渲染（可选，需要提供 TextRenderer）
+ * - 文本渲染（可选，需要提供 ITextRenderer）
  * - 点击检测和回调处理
  * - 悬停效果（可选）
  * - 多种渲染模式（传统方式和纯shader方式）
  * 
  * 设计意图：
  * - 通过依赖注入接收 IRenderContext，避免直接依赖 Vulkan 实现
+ * - 实现 IButton 接口，支持接口隔离原则
  * - 支持快速创建和配置，一行代码即可初始化
  * - 支持多种拉伸模式（Fit、Scaled、Disabled等）
  * - 资源管理使用智能指针，自动清理
  */
-class Button {
+class Button : public IButton {
 public:
     Button();
     ~Button();
@@ -174,14 +176,14 @@ public:
      * 
      * @param renderContext 渲染上下文接口（不拥有所有权，由外部管理生命周期）
      * @param config 按钮配置（位置、大小、颜色、纹理等）
-     * @param textRenderer 文字渲染器（可选，用于渲染按钮文本）
+     * @param textRenderer 文字渲染器接口（可选，用于渲染按钮文本）
      * @param usePureShader 是否使用纯shader渲染模式（默认false，使用传统方式）
      * @return 初始化成功返回true，失败返回false
      */
     bool Initialize(IRenderContext* renderContext,
                     const ButtonConfig& config,
-                    TextRenderer* textRenderer = nullptr,
-                    bool usePureShader = false);
+                    ITextRenderer* textRenderer = nullptr,
+                    bool usePureShader = false) override;
     
     /**
      * 便捷初始化方法 - 使用默认配置
@@ -189,11 +191,11 @@ public:
      * 使用默认的 ButtonConfig 快速创建按钮
      * 
      * @param renderContext 渲染上下文接口
-     * @param textRenderer 文字渲染器（可选）
+     * @param textRenderer 文字渲染器接口（可选）
      * @return 初始化成功返回true，失败返回false
      */
     bool Initialize(IRenderContext* renderContext,
-                    TextRenderer* textRenderer = nullptr) {
+                    ITextRenderer* textRenderer = nullptr) {
         ButtonConfig defaultConfig;
         return Initialize(renderContext, defaultConfig, textRenderer);
     }
@@ -204,7 +206,7 @@ public:
      * 释放所有渲染资源（缓冲区、管线、描述符等）
      * 应在按钮不再使用时调用，防止资源泄漏
      */
-    void Cleanup();
+    void Cleanup() override;
     
     /**
      * 设置按钮位置（窗口坐标，Y向下，原点在左上角）
@@ -212,7 +214,7 @@ public:
      * @param x X坐标（像素）
      * @param y Y坐标（像素）
      */
-    void SetPosition(float x, float y) { 
+    void SetPosition(float x, float y) override { 
         m_x = x; m_y = y; 
         m_useRelativePosition = false;
     }
@@ -223,7 +225,7 @@ public:
      * @param width 宽度（像素）
      * @param height 高度（像素）
      */
-    void SetSize(float width, float height);
+    void SetSize(float width, float height) override;
     
     /**
      * 设置按钮边界（位置和大小）
@@ -233,7 +235,7 @@ public:
      * @param width 宽度（像素）
      * @param height 高度（像素）
      */
-    void SetBounds(float x, float y, float width, float height) {
+    void SetBounds(float x, float y, float width, float height) override {
         m_x = x; m_y = y; m_width = width; m_height = height;
         m_useRelativePosition = false;
     }
@@ -248,7 +250,7 @@ public:
      * @param b 蓝色分量（0.0-1.0）
      * @param a 透明度分量（0.0-1.0，默认1.0）
      */
-    void SetColor(float r, float g, float b, float a = 1.0f);
+    void SetColor(float r, float g, float b, float a = 1.0f) override;
     
     /**
      * 设置纹理路径（如果设置纹理，将使用纹理而不是颜色）
@@ -257,14 +259,14 @@ public:
      * 
      * @param texturePath 纹理文件路径
      */
-    void SetTexture(const std::string& texturePath);
+    void SetTexture(const std::string& texturePath) override;
     
     /**
      * 设置按钮文本（需要先设置TextRenderer）
      * 
      * @param text 要显示的文本内容
      */
-    void SetText(const std::string& text) {
+    void SetText(const std::string& text) override {
         m_text = text;
         m_enableText = !text.empty();
     }
@@ -277,7 +279,7 @@ public:
      * @param b 蓝色分量（0.0-1.0）
      * @param a 透明度分量（0.0-1.0，默认1.0）
      */
-    void SetTextColor(float r, float g, float b, float a = 1.0f) {
+    void SetTextColor(float r, float g, float b, float a = 1.0f) override {
         m_textColorR = r; m_textColorG = g; m_textColorB = b; m_textColorA = a;
     }
     
@@ -293,9 +295,9 @@ public:
     /**
      * 设置文字渲染器（用于渲染按钮文本）
      * 
-     * @param textRenderer 文字渲染器指针（不拥有所有权，由外部管理生命周期）
+     * @param textRenderer 文字渲染器接口指针（不拥有所有权，由外部管理生命周期）
      */
-    void SetTextRenderer(TextRenderer* textRenderer) {
+    void SetTextRenderer(ITextRenderer* textRenderer) override {
         m_textRenderer = textRenderer;
     }
     
@@ -310,7 +312,7 @@ public:
      * @param screenWidth 屏幕宽度（可选，如果提供则立即更新位置）
      * @param screenHeight 屏幕高度（可选，如果提供则立即更新位置）
      */
-    void SetRelativePosition(float relX, float relY, float screenWidth = 0.0f, float screenHeight = 0.0f) {
+    void SetRelativePosition(float relX, float relY, float screenWidth = 0.0f, float screenHeight = 0.0f) override {
         m_relativeX = relX;
         m_relativeY = relY;
         m_useRelativePosition = true;
@@ -331,7 +333,7 @@ public:
      * @param screenWidth 新的屏幕宽度
      * @param screenHeight 新的屏幕高度
      */
-    void UpdateScreenSize(float screenWidth, float screenHeight);
+    void UpdateScreenSize(float screenWidth, float screenHeight) override;
     
     /**
      * 设置固定screenSize模式（用于FIT模式，UI不响应窗口变化）
@@ -340,7 +342,7 @@ public:
      * 
      * @param fixed true表示固定大小，false表示响应窗口变化
      */
-    void SetFixedScreenSize(bool fixed) {
+    void SetFixedScreenSize(bool fixed) override {
         m_fixedScreenSize = fixed;
     }
     
@@ -348,64 +350,64 @@ public:
      * 获取按钮X坐标
      * @return X坐标（像素）
      */
-    float GetX() const { return m_x; }
+    float GetX() const override { return m_x; }
     
     /**
      * 获取按钮Y坐标
      * @return Y坐标（像素）
      */
-    float GetY() const { return m_y; }
+    float GetY() const override { return m_y; }
     
     /**
      * 获取按钮宽度
      * @return 宽度（像素）
      */
-    float GetWidth() const { return m_width; }
+    float GetWidth() const override { return m_width; }
     
     /**
      * 获取按钮高度
      * @return 高度（像素）
      */
-    float GetHeight() const { return m_height; }
+    float GetHeight() const override { return m_height; }
     
     /**
      * 设置渲染层级（z-index，数值越大越在上层）
      * 
      * @param zIndex 层级值，数值越大越在上层
      */
-    void SetZIndex(int zIndex) { m_zIndex = zIndex; }
+    void SetZIndex(int zIndex) override { m_zIndex = zIndex; }
     
     /**
      * 获取渲染层级
      * @return 层级值
      */
-    int GetZIndex() const { return m_zIndex; }
+    int GetZIndex() const override { return m_zIndex; }
     
     /**
      * 设置可见性（是否渲染）
      * 
      * @param visible true表示可见（渲染），false表示不可见（不渲染）
      */
-    void SetVisible(bool visible) { m_visible = visible; }
+    void SetVisible(bool visible) override { m_visible = visible; }
     
     /**
      * 获取可见性
      * @return true表示可见，false表示不可见
      */
-    bool IsVisible() const { return m_visible; }
+    bool IsVisible() const override { return m_visible; }
     
     /**
      * 设置按钮形状类型
      * 
      * @param shapeType 形状类型：0=矩形，1=圆形
      */
-    void SetShapeType(int shapeType) { m_shapeType = shapeType; }
+    void SetShapeType(int shapeType) override { m_shapeType = shapeType; }
     
     /**
      * 获取按钮形状类型
      * @return 形状类型：0=矩形，1=圆形
      */
-    int GetShapeType() const { return m_shapeType; }
+    int GetShapeType() const override { return m_shapeType; }
     
     /**
      * 设置悬停效果（启用/禁用、效果类型、效果强度）
@@ -414,7 +416,7 @@ public:
      * @param effectType 效果类型：0=变暗，1=变淡
      * @param strength 效果强度（0.0-1.0），默认0.2（20%）
      */
-    void SetHoverEffect(bool enable, int effectType = 0, float strength = 0.2f) {
+    void SetHoverEffect(bool enable, int effectType = 0, float strength = 0.2f) override {
         m_enableHoverEffect = enable;
         m_hoverEffectType = effectType;
         m_hoverEffectStrength = strength;
@@ -429,7 +431,7 @@ public:
      * 
      * @return true表示已加载纹理，false表示未加载纹理
      */
-    bool HasTexture() const;
+    bool HasTexture() const override;
     
     /**
      * 检测点是否在按钮内（窗口坐标）
@@ -441,7 +443,7 @@ public:
      * @param py 点的Y坐标（窗口坐标）
      * @return true表示点在按钮内，false表示点在按钮外
      */
-    bool IsPointInside(float px, float py) const;
+    bool IsPointInside(float px, float py) const override;
     
     /**
      * 渲染按钮到命令缓冲区（使用传统方式或纯shader方式，取决于初始化时的选择）
@@ -451,7 +453,7 @@ public:
      * @param commandBuffer 命令缓冲区句柄
      * @param extent 渲染区域大小
      */
-    void Render(CommandBufferHandle commandBuffer, Extent2D extent);
+    void Render(CommandBufferHandle commandBuffer, Extent2D extent) override;
     
     /**
      * 纯shader方式渲染按钮（在片段着色器中判断像素是否在按钮区域内）
@@ -475,7 +477,7 @@ public:
      * @param scissor 裁剪区域参数（可选）
      */
     void RenderText(CommandBufferHandle commandBuffer, Extent2D extent, 
-                    const void* viewport = nullptr, const void* scissor = nullptr);
+                    const void* viewport = nullptr, const void* scissor = nullptr) override;
     
     /**
      * 设置点击回调函数
@@ -484,7 +486,7 @@ public:
      * 
      * @param callback 回调函数，无参数无返回值
      */
-    void SetOnClickCallback(std::function<void()> callback) {
+    void SetOnClickCallback(std::function<void()> callback) override {
         m_onClickCallback = callback;
     }
     
@@ -497,7 +499,7 @@ public:
      * @param clickY 点击的Y坐标（窗口坐标）
      * @return true表示点击了按钮，false表示未点击按钮
      */
-    bool HandleClick(float clickX, float clickY) {
+    bool HandleClick(float clickX, float clickY) override {
         if (IsPointInside(clickX, clickY)) {
             if (m_onClickCallback) {
                 m_onClickCallback();
@@ -516,7 +518,7 @@ public:
      * @param mouseY 鼠标的Y坐标（窗口坐标）
      * @return true表示鼠标在按钮上，false表示鼠标不在按钮上
      */
-    bool HandleMouseMove(float mouseX, float mouseY) {
+    bool HandleMouseMove(float mouseX, float mouseY) override {
         if (m_enableHoverEffect) {
             bool wasHovering = m_isHovering;
             m_isHovering = IsPointInside(mouseX, mouseY);
@@ -537,7 +539,7 @@ public:
      * @param newWidth 新的窗口宽度
      * @param newHeight 新的窗口高度
      */
-    void UpdateForWindowResize(float newWidth, float newHeight) {
+    void UpdateForWindowResize(float newWidth, float newHeight) override {
         UpdateScreenSize(newWidth, newHeight);
     }
     
@@ -547,7 +549,7 @@ public:
      * @deprecated Scaled模式已废弃，建议使用其他拉伸模式
      * @param params 拉伸参数
      */
-    void SetStretchParams(const struct StretchParams& params);
+    void SetStretchParams(const struct StretchParams& params) override;
 
 private:
     // 更新相对位置
@@ -693,7 +695,7 @@ private:
     float m_textColorG = 1.0f;
     float m_textColorB = 1.0f;
     float m_textColorA = 1.0f;
-    TextRenderer* m_textRenderer = nullptr;
+    ITextRenderer* m_textRenderer = nullptr;
     
     // 渲染层级（z-index，数值越大越在上层）
     int m_zIndex = 0;
